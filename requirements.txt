@@ -1,2 +1,4 @@
 xformers==0.0.30
 torch==2.7.0
+diffusers==0.33.1
+wandb==0.19.11
