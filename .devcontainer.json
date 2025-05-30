@@ -10,7 +10,8 @@
 				"ms-toolsai.jupyter",
 				"rioj7.command-variable",
 				"ritwickdey.LiveServer",
-				"magicstack.MagicPython"
+				"magicstack.MagicPython",
+				"ms-toolsai.vscode-jupyter-powertoys",
 			]
 		}
 	},

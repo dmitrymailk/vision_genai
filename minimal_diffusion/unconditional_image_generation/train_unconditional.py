@@ -65,7 +65,7 @@ def parse_args():
     parser.add_argument(
         "--dataset_name",
         type=str,
-        default=None,
+        default="huggan/flowers-102-categories",
         help=(
             "The name of the Dataset (from the HuggingFace hub) to train on (could be your own, possibly private,"
             " dataset). It can also be a path pointing to a local copy of a dataset in your filesystem,"
@@ -603,7 +603,7 @@ def main(args):
     )
 
     if args.use_ema:
-        ema_model.to(accelerator.device)
+        ema_model.to(accelerator.device)  #
 
     # We need to initialize the trackers we use, and also store our configuration.
     # The trackers initializes automatically on the main process.
