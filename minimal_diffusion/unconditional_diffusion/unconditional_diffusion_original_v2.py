@@ -1,6 +1,7 @@
 """
-minimal version
+annotated full version
 """
+
 import os
 import math
 
@@ -2030,39 +2031,58 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         time_embed_dim = time_embedding_dim or block_out_channels[0] * 4
 
         # Check inputs
+        # len(down_block_types)=6 ('DownBlock2D', 'DownBlock2D', 'DownBlock2D', 'DownBlock2D', 'AttnDownBlock2D', 'DownBlock2D')
+        # len(up_block_types)=6 ('UpBlock2D', 'AttnUpBlock2D', 'UpBlock2D', 'UpBlock2D', 'UpBlock2D', 'UpBlock2D')
         if len(down_block_types) != len(up_block_types):
             raise ValueError(
                 f"Must provide the same number of `down_block_types` as `up_block_types`. `down_block_types`: {down_block_types}. `up_block_types`: {up_block_types}."
             )
-
+        # len(block_out_channels)=6
+        # block_out_channels=(128, 128, 256, 256, 512, 512)
+        # down_block_types=('DownBlock2D', 'DownBlock2D', 'DownBlock2D', 'DownBlock2D', 'AttnDownBlock2D', 'DownBlock2D')
         if len(block_out_channels) != len(down_block_types):
             raise ValueError(
                 f"Must provide the same number of `block_out_channels` as `down_block_types`. `block_out_channels`: {block_out_channels}. `down_block_types`: {down_block_types}."
             )
 
         # input
+        # in_channels=3
+        # block_out_channels[0]=128
+        # kernel_size=3
+        # padding=(1, 1)
         self.conv_in = nn.Conv2d(
-            in_channels, block_out_channels[0], kernel_size=3, padding=(1, 1)
+            in_channels,
+            block_out_channels[0],
+            kernel_size=3,
+            padding=(1, 1),
         )
 
         # time
+        # time_embedding_type=positional
         if time_embedding_type == "fourier":
             self.time_proj = GaussianFourierProjection(
                 embedding_size=block_out_channels[0], scale=16
             )
             timestep_input_dim = 2 * block_out_channels[0]
         elif time_embedding_type == "positional":
+            # block_out_channels[0]=128
+            # flip_sin_to_cos=True
+            # freq_shift=0
             self.time_proj = Timesteps(
                 block_out_channels[0], flip_sin_to_cos, freq_shift
             )
+            # timestep_input_dim=128
             timestep_input_dim = block_out_channels[0]
         elif time_embedding_type == "learned":
             self.time_proj = nn.Embedding(num_train_timesteps, block_out_channels[0])
             timestep_input_dim = block_out_channels[0]
-
+        # timestep_input_dim=128
+        # time_embed_dim=512
         self.time_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim)
 
         # class embedding
+        # class_embed_type=None
+        # num_class_embeds=None
         if class_embed_type is None and num_class_embeds is not None:
             self.class_embedding = nn.Embedding(num_class_embeds, time_embed_dim)
         elif class_embed_type == "timestep":
@@ -2070,6 +2090,8 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         elif class_embed_type == "identity":
             self.class_embedding = nn.Identity(time_embed_dim, time_embed_dim)
         else:
+            # HERE
+            # class_embedding=None
             self.class_embedding = None
 
         self.down_blocks = nn.ModuleList([])
@@ -2077,12 +2099,28 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         self.up_blocks = nn.ModuleList([])
 
         # down
+        # output_channel=128
+        # down_block_types=('DownBlock2D', 'DownBlock2D', 'DownBlock2D', 'DownBlock2D', 'AttnDownBlock2D', 'DownBlock2D')
         output_channel = block_out_channels[0]
         for i, down_block_type in enumerate(down_block_types):
             input_channel = output_channel
             output_channel = block_out_channels[i]
             is_final_block = i == len(block_out_channels) - 1
 
+            # first step
+            # num_layers=layers_per_block=2
+            # in_channels=input_channel=128
+            # out_channels=output_channel=128
+            # temb_channels=time_embed_dim=512
+            # add_downsample=not is_final_block=True
+            # resnet_eps=norm_eps=1e-05
+            # resnet_act_fn=act_fn='silu'
+            # resnet_groups=norm_num_groups=32
+            # attention_head_dim=attention_head_dim=8
+            # downsample_padding=downsample_padding=1
+            # resnet_time_scale_shift=resnet_time_scale_shift='default'
+            # downsample_type=downsample_type='conv'
+            # dropout=dropout=0.0
             down_block = get_down_block(
                 down_block_type,
                 num_layers=layers_per_block,
@@ -2106,9 +2144,21 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             self.down_blocks.append(down_block)
 
         # mid
+        # mid_block_type='UNetMidBlock2D'
         if mid_block_type is None:
             self.mid_block = None
         else:
+            # in_channels=block_out_channels[-1]=512
+            # temb_channels=time_embed_dim=512
+            # dropout=dropout=0.0
+            # resnet_eps=norm_eps=1e-05
+            # resnet_act_fn=act_fn='silu'
+            # output_scale_factor=mid_block_scale_factor=1
+            # resnet_time_scale_shift=resnet_time_scale_shift=
+            # attention_head_dim=attention_head_dim='default'
+            # resnet_groups=norm_num_groups=32
+            # attn_groups=attn_norm_num_groups=None
+            # add_attention=add_attention=True
             self.mid_block = UNetMidBlock2D(
                 in_channels=block_out_channels[-1],
                 temb_channels=time_embed_dim,
@@ -2128,7 +2178,11 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             )
 
         # up
+        # block_out_channels=(128, 128, 256, 256, 512, 512)
+        # reversed_block_out_channels=[512, 512, 256, 256, 128, 128]
         reversed_block_out_channels = list(reversed(block_out_channels))
+        # reversed_block_out_channels[0]=512
+        # output_channel=512
         output_channel = reversed_block_out_channels[0]
         for i, up_block_type in enumerate(up_block_types):
             prev_output_channel = output_channel
@@ -2139,6 +2193,20 @@ class UNet2DModel(ModelMixin, ConfigMixin):
 
             is_final_block = i == len(block_out_channels) - 1
 
+            # up_block_type='UpBlock2D'
+            # num_layers=layers_per_block + 1=3
+            # in_channels=input_channel=128
+            # out_channels=output_channel=128
+            # prev_output_channel=prev_output_channel=128
+            # temb_channels=time_embed_dim=512
+            # add_upsample=not is_final_block=False
+            # resnet_eps=norm_eps=1e-05
+            # resnet_act_fn=act_fn='silu'
+            # resnet_groups=norm_num_groups=32
+            # attention_head_dim=attention_head_dim=8
+            # resnet_time_scale_shift=resnet_time_scale_shift='default'
+            # upsample_type=upsample_type='conv'
+            # dropout=dropout=
             up_block = get_up_block(
                 up_block_type,
                 num_layers=layers_per_block + 1,
@@ -2162,17 +2230,31 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             self.up_blocks.append(up_block)
 
         # out
+        # norm_num_groups=32
+        # num_groups_out=32
         num_groups_out = (
             norm_num_groups
             if norm_num_groups is not None
             else min(block_out_channels[0] // 4, 32)
         )
+        # num_channels=block_out_channels[0]=128
+        # num_groups=num_groups_out=32
+        # eps=norm_eps=1e-05
         self.conv_norm_out = nn.GroupNorm(
-            num_channels=block_out_channels[0], num_groups=num_groups_out, eps=norm_eps
+            num_channels=block_out_channels[0],
+            num_groups=num_groups_out,
+            eps=norm_eps,
         )
         self.conv_act = nn.SiLU()
+        # block_out_channels[0]=128,
+        # out_channels=3,
+        # kernel_size=3,
+        # padding=1,
         self.conv_out = nn.Conv2d(
-            block_out_channels[0], out_channels, kernel_size=3, padding=1
+            block_out_channels[0],
+            out_channels,
+            kernel_size=3,
+            padding=1,
         )
 
     def forward(
@@ -2200,7 +2282,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
                 returned where the first element is the sample tensor.
         """
         # 0. center input if necessary
-        # False
+        # self.config.center_input_sample=False
         if self.config.center_input_sample:
             sample = 2 * sample - 1.0
 
@@ -2218,18 +2300,23 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             timesteps = timesteps[None].to(sample.device)
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
+        # timesteps=tensor([781, 853, 596, 787, 581, 787, 421,  18, 535, 545, 568, 373, 693, 402, 131, 972], device='cuda:0')
+        # sample.shape=torch.Size([16, 3, 64, 64])
         timesteps = timesteps * torch.ones(
             sample.shape[0], dtype=timesteps.dtype, device=timesteps.device
         )
-
+        # t_emb.shape=torch.Size([16, 128])
         t_emb = self.time_proj(timesteps)
 
         # timesteps does not contain any weights and will always return f32 tensors
         # but time_embedding might actually be running in fp16. so we need to cast here.
         # there might be better ways to encapsulate this.
         t_emb = t_emb.to(dtype=self.dtype)
+        # emb.shape=torch.Size([16, 512])
         emb = self.time_embedding(t_emb)
 
+        # self.class_embedding=None
+        # class_labels=None
         if self.class_embedding is not None:
             if class_labels is None:
                 raise ValueError(
@@ -2247,11 +2334,134 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             )
 
         # 2. pre-process
+        # sample.shape=torch.Size([16, 3, 64, 64])
+        # skip_sample.shape=torch.Size([16, 3, 64, 64])
         skip_sample = sample
+        # sample.shape=torch.Size([16, 128, 64, 64])
         sample = self.conv_in(sample)
 
         # 3. down
         down_block_res_samples = (sample,)
+        # self.down_blocks=ModuleList(
+        # (0-1): 2 x DownBlock2D(
+        #     (resnets): ModuleList(
+        #     (0-1): 2 x ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 128, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=128, bias=True)
+        #         (norm2): GroupNorm(32, 128, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #     )
+        #     )
+        #     (downsamplers): ModuleList(
+        #     (0): Downsample2D(
+        #         (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+        #     )
+        #     )
+        # )
+        # (2): DownBlock2D(
+        #     (resnets): ModuleList(
+        #     (0): ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 128, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=256, bias=True)
+        #         (norm2): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(128, 256, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     (1): ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=256, bias=True)
+        #         (norm2): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #     )
+        #     )
+        #     (downsamplers): ModuleList(
+        #     (0): Downsample2D(
+        #         (conv): Conv2d(256, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+        #     )
+        #     )
+        # )
+        # (3): DownBlock2D(
+        #     (resnets): ModuleList(
+        #     (0-1): 2 x ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=256, bias=True)
+        #         (norm2): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #     )
+        #     )
+        #     (downsamplers): ModuleList(
+        #     (0): Downsample2D(
+        #         (conv): Conv2d(256, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+        #     )
+        #     )
+        # )
+        # (4): AttnDownBlock2D(
+        #     (attentions): ModuleList(
+        #     (0-1): 2 x Attention(
+        #         (group_norm): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (to_q): Linear(in_features=512, out_features=512, bias=True)
+        #         (to_k): Linear(in_features=512, out_features=512, bias=True)
+        #         (to_v): Linear(in_features=512, out_features=512, bias=True)
+        #         (to_out): ModuleList(
+        #         (0): Linear(in_features=512, out_features=512, bias=True)
+        #         (1): Dropout(p=0.0, inplace=False)
+        #         )
+        #     )
+        #     )
+        #     (resnets): ModuleList(
+        #     (0): ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=512, bias=True)
+        #         (norm2): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(256, 512, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     (1): ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=512, bias=True)
+        #         (norm2): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #     )
+        #     )
+        #     (downsamplers): ModuleList(
+        #     (0): Downsample2D(
+        #         (conv): Conv2d(512, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+        #     )
+        #     )
+        # )
+        # (5): DownBlock2D(
+        #     (resnets): ModuleList(
+        #     (0-1): 2 x ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=512, bias=True)
+        #         (norm2): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #     )
+        #     )
+        # )
+        # )
+
         for downsample_block in self.down_blocks:
             if hasattr(downsample_block, "skip_conv"):
                 sample, res_samples, skip_sample = downsample_block(
@@ -2263,10 +2473,198 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             down_block_res_samples += res_samples
 
         # 4. mid
+        # self.mid_block=UNetMidBlock2D(
+        #   (attentions): ModuleList(
+        #     (0): Attention(
+        #       (group_norm): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #       (to_q): Linear(in_features=512, out_features=512, bias=True)
+        #       (to_k): Linear(in_features=512, out_features=512, bias=True)
+        #       (to_v): Linear(in_features=512, out_features=512, bias=True)
+        #       (to_out): ModuleList(
+        #         (0): Linear(in_features=512, out_features=512, bias=True)
+        #         (1): Dropout(p=0.0, inplace=False)
+        #       )
+        #     )
+        #   )
+        #   (resnets): ModuleList(
+        #     (0-1): 2 x ResnetBlock2D(
+        #       (norm1): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #       (conv1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #       (time_emb_proj): Linear(in_features=512, out_features=512, bias=True)
+        #       (norm2): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #       (dropout): Dropout(p=0.0, inplace=False)
+        #       (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #       (nonlinearity): SiLU()
+        #     )
+        #   )
+        # )
         if self.mid_block is not None:
             sample = self.mid_block(sample, emb)
 
         # 5. up
+        # self.up_blocks=ModuleList(
+        # (0): UpBlock2D(
+        #     (resnets): ModuleList(
+        #     (0-2): 3 x ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 1024, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(1024, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=512, bias=True)
+        #         (norm2): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(1024, 512, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     )
+        #     (upsamplers): ModuleList(
+        #     (0): Upsample2D(
+        #         (conv): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #     )
+        #     )
+        # )
+        # (1): AttnUpBlock2D(
+        #     (attentions): ModuleList(
+        #     (0-2): 3 x Attention(
+        #         (group_norm): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (to_q): Linear(in_features=512, out_features=512, bias=True)
+        #         (to_k): Linear(in_features=512, out_features=512, bias=True)
+        #         (to_v): Linear(in_features=512, out_features=512, bias=True)
+        #         (to_out): ModuleList(
+        #         (0): Linear(in_features=512, out_features=512, bias=True)
+        #         (1): Dropout(p=0.0, inplace=False)
+        #         )
+        #     )
+        #     )
+        #     (resnets): ModuleList(
+        #     (0-1): 2 x ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 1024, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(1024, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=512, bias=True)
+        #         (norm2): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(1024, 512, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     (2): ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 768, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(768, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=512, bias=True)
+        #         (norm2): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(768, 512, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     )
+        #     (upsamplers): ModuleList(
+        #     (0): Upsample2D(
+        #         (conv): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #     )
+        #     )
+        # )
+        # (2): UpBlock2D(
+        #     (resnets): ModuleList(
+        #     (0): ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 768, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(768, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=256, bias=True)
+        #         (norm2): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(768, 256, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     (1-2): 2 x ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(512, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=256, bias=True)
+        #         (norm2): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(512, 256, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     )
+        #     (upsamplers): ModuleList(
+        #     (0): Upsample2D(
+        #         (conv): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #     )
+        #     )
+        # )
+        # (3): UpBlock2D(
+        #     (resnets): ModuleList(
+        #     (0-1): 2 x ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 512, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(512, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=256, bias=True)
+        #         (norm2): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(512, 256, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     (2): ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 384, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(384, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=256, bias=True)
+        #         (norm2): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(384, 256, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     )
+        #     (upsamplers): ModuleList(
+        #     (0): Upsample2D(
+        #         (conv): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #     )
+        #     )
+        # )
+        # (4): UpBlock2D(
+        #     (resnets): ModuleList(
+        #     (0): ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 384, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(384, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=128, bias=True)
+        #         (norm2): GroupNorm(32, 128, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(384, 128, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     (1-2): 2 x ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=128, bias=True)
+        #         (norm2): GroupNorm(32, 128, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(256, 128, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     )
+        #     (upsamplers): ModuleList(
+        #     (0): Upsample2D(
+        #         (conv): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #     )
+        #     )
+        # )
+        # (5): UpBlock2D(
+        #     (resnets): ModuleList(
+        #     (0-2): 3 x ResnetBlock2D(
+        #         (norm1): GroupNorm(32, 256, eps=1e-05, affine=True)
+        #         (conv1): Conv2d(256, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (time_emb_proj): Linear(in_features=512, out_features=128, bias=True)
+        #         (norm2): GroupNorm(32, 128, eps=1e-05, affine=True)
+        #         (dropout): Dropout(p=0.0, inplace=False)
+        #         (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        #         (nonlinearity): SiLU()
+        #         (conv_shortcut): Conv2d(256, 128, kernel_size=(1, 1), stride=(1, 1))
+        #     )
+        #     )
+        # )
+        # )
         skip_sample = None
         for upsample_block in self.up_blocks:
             res_samples = down_block_res_samples[-len(upsample_block.resnets) :]
@@ -2282,19 +2680,24 @@ class UNet2DModel(ModelMixin, ConfigMixin):
                 sample = upsample_block(sample, res_samples, emb)
 
         # 6. post-process
+        # sample.shape=torch.Size([16, 128, 64, 64])
         sample = self.conv_norm_out(sample)
+        # sample.shape=torch.Size([16, 128, 64, 64])
         sample = self.conv_act(sample)
+        # sample.shape=torch.Size([16, 3, 64, 64])
         sample = self.conv_out(sample)
 
+        # skip_sample=None
         if skip_sample is not None:
             sample += skip_sample
 
+        # self.config.time_embedding_type='positional'
         if self.config.time_embedding_type == "fourier":
             timesteps = timesteps.reshape(
                 (sample.shape[0], *([1] * len(sample.shape[1:])))
             )
             sample = sample / timesteps
-
+        # not return_dict=False
         if not return_dict:
             return (sample,)
 
