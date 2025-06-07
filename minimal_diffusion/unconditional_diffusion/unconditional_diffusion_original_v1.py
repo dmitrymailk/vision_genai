@@ -1,9 +1,12 @@
 """
 one file full version
 """
+
 import os
 import math
 
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import torch
 import torch.nn.functional as F
 from accelerate import Accelerator
