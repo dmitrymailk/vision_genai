@@ -3,7 +3,8 @@ annotated full version
 """
 
 import os
-import math
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 import torch
 import torch.nn.functional as F
@@ -1504,11 +1505,21 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         steps_offset: int = 0,
         rescale_betas_zero_snr: bool = False,
     ):
+        # trained_betas=None
+        # beta_schedule='linear'
         if trained_betas is not None:
             self.betas = torch.tensor(trained_betas, dtype=torch.float32)
         elif beta_schedule == "linear":
+            # beta_start=0.0001
+            # beta_end=0.02
+            # num_train_timesteps=1000
+            # self.betas=torch.Size([1000])
+            # self.betas[:5]=tensor([1.0000e-04, 1.1992e-04, 1.3984e-04, 1.5976e-04, 1.7968e-04])
             self.betas = torch.linspace(
-                beta_start, beta_end, num_train_timesteps, dtype=torch.float32
+                beta_start,
+                beta_end,
+                num_train_timesteps,
+                dtype=torch.float32,
             )
         elif beta_schedule == "scaled_linear":
             # this schedule is very specific to the latent diffusion model.
@@ -1534,10 +1545,12 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
             )
 
         # Rescale for zero SNR
+        # rescale_betas_zero_snr=False
         if rescale_betas_zero_snr:
             self.betas = rescale_zero_terminal_snr(self.betas)
-
+        #  self.alphas=torch.Size([1000])
         self.alphas = 1.0 - self.betas
+        # self.alphas_cumprod=torch.Size([1000])
         self.alphas_cumprod = torch.cumprod(self.alphas, dim=0)
         self.one = torch.tensor(1.0)
 
@@ -1547,10 +1560,12 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         # setable values
         self.custom_timesteps = False
         self.num_inference_steps = None
+        # self.timesteps[:10]=tensor([999, 998, 997, 996, 995, 994, 993, 992, 991, 990])
+        # self.timesteps.shape=torch.Size([1000])
         self.timesteps = torch.from_numpy(
             np.arange(0, num_train_timesteps)[::-1].copy()
         )
-
+        # self.variance_type=variance_type='fixed_small'
         self.variance_type = variance_type
 
     def scale_model_input(
@@ -1593,11 +1608,14 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                 `num_inference_steps` must be `None`.
 
         """
+        # num_inference_steps=1000
+        # device='cuda'
+        # timesteps=None
         if num_inference_steps is not None and timesteps is not None:
             raise ValueError(
                 "Can only pass one of `num_inference_steps` or `custom_timesteps`."
             )
-
+        # timesteps=None
         if timesteps is not None:
             for i in range(1, len(timesteps)):
                 if timesteps[i] >= timesteps[i - 1]:
@@ -1610,7 +1628,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
 
             timesteps = np.array(timesteps, dtype=np.int64)
             self.custom_timesteps = True
-        else:
+        else:  # num_inference_steps > self.config.num_train_timesteps=False
             if num_inference_steps > self.config.num_train_timesteps:
                 raise ValueError(
                     f"`num_inference_steps`: {num_inference_steps} cannot be larger than `self.config.train_timesteps`:"
@@ -1622,6 +1640,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
             self.custom_timesteps = False
 
             # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
+            # self.config.timestep_spacing='leading'
             if self.config.timestep_spacing == "linspace":
                 timesteps = (
                     np.linspace(
@@ -1631,7 +1650,9 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                     .copy()
                     .astype(np.int64)
                 )
+            # THIS CONDITION
             elif self.config.timestep_spacing == "leading":
+                # step_ratio=1
                 step_ratio = self.config.num_train_timesteps // self.num_inference_steps
                 # creates integer timesteps by multiplying by ratio
                 # casting to int to avoid issues when num_inference_step is power of 3
@@ -1641,6 +1662,8 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                     .copy()
                     .astype(np.int64)
                 )
+                # timesteps.shape=(1000,)
+                # self.config.steps_offset=0
                 timesteps += self.config.steps_offset
             elif self.config.timestep_spacing == "trailing":
                 step_ratio = self.config.num_train_timesteps / self.num_inference_steps
@@ -1654,12 +1677,22 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                 raise ValueError(
                     f"{self.config.timestep_spacing} is not supported. Please make sure to choose one of 'linspace', 'leading' or 'trailing'."
                 )
-
+        # self.timesteps.shape=(1000,)
+        # timesteps[:10]=array([999, 998, 997, 996, 995, 994, 993, 992, 991, 990])
+        # и так далее до 0
         self.timesteps = torch.from_numpy(timesteps).to(device)
 
     def _get_variance(self, t, predicted_variance=None, variance_type=None):
+        # t=
+        # predicted_variance=
+        # variance_type=
+        # prev_t=
         prev_t = self.previous_timestep(t)
 
+        # self.alphas_cumprod=torch.Size([1000])
+        # alpha_prod_t=tensor(4.0358e-05, device='cuda:0')
+        # alpha_prod_t_prev=tensor(4.1182e-05, device='cuda:0')
+        # current_beta_t=tensor(0.0200, device='cuda:0')
         alpha_prod_t = self.alphas_cumprod[t]
         alpha_prod_t_prev = self.alphas_cumprod[prev_t] if prev_t >= 0 else self.one
         current_beta_t = 1 - alpha_prod_t / alpha_prod_t_prev
@@ -1667,15 +1700,20 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         # For t > 0, compute predicted variance βt (see formula (6) and (7) from https://arxiv.org/pdf/2006.11239.pdf)
         # and sample from it to get previous sample
         # x_{t-1} ~ N(pred_prev_sample, variance) == add variance to pred_sample
+        # variance=tensor(0.0200, device='cuda:0')
         variance = (1 - alpha_prod_t_prev) / (1 - alpha_prod_t) * current_beta_t
 
         # we always take the log of variance, so clamp it to ensure it's not 0
         variance = torch.clamp(variance, min=1e-20)
 
+        # variance_type=None
+        # THIS BRANCH
         if variance_type is None:
             variance_type = self.config.variance_type
 
         # hacks - were probably added for training stability
+        # variance_type='fixed_small'
+        # THIS BRANCH
         if variance_type == "fixed_small":
             variance = variance
         # for rl-diffuser https://arxiv.org/abs/2205.09991
@@ -1749,6 +1787,8 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         Args:
             model_output (`torch.Tensor`):
                 The direct output from learned diffusion model.
+                шум предсказанный моделью, который нам нужно вычесть из текущего
+                sample
             timestep (`float`):
                 The current discrete timestep in the diffusion chain.
             sample (`torch.Tensor`):
@@ -1764,10 +1804,14 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                 tuple is returned where the first element is the sample tensor.
 
         """
+        # timestep=tensor(999)
+        # t=tensor(999)
         t = timestep
-
+        # prev_t=tensor(998)
         prev_t = self.previous_timestep(t)
-
+        # model_output.shape[1]=3
+        # sample.shape[1]=3
+        # sample.shape[1]*2=6
         if model_output.shape[1] == sample.shape[1] * 2 and self.variance_type in [
             "learned",
             "learned_range",
@@ -1775,10 +1819,15 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
             model_output, predicted_variance = torch.split(
                 model_output, sample.shape[1], dim=1
             )
+            # THIS BRANCH
         else:
+            # predicted_variance=None
             predicted_variance = None
 
         # 1. compute alphas, betas
+        # self.alphas_cumprod=torch.Size([1000])
+        # alpha_prod_t=tensor(4.0358e-05, device='cuda:0')
+        # alpha_prod_t_prev=tensor(4.1182e-05, device='cuda:0')
         alpha_prod_t = self.alphas_cumprod[t]
         alpha_prod_t_prev = self.alphas_cumprod[prev_t] if prev_t >= 0 else self.one
         beta_prod_t = 1 - alpha_prod_t
@@ -1788,7 +1837,14 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
 
         # 2. compute predicted original sample from predicted noise also called
         # "predicted x_0" of formula (15) from https://arxiv.org/pdf/2006.11239.pdf
+        # self.config.prediction_type='epsilon'
+        # THIS BRANCH
         if self.config.prediction_type == "epsilon":
+            # sample=torch.Size([16, 3, 64, 64])
+            # beta_prod_t=tensor(1.0000, device='cuda:0')
+            # model_output=torch.Size([16, 3, 64, 64])
+            # alpha_prod_t=tensor(4.0358e-05, device='cuda:0')
+            # pred_original_sample=torch.Size([16, 3, 64, 64])
             pred_original_sample = (
                 sample - beta_prod_t ** (0.5) * model_output
             ) / alpha_prod_t ** (0.5)
@@ -1805,22 +1861,39 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
             )
 
         # 3. Clip or threshold "predicted x_0"
+        # self.config.thresholding=False
         if self.config.thresholding:
             pred_original_sample = self._threshold_sample(pred_original_sample)
+        # self.config.clip_sample=True
+        # THIS BRANCH
         elif self.config.clip_sample:
+            # self.config.clip_sample_range=1.0
             pred_original_sample = pred_original_sample.clamp(
                 -self.config.clip_sample_range, self.config.clip_sample_range
             )
 
         # 4. Compute coefficients for pred_original_sample x_0 and current sample x_t
         # See formula (7) from https://arxiv.org/pdf/2006.11239.pdf
+        # alpha_prod_t_prev
+        # current_beta_t=tensor(0.0200, device='cuda:0')
+        # beta_prod_t=tensor(1.0000, device='cuda:0')
+        # pred_original_sample_coeff=tensor(0.0001, device='cuda:0')
         pred_original_sample_coeff = (
             alpha_prod_t_prev ** (0.5) * current_beta_t
         ) / beta_prod_t
+        # current_alpha_t=tensor(0.9800, device='cuda:0')
+        # beta_prod_t_prev=tensor(1.0000, device='cuda:0')
+        # beta_prod_t=tensor(1.0000, device='cuda:0')
+        # current_sample_coeff=tensor(0.9899, device='cuda:0')
         current_sample_coeff = current_alpha_t ** (0.5) * beta_prod_t_prev / beta_prod_t
 
         # 5. Compute predicted previous sample µ_t
         # See formula (7) from https://arxiv.org/pdf/2006.11239.pdf
+        # pred_original_sample_coeff=tensor(0.0001, device='cuda:0')
+        # pred_original_sample=torch.Size([16, 3, 64, 64])
+        # current_sample_coeff=tensor(0.9899, device='cuda:0')
+        # sample=torch.Size([16, 3, 64, 64])
+        # pred_prev_sample=torch.Size([16, 3, 64, 64])
         pred_prev_sample = (
             pred_original_sample_coeff * pred_original_sample
             + current_sample_coeff * sample
@@ -1830,12 +1903,14 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         variance = 0
         if t > 0:
             device = model_output.device
+            # variance_noise
             variance_noise = randn_tensor(
                 model_output.shape,
                 generator=generator,
                 device=device,
                 dtype=model_output.dtype,
             )
+            # self.variance_type='fixed_small'
             if self.variance_type == "fixed_small_log":
                 variance = (
                     self._get_variance(t, predicted_variance=predicted_variance)
@@ -1844,11 +1919,15 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
             elif self.variance_type == "learned_range":
                 variance = self._get_variance(t, predicted_variance=predicted_variance)
                 variance = torch.exp(0.5 * variance) * variance_noise
+            # THIS BRANCH
             else:
+                # variance_noise=torch.Size([16, 3, 64, 64])
+                # predicted_variance=None
+                # t=tensor(999)
                 variance = (
                     self._get_variance(t, predicted_variance=predicted_variance) ** 0.5
                 ) * variance_noise
-
+        # pred_prev_sample=torch.Size([16, 3, 64, 64])
         pred_prev_sample = pred_prev_sample + variance
 
         if not return_dict:
@@ -1856,9 +1935,11 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                 pred_prev_sample,
                 pred_original_sample,
             )
-
+        # prev_sample=pred_prev_sample=torch.Size([16, 3, 64, 64])
+        # pred_original_sample=pred_original_sample=torch.Size([16, 3, 64, 64])
         return DDPMSchedulerOutput(
-            prev_sample=pred_prev_sample, pred_original_sample=pred_original_sample
+            prev_sample=pred_prev_sample,
+            pred_original_sample=pred_original_sample,
         )
 
     def add_noise(
@@ -1923,14 +2004,25 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         return self.config.num_train_timesteps
 
     def previous_timestep(self, timestep):
+        # timestep=tensor(999)
+        # self.custom_timesteps=False
+        # self.num_inference_steps=1000
+        # self.custom_timesteps or self.num_inference_steps=True
         if self.custom_timesteps or self.num_inference_steps:
+            # index=0
             index = (self.timesteps == timestep).nonzero(as_tuple=True)[0][0]
+            #  self.timesteps.shape[0]-1=999
+            # если индекс самый последний, значит мы достигли конца
+            # просто заглушка
+            # иначе берем следующий шаг из self.timesteps
             if index == self.timesteps.shape[0] - 1:
                 prev_t = torch.tensor(-1)
             else:
                 prev_t = self.timesteps[index + 1]
         else:
             prev_t = timestep - 1
+        # prev_t=tensor(998)
+        # timestep=tensor(999)
         return prev_t
 
 
@@ -2781,6 +2873,11 @@ class DDPMPipeline(DiffusionPipeline):
                 returned where the first element is a list with the generated images
         """
         # Sample gaussian noise to begin loop
+        # self.unet.config.sample_size=64
+        # batch_size=16
+        # self.unet.config.in_channels=3
+        # self.unet.config.sample_size=64
+        # image_shape=(16, 3, 64, 64)
         if isinstance(self.unet.config.sample_size, int):
             image_shape = (
                 batch_size,
@@ -2794,7 +2891,7 @@ class DDPMPipeline(DiffusionPipeline):
                 self.unet.config.in_channels,
                 *self.unet.config.sample_size,
             )
-
+        # self.device.type='cuda'
         if self.device.type == "mps":
             # randn does not work reproducibly on mps
             image = randn_tensor(
@@ -2802,6 +2899,7 @@ class DDPMPipeline(DiffusionPipeline):
             )
             image = image.to(self.device)
         else:
+            # image=torch.Size([16, 3, 64, 64])
             image = randn_tensor(
                 image_shape,
                 generator=generator,
@@ -2811,16 +2909,22 @@ class DDPMPipeline(DiffusionPipeline):
 
         # set step values
         self.scheduler.set_timesteps(num_inference_steps)
-
+        # self.scheduler.timesteps[:10]=tensor([999, 998, 997, 996, 995, 994, 993, 992, 991, 990])
+        # image=torch.Size([16, 3, 64, 64])
         for t in self.progress_bar(self.scheduler.timesteps):
             # 1. predict noise model_output
+            # model_output=torch.Size([16, 3, 64, 64])
             model_output = self.unet(image, t).sample
 
             # 2. compute previous image: x_t -> x_t-1
+            # t=999
+            # image=torch.Size([16, 3, 64, 64])
+            # model_output=torch.Size([16, 3, 64, 64])
             image = self.scheduler.step(
                 model_output, t, image, generator=generator
             ).prev_sample
-
+            break
+        # не знаю почему еще раз изображение делят на 2 и прибавляют 0.5
         image = (image / 2 + 0.5).clamp(0, 1)
         image = image.cpu().permute(0, 2, 3, 1).numpy()
         if output_type == "pil":
@@ -4023,6 +4127,10 @@ dataset = load_dataset(
     cache_dir=args.cache_dir,
     split="train",
 )
+dataset = dataset.train_test_split(
+    test_size=4,
+    seed=42,
+)["test"]
 
 augmentations = transforms.Compose(
     [
@@ -4205,7 +4313,8 @@ for epoch in range(first_epoch, args.num_epochs):
             if args.use_ema:
                 ema_model.store(unet.parameters())
                 ema_model.copy_to(unet.parameters())
-
+            # unet=UNet2DModel
+            # scheduler=noise_scheduler=<DDPMScheduler, len() = 1000>
             pipeline = DDPMPipeline(
                 unet=unet,
                 scheduler=noise_scheduler,
@@ -4213,6 +4322,7 @@ for epoch in range(first_epoch, args.num_epochs):
 
             generator = torch.Generator(device=pipeline.device).manual_seed(0)
             # run pipeline in inference (sample random noise and denoise)
+            # args.ddpm_num_inference_steps=1000
             images = pipeline(
                 generator=generator,
                 batch_size=args.eval_batch_size,
