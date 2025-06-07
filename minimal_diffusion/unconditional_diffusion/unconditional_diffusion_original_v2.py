@@ -3004,13 +3004,13 @@ class AttnDownBlock2D(nn.Module):
         resnets = []
         attentions = []
         self.downsample_type = downsample_type
-
+        # attention_head_dim=8
         if attention_head_dim is None:
             logger.warning(
                 f"It is not recommend to pass `attention_head_dim=None`. Defaulting `attention_head_dim` to `in_channels`: {out_channels}."
             )
             attention_head_dim = out_channels
-
+        # num_layers=2
         for i in range(num_layers):
             in_channels = in_channels if i == 0 else out_channels
             resnets.append(
@@ -3029,6 +3029,16 @@ class AttnDownBlock2D(nn.Module):
             )
             attentions.append(
                 Attention(
+                    # out_channels=512
+                    # heads=out_channels // attention_head_dim=64
+                    # dim_head=attention_head_dim=8
+                    # rescale_output_factor=output_scale_factor=1.0
+                    # eps=resnet_eps=1e-05
+                    # norm_num_groups=resnet_groups=32
+                    # residual_connection=True
+                    # bias=True
+                    # upcast_softmax=True
+                    # _from_deprecated_attn_block=True
                     out_channels,
                     heads=out_channels // attention_head_dim,
                     dim_head=attention_head_dim,
@@ -3049,6 +3059,11 @@ class AttnDownBlock2D(nn.Module):
             self.downsamplers = nn.ModuleList(
                 [
                     Downsample2D(
+                        # out_channels=512,
+                        # use_conv=True,
+                        # out_channels=out_channels=512
+                        # padding=downsample_padding=1
+                        # name="op",
                         out_channels,
                         use_conv=True,
                         out_channels=out_channels,
@@ -9017,7 +9032,7 @@ class DDPMPipeline(DiffusionPipeline):
             image = self.scheduler.step(
                 model_output, t, image, generator=generator
             ).prev_sample
-            break
+            # break
         # не знаю почему еще раз изображение делят на 2 и прибавляют 0.5
         image = (image / 2 + 0.5).clamp(0, 1)
         image = image.cpu().permute(0, 2, 3, 1).numpy()
@@ -10091,10 +10106,10 @@ dataset = load_dataset(
     cache_dir=args.cache_dir,
     split="train",
 )
-dataset = dataset.train_test_split(
-    test_size=4,
-    seed=42,
-)["test"]
+# dataset = dataset.train_test_split(
+#     test_size=4,
+#     seed=42,
+# )["test"]
 
 augmentations = transforms.Compose(
     [
