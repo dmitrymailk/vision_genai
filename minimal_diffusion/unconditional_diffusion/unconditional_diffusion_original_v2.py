@@ -1870,20 +1870,29 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         # Make sure alphas_cumprod and timestep have same device and dtype as original_samples
         # Move the self.alphas_cumprod to device to avoid redundant CPU to GPU data movement
         # for the subsequent add_noise calls
+        # self.alphas_cumprod=torch.Size([1000])
         self.alphas_cumprod = self.alphas_cumprod.to(device=original_samples.device)
         alphas_cumprod = self.alphas_cumprod.to(dtype=original_samples.dtype)
+        # timesteps=torch.Size([16])
+        # timesteps=tensor([548, 605, 655, 909,  73, 346, 509, 798, 792, 217, 108, 915, 653,  24, 201, 255], device='cuda:0')
         timesteps = timesteps.to(original_samples.device)
-
+        # sqrt_alpha_prod=torch.Size([16])
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
+        # sqrt_alpha_prod=torch.Size([16])
+        # original_samples.shape=torch.Size([16, 3, 64, 64])
         sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
+            # sqrt_alpha_prod=torch.Size([16, 1]) и так пока не станет равным семплам
             sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
-
+        # sqrt_alpha_prod=torch.Size([16, 1, 1, 1])
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
         sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
             sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
-
+        # original_samples.shape=torch.Size([16, 3, 64, 64])
+        # sqrt_alpha_prod=torch.Size([16, 1, 1, 1])
+        # sqrt_one_minus_alpha_prod=torch.Size([16, 1, 1, 1])
+        # noise=torch.Size([16, 3, 64, 64])
         noisy_samples = (
             sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise
         )
@@ -4112,14 +4121,19 @@ for epoch in range(first_epoch, args.num_epochs):
     progress_bar.set_description(f"Epoch {epoch}")
     for step, batch in enumerate(train_dataloader):
         # Skip steps until we reach the resumed step
-
+        # clean_images=torch.Size([16, 3, 64, 64])
         clean_images = batch["input"].to(weight_dtype)
         # Sample noise that we'll add to the images
+        # noise=torch.Size([16, 3, 64, 64])
         noise = torch.randn(
             clean_images.shape, dtype=weight_dtype, device=clean_images.device
         )
+        # bsz=16
         bsz = clean_images.shape[0]
         # Sample a random timestep for each image
+        # timesteps=torch.Size([16])
+        # timesteps=tensor([563, 667, 202, 694, 151, 681, 668, 757, 174, 408, 989, 731, 189, 907, 464, 640], device='cuda:0')
+        # noise_scheduler.config.num_train_timesteps=1000
         timesteps = torch.randint(
             0,
             noise_scheduler.config.num_train_timesteps,
@@ -4129,6 +4143,10 @@ for epoch in range(first_epoch, args.num_epochs):
 
         # Add noise to the clean images according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
+        # noisy_images=torch.Size([16, 3, 64, 64])
+        # clean_images=torch.Size([16, 3, 64, 64])
+        # noise=torch.Size([16, 3, 64, 64])
+        # timesteps=torch.Size([16])
         noisy_images = noise_scheduler.add_noise(clean_images, noise, timesteps)
 
         with accelerator.accumulate(model):
