@@ -89,16 +89,6 @@ import xformers
 
 logger = logging.get_logger(__name__)
 
-# from diffusers.models.resnet import (
-#     Downsample2D,
-#     FirDownsample2D,
-#     FirUpsample2D,
-#     KDownsample2D,
-#     KUpsample2D,
-#     ResnetBlock2D,
-#     ResnetBlockCondNorm2D,
-#     Upsample2D,
-# )
 from diffusers.models.transformers.dual_transformer_2d import DualTransformer2DModel
 
 # from diffusers.models.transformers.transformer_2d import Transformer2DModel
@@ -1767,6 +1757,12 @@ class Upsample2D(nn.Module):
         interpolate=True,
     ):
         super().__init__()
+        # self.channels=channels=512
+        # self.out_channels=out_channels=512
+        # self.use_conv=use_conv=True
+        # self.use_conv_transpose=use_conv_transpose=False
+        # self.name=name='conv'
+        # self.interpolate=interpolate=True
         self.channels = channels
         self.out_channels = out_channels or channels
         self.use_conv = use_conv
@@ -1778,12 +1774,14 @@ class Upsample2D(nn.Module):
             self.norm = nn.LayerNorm(channels, eps, elementwise_affine)
         elif norm_type == "rms_norm":
             self.norm = RMSNorm(channels, eps, elementwise_affine)
+        # THIS BRANCH
         elif norm_type is None:
             self.norm = None
         else:
             raise ValueError(f"unknown norm_type: {norm_type}")
 
         conv = None
+        # use_conv_transpose=False
         if use_conv_transpose:
             if kernel_size is None:
                 kernel_size = 4
@@ -1795,6 +1793,7 @@ class Upsample2D(nn.Module):
                 padding=padding,
                 bias=bias,
             )
+        # THIS BRANCH
         elif use_conv:
             if kernel_size is None:
                 kernel_size = 3
@@ -1807,6 +1806,7 @@ class Upsample2D(nn.Module):
             )
 
         # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
+        # name='conv'
         if name == "conv":
             self.conv = conv
         else:
@@ -1824,12 +1824,14 @@ class Upsample2D(nn.Module):
             deprecate("scale", "1.0.0", deprecation_message)
 
         assert hidden_states.shape[1] == self.channels
-
+        # self.norm=None
+        # hidden_states=torch.Size([4, 512, 2, 2])
         if self.norm is not None:
+            # hidden_states=
             hidden_states = self.norm(hidden_states.permute(0, 2, 3, 1)).permute(
                 0, 3, 1, 2
             )
-
+        # self.use_conv_transpose=False
         if self.use_conv_transpose:
             return self.conv(hidden_states)
 
@@ -1845,9 +1847,12 @@ class Upsample2D(nn.Module):
 
         # if `output_size` is passed we force the interpolation output
         # size and do not make use of `scale_factor=2`
+        # self.interpolate=True
         if self.interpolate:
             # upsample_nearest_nhwc also fails when the number of output elements is large
             # https://github.com/pytorch/pytorch/issues/141831
+            # output_size=None
+            # output_size=2
             scale_factor = (
                 2
                 if output_size is None
@@ -1855,8 +1860,10 @@ class Upsample2D(nn.Module):
             )
             if hidden_states.numel() * scale_factor > pow(2, 31):
                 hidden_states = hidden_states.contiguous()
-
+            # hidden_states=torch.Size([4, 512, 2, 2])
+            # THIS BRANCH
             if output_size is None:
+                # hidden_states=torch.Size([4, 512, 4, 4])
                 hidden_states = F.interpolate(
                     hidden_states, scale_factor=2.0, mode="nearest"
                 )
@@ -1871,8 +1878,13 @@ class Upsample2D(nn.Module):
 
         # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
         if self.use_conv:
+            # self.name='conv'
+            # THIS BRANCH
             if self.name == "conv":
+                # hidden_states=torch.Size([4, 512, 4, 4])
                 hidden_states = self.conv(hidden_states)
+                # hidden_states=torch.Size([4, 512, 4, 4])
+                hidden_states
             else:
                 hidden_states = self.Conv2d_0(hidden_states)
 
@@ -3283,10 +3295,20 @@ class DownBlock2D(nn.Module):
     ):
         super().__init__()
         resnets = []
-
+        # num_layers=2
         for i in range(num_layers):
             in_channels = in_channels if i == 0 else out_channels
             resnets.append(
+                # in_channels=in_channels=128
+                # out_channels=out_channels=out_channels
+                # temb_channels=temb_channels=512
+                # eps=resnet_eps=1e-05
+                # groups=resnet_groups=128
+                # dropout=dropout=0.0
+                # time_embedding_norm=resnet_time_scale_shift='default'
+                # non_linearity=resnet_act_fn='silu'
+                # output_scale_factor=output_scale_factor=1.0
+                # pre_norm=resnet_pre_norm=True
                 ResnetBlock2D(
                     in_channels=in_channels,
                     out_channels=out_channels,
@@ -3302,10 +3324,16 @@ class DownBlock2D(nn.Module):
             )
 
         self.resnets = nn.ModuleList(resnets)
-
+        # add_downsample=True
+        # THIS BRANCH
         if add_downsample:
             self.downsamplers = nn.ModuleList(
                 [
+                    # out_channels=128
+                    # use_conv=True
+                    # out_channels=out_channels=128
+                    # padding=downsample_padding=1
+                    # name="op"
                     Downsample2D(
                         out_channels,
                         use_conv=True,
@@ -4530,6 +4558,18 @@ class UpBlock2D(nn.Module):
             resnet_in_channels = prev_output_channel if i == 0 else out_channels
 
             resnets.append(
+                # res_skip_channels=512
+                # resnet_in_channels=512
+                # in_channels=resnet_in_channels + res_skip_channels=1024
+                # out_channels=out_channels=512
+                # temb_channels=temb_channels=512
+                # eps=resnet_eps=1e-05
+                # groups=resnet_groups=32
+                # dropout=dropout=0.0
+                # time_embedding_norm=resnet_time_scale_shift='default'
+                # non_linearity=resnet_act_fn='silu'
+                # output_scale_factor=output_scale_factor
+                # pre_norm=resnet_pre_norm=1.0
                 ResnetBlock2D(
                     in_channels=resnet_in_channels + res_skip_channels,
                     out_channels=out_channels,
@@ -4545,15 +4585,26 @@ class UpBlock2D(nn.Module):
             )
 
         self.resnets = nn.ModuleList(resnets)
-
+        # add_upsample=True
+        # THIS BRANCH
         if add_upsample:
             self.upsamplers = nn.ModuleList(
-                [Upsample2D(out_channels, use_conv=True, out_channels=out_channels)]
+                [
+                    Upsample2D(
+                        # out_channels=512,
+                        # use_conv=True,
+                        # out_channels=out_channels=512,
+                        out_channels,
+                        use_conv=True,
+                        out_channels=out_channels,
+                    )
+                ]
             )
         else:
             self.upsamplers = None
 
         self.gradient_checkpointing = False
+        # resolution_idx=None
         self.resolution_idx = resolution_idx
 
     def forward(
@@ -4568,7 +4619,7 @@ class UpBlock2D(nn.Module):
         if len(args) > 0 or kwargs.get("scale", None) is not None:
             deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
             deprecate("scale", "1.0.0", deprecation_message)
-
+        # is_freeu_enabled=None=False
         is_freeu_enabled = (
             getattr(self, "s1", None)
             and getattr(self, "s2", None)
@@ -4578,7 +4629,10 @@ class UpBlock2D(nn.Module):
 
         for resnet in self.resnets:
             # pop res hidden states
+            # res_hidden_states=torch.Size([4, 512, 2, 2])
+            # len(res_hidden_states_tuple)=len(res_hidden_states_tuple)
             res_hidden_states = res_hidden_states_tuple[-1]
+            #  it returns all elements [:] except the last one -1.
             res_hidden_states_tuple = res_hidden_states_tuple[:-1]
 
             # FreeU: Only operate on the first two stages
@@ -4592,7 +4646,8 @@ class UpBlock2D(nn.Module):
                     b1=self.b1,
                     b2=self.b2,
                 )
-
+            # hidden_states=torch.Size([4, 512, 2, 2])
+            # res_hidden_states=torch.Size([4, 512, 2, 2])
             hidden_states = torch.cat([hidden_states, res_hidden_states], dim=1)
 
             if torch.is_grad_enabled() and self.gradient_checkpointing:
@@ -4601,10 +4656,14 @@ class UpBlock2D(nn.Module):
                 )
             else:
                 hidden_states = resnet(hidden_states, temb)
-
+        # THIS BRANCH
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
+                # upsample_size=None
+                # hidden_states=torch.Size([4, 512, 2, 2])
                 hidden_states = upsampler(hidden_states, upsample_size)
+                # upsample_size=None
+                # hidden_states=torch.Size([4, 256, 8, 8])
 
         return hidden_states
 
@@ -9276,150 +9335,6 @@ class RMSNorm(nn.Module):
         return hidden_states
 
 
-class Upsample2D(nn.Module):
-    """ok A 2D upsampling layer with an optional convolution.
-
-    Parameters:
-        channels (`int`):
-            number of channels in the inputs and outputs.
-        use_conv (`bool`, default `False`):
-            option to use a convolution.
-        use_conv_transpose (`bool`, default `False`):
-            option to use a convolution transpose.
-        out_channels (`int`, optional):
-            number of output channels. Defaults to `channels`.
-        name (`str`, default `conv`):
-            name of the upsampling 2D layer.
-    """
-
-    def __init__(
-        self,
-        channels: int,
-        use_conv: bool = False,
-        use_conv_transpose: bool = False,
-        out_channels: Optional[int] = None,
-        name: str = "conv",
-        kernel_size: Optional[int] = None,
-        padding=1,
-        norm_type=None,
-        eps=None,
-        elementwise_affine=None,
-        bias=True,
-        interpolate=True,
-    ):
-        super().__init__()
-        self.channels = channels
-        self.out_channels = out_channels or channels
-        self.use_conv = use_conv
-        self.use_conv_transpose = use_conv_transpose
-        self.name = name
-        self.interpolate = interpolate
-
-        if norm_type == "ln_norm":
-            self.norm = nn.LayerNorm(channels, eps, elementwise_affine)
-        elif norm_type == "rms_norm":
-            self.norm = RMSNorm(channels, eps, elementwise_affine)
-        elif norm_type is None:
-            self.norm = None
-        else:
-            raise ValueError(f"unknown norm_type: {norm_type}")
-
-        conv = None
-        if use_conv_transpose:
-            if kernel_size is None:
-                kernel_size = 4
-            conv = nn.ConvTranspose2d(
-                channels,
-                self.out_channels,
-                kernel_size=kernel_size,
-                stride=2,
-                padding=padding,
-                bias=bias,
-            )
-        elif use_conv:
-            if kernel_size is None:
-                kernel_size = 3
-            conv = nn.Conv2d(
-                self.channels,
-                self.out_channels,
-                kernel_size=kernel_size,
-                padding=padding,
-                bias=bias,
-            )
-
-        # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
-        if name == "conv":
-            self.conv = conv
-        else:
-            self.Conv2d_0 = conv
-
-    def forward(
-        self,
-        hidden_states: torch.Tensor,
-        output_size: Optional[int] = None,
-        *args,
-        **kwargs,
-    ) -> torch.Tensor:
-        if len(args) > 0 or kwargs.get("scale", None) is not None:
-            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
-            deprecate("scale", "1.0.0", deprecation_message)
-
-        assert hidden_states.shape[1] == self.channels
-
-        if self.norm is not None:
-            hidden_states = self.norm(hidden_states.permute(0, 2, 3, 1)).permute(
-                0, 3, 1, 2
-            )
-
-        if self.use_conv_transpose:
-            return self.conv(hidden_states)
-
-        # Cast to float32 to as 'upsample_nearest2d_out_frame' op does not support bfloat16 until PyTorch 2.1
-        # https://github.com/pytorch/pytorch/issues/86679#issuecomment-1783978767
-        dtype = hidden_states.dtype
-        if dtype == torch.bfloat16 and is_torch_version("<", "2.1"):
-            hidden_states = hidden_states.to(torch.float32)
-
-        # upsample_nearest_nhwc fails with large batch sizes. see https://github.com/huggingface/diffusers/issues/984
-        if hidden_states.shape[0] >= 64:
-            hidden_states = hidden_states.contiguous()
-
-        # if `output_size` is passed we force the interpolation output
-        # size and do not make use of `scale_factor=2`
-        if self.interpolate:
-            # upsample_nearest_nhwc also fails when the number of output elements is large
-            # https://github.com/pytorch/pytorch/issues/141831
-            scale_factor = (
-                2
-                if output_size is None
-                else max([f / s for f, s in zip(output_size, hidden_states.shape[-2:])])
-            )
-            if hidden_states.numel() * scale_factor > pow(2, 31):
-                hidden_states = hidden_states.contiguous()
-
-            if output_size is None:
-                hidden_states = F.interpolate(
-                    hidden_states, scale_factor=2.0, mode="nearest"
-                )
-            else:
-                hidden_states = F.interpolate(
-                    hidden_states, size=output_size, mode="nearest"
-                )
-
-        # Cast back to original dtype
-        if dtype == torch.bfloat16 and is_torch_version("<", "2.1"):
-            hidden_states = hidden_states.to(dtype)
-
-        # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
-        if self.use_conv:
-            if self.name == "conv":
-                hidden_states = self.conv(hidden_states)
-            else:
-                hidden_states = self.Conv2d_0(hidden_states)
-
-        return hidden_states
-
-
 class ResnetBlock2D(nn.Module):
     r"""ok
     A Resnet block.
@@ -9489,6 +9404,8 @@ class ResnetBlock2D(nn.Module):
         out_channels = in_channels if out_channels is None else out_channels
         self.out_channels = out_channels
         self.use_conv_shortcut = conv_shortcut
+        # self.up=False
+        # self.down=False
         self.up = up
         self.down = down
         self.output_scale_factor = output_scale_factor
@@ -9527,10 +9444,11 @@ class ResnetBlock2D(nn.Module):
         self.conv2 = nn.Conv2d(
             out_channels, conv_2d_out_channels, kernel_size=3, stride=1, padding=1
         )
-
+        # self.nonlinearity=SiLU()
         self.nonlinearity = get_activation(non_linearity)
 
         self.upsample = self.downsample = None
+        # self.up=False
         if self.up:
             if kernel == "fir":
                 fir_kernel = (1, 3, 3, 1)
@@ -9539,6 +9457,7 @@ class ResnetBlock2D(nn.Module):
                 self.upsample = partial(F.interpolate, scale_factor=2.0, mode="nearest")
             else:
                 self.upsample = Upsample2D(in_channels, use_conv=False)
+        # self.down=False
         elif self.down:
             if kernel == "fir":
                 fir_kernel = (1, 3, 3, 1)
@@ -9549,7 +9468,7 @@ class ResnetBlock2D(nn.Module):
                 self.downsample = Downsample2D(
                     in_channels, use_conv=False, padding=1, name="op"
                 )
-
+        # self.use_in_shortcut=False
         self.use_in_shortcut = (
             self.in_channels != conv_2d_out_channels
             if use_in_shortcut is None
@@ -9568,7 +9487,11 @@ class ResnetBlock2D(nn.Module):
             )
 
     def forward(
-        self, input_tensor: torch.Tensor, temb: torch.Tensor, *args, **kwargs
+        self,
+        input_tensor: torch.Tensor,
+        temb: torch.Tensor,
+        *args,
+        **kwargs,
     ) -> torch.Tensor:
         if len(args) > 0 or kwargs.get("scale", None) is not None:
             deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
@@ -9579,6 +9502,7 @@ class ResnetBlock2D(nn.Module):
         hidden_states = self.norm1(hidden_states)
         hidden_states = self.nonlinearity(hidden_states)
 
+        # self.upsample=None
         if self.upsample is not None:
             # upsample_nearest_nhwc fails with large batch sizes. see https://github.com/huggingface/diffusers/issues/984
             if hidden_states.shape[0] >= 64:
@@ -9586,6 +9510,7 @@ class ResnetBlock2D(nn.Module):
                 hidden_states = hidden_states.contiguous()
             input_tensor = self.upsample(input_tensor)
             hidden_states = self.upsample(hidden_states)
+        # self.downsample=None
         elif self.downsample is not None:
             input_tensor = self.downsample(input_tensor)
             hidden_states = self.downsample(hidden_states)
@@ -9596,8 +9521,10 @@ class ResnetBlock2D(nn.Module):
             if not self.skip_time_act:
                 temb = self.nonlinearity(temb)
             temb = self.time_emb_proj(temb)[:, :, None, None]
-
+        # self.time_embedding_norm="default"
+        # THIS BRANCH
         if self.time_embedding_norm == "default":
+            # temb=torch.Size([4, 512])
             if temb is not None:
                 hidden_states = hidden_states + temb
             hidden_states = self.norm2(hidden_states)
@@ -9619,7 +9546,9 @@ class ResnetBlock2D(nn.Module):
 
         if self.conv_shortcut is not None:
             input_tensor = self.conv_shortcut(input_tensor.contiguous())
-
+        # input_tensor=torch.Size([4, 128, 64, 64])
+        # hidden_states=torch.Size([4, 128, 64, 64])
+        # self.output_scale_factor=1.0
         output_tensor = (input_tensor + hidden_states) / self.output_scale_factor
 
         return output_tensor
