@@ -4,7 +4,7 @@ annotated minimal version, diffusers compatible
 
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import torch
 import torch.nn.functional as F
@@ -93,340 +93,10 @@ from diffusers.utils.torch_utils import apply_freeu
 from diffusers.configuration_utils import LegacyConfigMixin, register_to_config
 from diffusers.utils import deprecate, logging
 
-from diffusers.models.embeddings import (
-    PixArtAlphaTextProjection,
-)
-from diffusers.models.modeling_outputs import Transformer2DModelOutput
-from diffusers.models.modeling_utils import LegacyModelMixin
 
 from diffusers.models.normalization import (
     RMSNorm,
 )
-from diffusers.models.embeddings import SinusoidalPositionalEmbedding
-from diffusers.models.activations import (
-    GEGLU,
-    GELU,
-    ApproximateGELU,
-    LinearActivation,
-    SwiGLU,
-)
-
-
-def get_2d_sincos_pos_embed(
-    embed_dim,
-    grid_size,
-    cls_token=False,
-    extra_tokens=0,
-    interpolation_scale=1.0,
-    base_size=16,
-    device: Optional[torch.device] = None,
-    output_type: str = "np",
-):
-    """
-    Creates 2D sinusoidal positional embeddings.
-
-    Args:
-        embed_dim (`int`):
-            The embedding dimension.
-        grid_size (`int`):
-            The size of the grid height and width.
-        cls_token (`bool`, defaults to `False`):
-            Whether or not to add a classification token.
-        extra_tokens (`int`, defaults to `0`):
-            The number of extra tokens to add.
-        interpolation_scale (`float`, defaults to `1.0`):
-            The scale of the interpolation.
-
-    Returns:
-        pos_embed (`torch.Tensor`):
-            Shape is either `[grid_size * grid_size, embed_dim]` if not using cls_token, or `[1 + grid_size*grid_size,
-            embed_dim]` if using cls_token
-    """
-    if output_type == "np":
-        deprecation_message = (
-            "`get_2d_sincos_pos_embed` uses `torch` and supports `device`."
-            " `from_numpy` is no longer required."
-            "  Pass `output_type='pt' to use the new version now."
-        )
-        deprecate(
-            "output_type=='np'", "0.33.0", deprecation_message, standard_warn=False
-        )
-        return get_2d_sincos_pos_embed_np(
-            embed_dim=embed_dim,
-            grid_size=grid_size,
-            cls_token=cls_token,
-            extra_tokens=extra_tokens,
-            interpolation_scale=interpolation_scale,
-            base_size=base_size,
-        )
-    if isinstance(grid_size, int):
-        grid_size = (grid_size, grid_size)
-
-    grid_h = (
-        torch.arange(grid_size[0], device=device, dtype=torch.float32)
-        / (grid_size[0] / base_size)
-        / interpolation_scale
-    )
-    grid_w = (
-        torch.arange(grid_size[1], device=device, dtype=torch.float32)
-        / (grid_size[1] / base_size)
-        / interpolation_scale
-    )
-    grid = torch.meshgrid(grid_w, grid_h, indexing="xy")  # here w goes first
-    grid = torch.stack(grid, dim=0)
-
-    grid = grid.reshape([2, 1, grid_size[1], grid_size[0]])
-    pos_embed = get_2d_sincos_pos_embed_from_grid(
-        embed_dim, grid, output_type=output_type
-    )
-    if cls_token and extra_tokens > 0:
-        pos_embed = torch.concat(
-            [torch.zeros([extra_tokens, embed_dim]), pos_embed], dim=0
-        )
-    return pos_embed
-
-
-def get_2d_sincos_pos_embed_from_grid(embed_dim, grid, output_type="np"):
-    r"""
-    This function generates 2D sinusoidal positional embeddings from a grid.
-
-    Args:
-        embed_dim (`int`): The embedding dimension.
-        grid (`torch.Tensor`): Grid of positions with shape `(H * W,)`.
-
-    Returns:
-        `torch.Tensor`: The 2D sinusoidal positional embeddings with shape `(H * W, embed_dim)`
-    """
-    if output_type == "np":
-        deprecation_message = (
-            "`get_2d_sincos_pos_embed_from_grid` uses `torch` and supports `device`."
-            " `from_numpy` is no longer required."
-            "  Pass `output_type='pt' to use the new version now."
-        )
-        deprecate(
-            "output_type=='np'", "0.33.0", deprecation_message, standard_warn=False
-        )
-        return get_2d_sincos_pos_embed_from_grid_np(
-            embed_dim=embed_dim,
-            grid=grid,
-        )
-    if embed_dim % 2 != 0:
-        raise ValueError("embed_dim must be divisible by 2")
-
-    # use half of dimensions to encode grid_h
-    emb_h = get_1d_sincos_pos_embed_from_grid(
-        embed_dim // 2, grid[0], output_type=output_type
-    )  # (H*W, D/2)
-    emb_w = get_1d_sincos_pos_embed_from_grid(
-        embed_dim // 2, grid[1], output_type=output_type
-    )  # (H*W, D/2)
-
-    emb = torch.concat([emb_h, emb_w], dim=1)  # (H*W, D)
-    return emb
-
-
-def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np"):
-    """
-    This function generates 1D positional embeddings from a grid.
-
-    Args:
-        embed_dim (`int`): The embedding dimension `D`
-        pos (`torch.Tensor`): 1D tensor of positions with shape `(M,)`
-
-    Returns:
-        `torch.Tensor`: Sinusoidal positional embeddings of shape `(M, D)`.
-    """
-    if output_type == "np":
-        deprecation_message = (
-            "`get_1d_sincos_pos_embed_from_grid` uses `torch` and supports `device`."
-            " `from_numpy` is no longer required."
-            "  Pass `output_type='pt' to use the new version now."
-        )
-        deprecate(
-            "output_type=='np'", "0.34.0", deprecation_message, standard_warn=False
-        )
-        return get_1d_sincos_pos_embed_from_grid_np(embed_dim=embed_dim, pos=pos)
-    if embed_dim % 2 != 0:
-        raise ValueError("embed_dim must be divisible by 2")
-
-    omega = torch.arange(embed_dim // 2, device=pos.device, dtype=torch.float64)
-    omega /= embed_dim / 2.0
-    omega = 1.0 / 10000**omega  # (D/2,)
-
-    pos = pos.reshape(-1)  # (M,)
-    out = torch.outer(pos, omega)  # (M, D/2), outer product
-
-    emb_sin = torch.sin(out)  # (M, D/2)
-    emb_cos = torch.cos(out)  # (M, D/2)
-
-    emb = torch.concat([emb_sin, emb_cos], dim=1)  # (M, D)
-    return emb
-
-
-def get_2d_sincos_pos_embed_np(
-    embed_dim,
-    grid_size,
-    cls_token=False,
-    extra_tokens=0,
-    interpolation_scale=1.0,
-    base_size=16,
-):
-    """
-    Creates 2D sinusoidal positional embeddings.
-
-    Args:
-        embed_dim (`int`):
-            The embedding dimension.
-        grid_size (`int`):
-            The size of the grid height and width.
-        cls_token (`bool`, defaults to `False`):
-            Whether or not to add a classification token.
-        extra_tokens (`int`, defaults to `0`):
-            The number of extra tokens to add.
-        interpolation_scale (`float`, defaults to `1.0`):
-            The scale of the interpolation.
-
-    Returns:
-        pos_embed (`np.ndarray`):
-            Shape is either `[grid_size * grid_size, embed_dim]` if not using cls_token, or `[1 + grid_size*grid_size,
-            embed_dim]` if using cls_token
-    """
-    if isinstance(grid_size, int):
-        grid_size = (grid_size, grid_size)
-
-    grid_h = (
-        np.arange(grid_size[0], dtype=np.float32)
-        / (grid_size[0] / base_size)
-        / interpolation_scale
-    )
-    grid_w = (
-        np.arange(grid_size[1], dtype=np.float32)
-        / (grid_size[1] / base_size)
-        / interpolation_scale
-    )
-    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
-    grid = np.stack(grid, axis=0)
-
-    grid = grid.reshape([2, 1, grid_size[1], grid_size[0]])
-    pos_embed = get_2d_sincos_pos_embed_from_grid_np(embed_dim, grid)
-    if cls_token and extra_tokens > 0:
-        pos_embed = np.concatenate(
-            [np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0
-        )
-    return pos_embed
-
-
-def get_2d_sincos_pos_embed_from_grid_np(embed_dim, grid):
-    r"""
-    This function generates 2D sinusoidal positional embeddings from a grid.
-
-    Args:
-        embed_dim (`int`): The embedding dimension.
-        grid (`np.ndarray`): Grid of positions with shape `(H * W,)`.
-
-    Returns:
-        `np.ndarray`: The 2D sinusoidal positional embeddings with shape `(H * W, embed_dim)`
-    """
-    if embed_dim % 2 != 0:
-        raise ValueError("embed_dim must be divisible by 2")
-
-    # use half of dimensions to encode grid_h
-    emb_h = get_1d_sincos_pos_embed_from_grid_np(embed_dim // 2, grid[0])  # (H*W, D/2)
-    emb_w = get_1d_sincos_pos_embed_from_grid_np(embed_dim // 2, grid[1])  # (H*W, D/2)
-
-    emb = np.concatenate([emb_h, emb_w], axis=1)  # (H*W, D)
-    return emb
-
-
-def get_1d_sincos_pos_embed_from_grid_np(embed_dim, pos):
-    """
-    This function generates 1D positional embeddings from a grid.
-
-    Args:
-        embed_dim (`int`): The embedding dimension `D`
-        pos (`numpy.ndarray`): 1D tensor of positions with shape `(M,)`
-
-    Returns:
-        `numpy.ndarray`: Sinusoidal positional embeddings of shape `(M, D)`.
-    """
-    if embed_dim % 2 != 0:
-        raise ValueError("embed_dim must be divisible by 2")
-
-    omega = np.arange(embed_dim // 2, dtype=np.float64)
-    omega /= embed_dim / 2.0
-    omega = 1.0 / 10000**omega  # (D/2,)
-
-    pos = pos.reshape(-1)  # (M,)
-    out = np.einsum("m,d->md", pos, omega)  # (M, D/2), outer product
-
-    emb_sin = np.sin(out)  # (M, D/2)
-    emb_cos = np.cos(out)  # (M, D/2)
-
-    emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
-    return emb
-
-
-class FeedForward(nn.Module):
-    r"""
-    A feed-forward layer.
-
-    Parameters:
-        dim (`int`): The number of channels in the input.
-        dim_out (`int`, *optional*): The number of channels in the output. If not given, defaults to `dim`.
-        mult (`int`, *optional*, defaults to 4): The multiplier to use for the hidden dimension.
-        dropout (`float`, *optional*, defaults to 0.0): The dropout probability to use.
-        activation_fn (`str`, *optional*, defaults to `"geglu"`): Activation function to be used in feed-forward.
-        final_dropout (`bool` *optional*, defaults to False): Apply a final dropout.
-        bias (`bool`, defaults to True): Whether to use a bias in the linear layer.
-    """
-
-    def __init__(
-        self,
-        dim: int,
-        dim_out: Optional[int] = None,
-        mult: int = 4,
-        dropout: float = 0.0,
-        activation_fn: str = "geglu",
-        final_dropout: bool = False,
-        inner_dim=None,
-        bias: bool = True,
-    ):
-        super().__init__()
-        if inner_dim is None:
-            inner_dim = int(dim * mult)
-        dim_out = dim_out if dim_out is not None else dim
-
-        if activation_fn == "gelu":
-            act_fn = GELU(dim, inner_dim, bias=bias)
-        if activation_fn == "gelu-approximate":
-            act_fn = GELU(dim, inner_dim, approximate="tanh", bias=bias)
-        elif activation_fn == "geglu":
-            act_fn = GEGLU(dim, inner_dim, bias=bias)
-        elif activation_fn == "geglu-approximate":
-            act_fn = ApproximateGELU(dim, inner_dim, bias=bias)
-        elif activation_fn == "swiglu":
-            act_fn = SwiGLU(dim, inner_dim, bias=bias)
-        elif activation_fn == "linear-silu":
-            act_fn = LinearActivation(dim, inner_dim, bias=bias, activation="silu")
-
-        self.net = nn.ModuleList([])
-        # project in
-        self.net.append(act_fn)
-        # project dropout
-        self.net.append(nn.Dropout(dropout))
-        # project out
-        self.net.append(nn.Linear(inner_dim, dim_out, bias=bias))
-        # FF as used in Vision Transformer, MLP-Mixer, etc. have a final dropout
-        if final_dropout:
-            self.net.append(nn.Dropout(dropout))
-
-    def forward(self, hidden_states: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        if len(args) > 0 or kwargs.get("scale", None) is not None:
-            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
-            deprecate("scale", "1.0.0", deprecation_message)
-        for module in self.net:
-            hidden_states = module(hidden_states)
-        return hidden_states
 
 
 class Upsample2D(nn.Module):
@@ -743,36 +413,20 @@ class UNetMidBlock2D(nn.Module):
                 resnet_groups if resnet_time_scale_shift == "default" else None
             )
 
-        # there is always at least one resnet
-        if resnet_time_scale_shift == "spatial":
-            resnets = [
-                ResnetBlockCondNorm2D(
-                    in_channels=in_channels,
-                    out_channels=in_channels,
-                    temb_channels=temb_channels,
-                    eps=resnet_eps,
-                    groups=resnet_groups,
-                    dropout=dropout,
-                    time_embedding_norm="spatial",
-                    non_linearity=resnet_act_fn,
-                    output_scale_factor=output_scale_factor,
-                )
-            ]
-        else:
-            resnets = [
-                ResnetBlock2D(
-                    in_channels=in_channels,
-                    out_channels=in_channels,
-                    temb_channels=temb_channels,
-                    eps=resnet_eps,
-                    groups=resnet_groups,
-                    dropout=dropout,
-                    time_embedding_norm=resnet_time_scale_shift,
-                    non_linearity=resnet_act_fn,
-                    output_scale_factor=output_scale_factor,
-                    pre_norm=resnet_pre_norm,
-                )
-            ]
+        resnets = [
+            ResnetBlock2D(
+                in_channels=in_channels,
+                out_channels=in_channels,
+                temb_channels=temb_channels,
+                eps=resnet_eps,
+                groups=resnet_groups,
+                dropout=dropout,
+                time_embedding_norm=resnet_time_scale_shift,
+                non_linearity=resnet_act_fn,
+                output_scale_factor=output_scale_factor,
+                pre_norm=resnet_pre_norm,
+            )
+        ]
         attentions = []
 
         if attention_head_dim is None:
@@ -805,35 +459,20 @@ class UNetMidBlock2D(nn.Module):
             else:
                 attentions.append(None)
 
-            if resnet_time_scale_shift == "spatial":
-                resnets.append(
-                    ResnetBlockCondNorm2D(
-                        in_channels=in_channels,
-                        out_channels=in_channels,
-                        temb_channels=temb_channels,
-                        eps=resnet_eps,
-                        groups=resnet_groups,
-                        dropout=dropout,
-                        time_embedding_norm="spatial",
-                        non_linearity=resnet_act_fn,
-                        output_scale_factor=output_scale_factor,
-                    )
+            resnets.append(
+                ResnetBlock2D(
+                    in_channels=in_channels,
+                    out_channels=in_channels,
+                    temb_channels=temb_channels,
+                    eps=resnet_eps,
+                    groups=resnet_groups,
+                    dropout=dropout,
+                    time_embedding_norm=resnet_time_scale_shift,
+                    non_linearity=resnet_act_fn,
+                    output_scale_factor=output_scale_factor,
+                    pre_norm=resnet_pre_norm,
                 )
-            else:
-                resnets.append(
-                    ResnetBlock2D(
-                        in_channels=in_channels,
-                        out_channels=in_channels,
-                        temb_channels=temb_channels,
-                        eps=resnet_eps,
-                        groups=resnet_groups,
-                        dropout=dropout,
-                        time_embedding_norm=resnet_time_scale_shift,
-                        non_linearity=resnet_act_fn,
-                        output_scale_factor=output_scale_factor,
-                        pre_norm=resnet_pre_norm,
-                    )
-                )
+            )
 
         self.attentions = nn.ModuleList(attentions)
         self.resnets = nn.ModuleList(resnets)
@@ -2072,201 +1711,6 @@ class Attention(nn.Module):
             )
         self.set_processor(processor)
 
-    def set_use_xla_flash_attention(
-        self,
-        use_xla_flash_attention: bool,
-        partition_spec: Optional[Tuple[Optional[str], ...]] = None,
-        is_flux=False,
-    ) -> None:
-        r"""
-        Set whether to use xla flash attention from `torch_xla` or not.
-
-        Args:
-            use_xla_flash_attention (`bool`):
-                Whether to use pallas flash attention kernel from `torch_xla` or not.
-            partition_spec (`Tuple[]`, *optional*):
-                Specify the partition specification if using SPMD. Otherwise None.
-        """
-        if use_xla_flash_attention:
-            if not is_torch_xla_available:
-                raise "torch_xla is not available"
-            elif is_torch_xla_version("<", "2.3"):
-                raise "flash attention pallas kernel is supported from torch_xla version 2.3"
-            # elif is_spmd() and is_torch_xla_version("<", "2.4"):
-            #     raise "flash attention pallas kernel using SPMD is supported from torch_xla version 2.4"
-            else:
-                if is_flux:
-                    processor = XLAFluxFlashAttnProcessor2_0(partition_spec)
-                else:
-                    processor = XLAFlashAttnProcessor2_0(partition_spec)
-        else:
-            processor = (
-                AttnProcessor2_0()
-                if hasattr(F, "scaled_dot_product_attention") and self.scale_qk
-                else AttnProcessor()
-            )
-        self.set_processor(processor)
-
-
-
-    def set_use_memory_efficient_attention_xformers(
-        self,
-        use_memory_efficient_attention_xformers: bool,
-        attention_op: Optional[Callable] = None,
-    ) -> None:
-        r"""
-        Set whether to use memory efficient attention from `xformers` or not.
-
-        Args:
-            use_memory_efficient_attention_xformers (`bool`):
-                Whether to use memory efficient attention from `xformers` or not.
-            attention_op (`Callable`, *optional*):
-                The attention operation to use. Defaults to `None` which uses the default attention operation from
-                `xformers`.
-        """
-        is_custom_diffusion = hasattr(self, "processor") and isinstance(
-            self.processor,
-            (
-                CustomDiffusionAttnProcessor,
-                CustomDiffusionXFormersAttnProcessor,
-                CustomDiffusionAttnProcessor2_0,
-            ),
-        )
-        is_added_kv_processor = hasattr(self, "processor") and isinstance(
-            self.processor,
-            (
-                AttnAddedKVProcessor,
-                AttnAddedKVProcessor2_0,
-                SlicedAttnAddedKVProcessor,
-                XFormersAttnAddedKVProcessor,
-            ),
-        )
-        is_ip_adapter = hasattr(self, "processor") and isinstance(
-            self.processor,
-            (
-                IPAdapterAttnProcessor,
-                IPAdapterAttnProcessor2_0,
-                IPAdapterXFormersAttnProcessor,
-            ),
-        )
-        is_joint_processor = hasattr(self, "processor") and isinstance(
-            self.processor,
-            (
-                JointAttnProcessor2_0,
-                XFormersJointAttnProcessor,
-            ),
-        )
-
-        if use_memory_efficient_attention_xformers:
-            if is_added_kv_processor and is_custom_diffusion:
-                raise NotImplementedError(
-                    f"Memory efficient attention is currently not supported for custom diffusion for attention processor type {self.processor}"
-                )
-            if not is_xformers_available():
-                raise ModuleNotFoundError(
-                    (
-                        "Refer to https://github.com/facebookresearch/xformers for more information on how to install"
-                        " xformers"
-                    ),
-                    name="xformers",
-                )
-            elif not torch.cuda.is_available():
-                raise ValueError(
-                    "torch.cuda.is_available() should be True but is False. xformers' memory efficient attention is"
-                    " only available for GPU "
-                )
-            else:
-                try:
-                    # Make sure we can run the memory efficient attention
-                    dtype = None
-                    if attention_op is not None:
-                        op_fw, op_bw = attention_op
-                        dtype, *_ = op_fw.SUPPORTED_DTYPES
-                    q = torch.randn((1, 2, 40), device="cuda", dtype=dtype)
-                    _ = xformers.ops.memory_efficient_attention(q, q, q)
-                except Exception as e:
-                    raise e
-
-            if is_custom_diffusion:
-                processor = CustomDiffusionXFormersAttnProcessor(
-                    train_kv=self.processor.train_kv,
-                    train_q_out=self.processor.train_q_out,
-                    hidden_size=self.processor.hidden_size,
-                    cross_attention_dim=self.processor.cross_attention_dim,
-                    attention_op=attention_op,
-                )
-                processor.load_state_dict(self.processor.state_dict())
-                if hasattr(self.processor, "to_k_custom_diffusion"):
-                    processor.to(self.processor.to_k_custom_diffusion.weight.device)
-            elif is_added_kv_processor:
-                # TODO(Patrick, Suraj, William) - currently xformers doesn't work for UnCLIP
-                # which uses this type of cross attention ONLY because the attention mask of format
-                # [0, ..., -10.000, ..., 0, ...,] is not supported
-                # throw warning
-                logger.info(
-                    "Memory efficient attention with `xformers` might currently not work correctly if an attention mask is required for the attention operation."
-                )
-                processor = XFormersAttnAddedKVProcessor(attention_op=attention_op)
-            elif is_ip_adapter:
-                processor = IPAdapterXFormersAttnProcessor(
-                    hidden_size=self.processor.hidden_size,
-                    cross_attention_dim=self.processor.cross_attention_dim,
-                    num_tokens=self.processor.num_tokens,
-                    scale=self.processor.scale,
-                    attention_op=attention_op,
-                )
-                processor.load_state_dict(self.processor.state_dict())
-                if hasattr(self.processor, "to_k_ip"):
-                    processor.to(
-                        device=self.processor.to_k_ip[0].weight.device,
-                        dtype=self.processor.to_k_ip[0].weight.dtype,
-                    )
-            elif is_joint_processor:
-                processor = XFormersJointAttnProcessor(attention_op=attention_op)
-            else:
-                processor = XFormersAttnProcessor(attention_op=attention_op)
-        else:
-            if is_custom_diffusion:
-                attn_processor_class = (
-                    CustomDiffusionAttnProcessor2_0
-                    if hasattr(F, "scaled_dot_product_attention")
-                    else CustomDiffusionAttnProcessor
-                )
-                processor = attn_processor_class(
-                    train_kv=self.processor.train_kv,
-                    train_q_out=self.processor.train_q_out,
-                    hidden_size=self.processor.hidden_size,
-                    cross_attention_dim=self.processor.cross_attention_dim,
-                )
-                processor.load_state_dict(self.processor.state_dict())
-                if hasattr(self.processor, "to_k_custom_diffusion"):
-                    processor.to(self.processor.to_k_custom_diffusion.weight.device)
-            elif is_ip_adapter:
-                processor = IPAdapterAttnProcessor2_0(
-                    hidden_size=self.processor.hidden_size,
-                    cross_attention_dim=self.processor.cross_attention_dim,
-                    num_tokens=self.processor.num_tokens,
-                    scale=self.processor.scale,
-                )
-                processor.load_state_dict(self.processor.state_dict())
-                if hasattr(self.processor, "to_k_ip"):
-                    processor.to(
-                        device=self.processor.to_k_ip[0].weight.device,
-                        dtype=self.processor.to_k_ip[0].weight.dtype,
-                    )
-            else:
-                # set attention processor
-                # We use the AttnProcessor2_0 by default when torch 2.x is used which uses
-                # torch.nn.functional.scaled_dot_product_attention for native Flash/memory_efficient_attention
-                # but only if it has the default `scale` argument. TODO remove scale_qk check when we move to torch 2.1
-                processor = (
-                    AttnProcessor2_0()
-                    if hasattr(F, "scaled_dot_product_attention") and self.scale_qk
-                    else AttnProcessor()
-                )
-
-        self.set_processor(processor)
-
     def set_attention_slice(self, slice_size: int) -> None:
         r"""
         Set the slice size for attention computation.
@@ -2761,7 +2205,12 @@ class AttnProcessor2_0:
         # the output of sdp = (batch, num_heads, seq_len, head_dim)
         # TODO: add support for attn.scale when we move to Torch 2.1
         hidden_states = F.scaled_dot_product_attention(
-            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+            query,
+            key,
+            value,
+            attn_mask=attention_mask,
+            dropout_p=0.0,
+            is_causal=False,
         )
 
         hidden_states = hidden_states.transpose(1, 2).reshape(
@@ -3597,24 +3046,18 @@ class UNet2DModel(ModelMixin, ConfigMixin):
 
         # time
         # time_embedding_type=positional
-        if time_embedding_type == "fourier":
-            # self.time_proj = GaussianFourierProjection(
-            #     embedding_size=block_out_channels[0], scale=16
-            # )
-            # timestep_input_dim = 2 * block_out_channels[0]
-            pass
-        elif time_embedding_type == "positional":
-            # block_out_channels[0]=128
-            # flip_sin_to_cos=True
-            # freq_shift=0
-            self.time_proj = Timesteps(
-                block_out_channels[0], flip_sin_to_cos, freq_shift
-            )
-            # timestep_input_dim=128
-            timestep_input_dim = block_out_channels[0]
-        elif time_embedding_type == "learned":
-            self.time_proj = nn.Embedding(num_train_timesteps, block_out_channels[0])
-            timestep_input_dim = block_out_channels[0]
+
+        # block_out_channels[0]=128
+        # flip_sin_to_cos=True
+        # freq_shift=0
+        self.time_proj = Timesteps(
+            block_out_channels[0],
+            flip_sin_to_cos,
+            freq_shift,
+        )
+        # timestep_input_dim=128
+        timestep_input_dim = block_out_channels[0]
+
         # timestep_input_dim=128
         # time_embed_dim=512
         self.time_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim)
@@ -3622,16 +3065,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         # class embedding
         # class_embed_type=None
         # num_class_embeds=None
-        if class_embed_type is None and num_class_embeds is not None:
-            self.class_embedding = nn.Embedding(num_class_embeds, time_embed_dim)
-        elif class_embed_type == "timestep":
-            self.class_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim)
-        elif class_embed_type == "identity":
-            self.class_embedding = nn.Identity(time_embed_dim, time_embed_dim)
-        else:
-            # HERE
-            # class_embedding=None
-            self.class_embedding = None
+        self.class_embedding = None
 
         self.down_blocks = nn.ModuleList([])
         self.mid_block = None
@@ -3836,6 +3270,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
                 dtype=torch.long,
                 device=sample.device,
             )
+        # THIS BRANCH ON INFERENCE
         elif torch.is_tensor(timesteps) and len(timesteps.shape) == 0:
             timesteps = timesteps[None].to(sample.device)
 
@@ -3857,21 +3292,6 @@ class UNet2DModel(ModelMixin, ConfigMixin):
 
         # self.class_embedding=None
         # class_labels=None
-        if self.class_embedding is not None:
-            if class_labels is None:
-                raise ValueError(
-                    "class_labels should be provided when doing class conditioning"
-                )
-
-            if self.config.class_embed_type == "timestep":
-                class_labels = self.time_proj(class_labels)
-
-            class_emb = self.class_embedding(class_labels).to(dtype=self.dtype)
-            emb = emb + class_emb
-        elif self.class_embedding is None and class_labels is not None:
-            raise ValueError(
-                "class_embedding needs to be initialized in order to use class conditioning"
-            )
 
         # 2. pre-process
         # sample.shape=torch.Size([16, 3, 64, 64])
@@ -4231,12 +3651,6 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         if skip_sample is not None:
             sample += skip_sample
 
-        # self.config.time_embedding_type='positional'
-        if self.config.time_embedding_type == "fourier":
-            timesteps = timesteps.reshape(
-                (sample.shape[0], *([1] * len(sample.shape[1:])))
-            )
-            sample = sample / timesteps
         # not return_dict=False
         if not return_dict:
             return (sample,)
@@ -4317,34 +3731,21 @@ class DDPMPipeline(DiffusionPipeline):
         # self.unet.config.in_channels=3
         # self.unet.config.sample_size=64
         # image_shape=(16, 3, 64, 64)
-        if isinstance(self.unet.config.sample_size, int):
-            image_shape = (
-                batch_size,
-                self.unet.config.in_channels,
-                self.unet.config.sample_size,
-                self.unet.config.sample_size,
-            )
-        else:
-            image_shape = (
-                batch_size,
-                self.unet.config.in_channels,
-                *self.unet.config.sample_size,
-            )
-        # self.device.type='cuda'
-        if self.device.type == "mps":
-            # randn does not work reproducibly on mps
-            image = randn_tensor(
-                image_shape, generator=generator, dtype=self.unet.dtype
-            )
-            image = image.to(self.device)
-        else:
-            # image=torch.Size([16, 3, 64, 64])
-            image = randn_tensor(
-                image_shape,
-                generator=generator,
-                device=self.device,
-                dtype=self.unet.dtype,
-            )
+        # if isinstance(self.unet.config.sample_size, int):
+        image_shape = (
+            batch_size,
+            self.unet.config.in_channels,
+            self.unet.config.sample_size,
+            self.unet.config.sample_size,
+        )
+
+        # image=torch.Size([16, 3, 64, 64])
+        image = randn_tensor(
+            image_shape,
+            generator=generator,
+            device=self.device,
+            dtype=self.unet.dtype,
+        )
 
         # set step values
         self.scheduler.set_timesteps(num_inference_steps)
@@ -4373,246 +3774,6 @@ class DDPMPipeline(DiffusionPipeline):
             return (image,)
 
         return ImagePipelineOutput(images=image)
-
-
-class AdaGroupNorm(nn.Module):
-    r"""
-    ok GroupNorm layer modified to incorporate timestep embeddings.
-
-    Parameters:
-        embedding_dim (`int`): The size of each embedding vector.
-        num_embeddings (`int`): The size of the embeddings dictionary.
-        num_groups (`int`): The number of groups to separate the channels into.
-        act_fn (`str`, *optional*, defaults to `None`): The activation function to use.
-        eps (`float`, *optional*, defaults to `1e-5`): The epsilon value to use for numerical stability.
-    """
-
-    def __init__(
-        self,
-        embedding_dim: int,
-        out_dim: int,
-        num_groups: int,
-        act_fn: Optional[str] = None,
-        eps: float = 1e-5,
-    ):
-        super().__init__()
-        self.num_groups = num_groups
-        self.eps = eps
-
-        if act_fn is None:
-            self.act = None
-        else:
-            self.act = get_activation(act_fn)
-
-        self.linear = nn.Linear(embedding_dim, out_dim * 2)
-
-    def forward(self, x: torch.Tensor, emb: torch.Tensor) -> torch.Tensor:
-        if self.act:
-            emb = self.act(emb)
-        emb = self.linear(emb)
-        emb = emb[:, :, None, None]
-        scale, shift = emb.chunk(2, dim=1)
-
-        x = F.group_norm(x, self.num_groups, eps=self.eps)
-        x = x * (1 + scale) + shift
-        return x
-
-
-class SpatialNorm(nn.Module):
-    """
-    ok Spatially conditioned normalization as defined in https://arxiv.org/abs/2209.09002.
-
-    Args:
-        f_channels (`int`):
-            The number of channels for input to group normalization layer, and output of the spatial norm layer.
-        zq_channels (`int`):
-            The number of channels for the quantized vector as described in the paper.
-    """
-
-    def __init__(
-        self,
-        f_channels: int,
-        zq_channels: int,
-    ):
-        super().__init__()
-        self.norm_layer = nn.GroupNorm(
-            num_channels=f_channels, num_groups=32, eps=1e-6, affine=True
-        )
-        self.conv_y = nn.Conv2d(
-            zq_channels, f_channels, kernel_size=1, stride=1, padding=0
-        )
-        self.conv_b = nn.Conv2d(
-            zq_channels, f_channels, kernel_size=1, stride=1, padding=0
-        )
-
-    def forward(self, f: torch.Tensor, zq: torch.Tensor) -> torch.Tensor:
-        f_size = f.shape[-2:]
-        zq = F.interpolate(zq, size=f_size, mode="nearest")
-        norm_f = self.norm_layer(f)
-        new_f = norm_f * self.conv_y(zq) + self.conv_b(zq)
-        return new_f
-
-
-class ResnetBlockCondNorm2D(nn.Module):
-    r"""
-    ok
-    A Resnet block that use normalization layer that incorporate conditioning information.
-
-    Parameters:
-        in_channels (`int`): The number of channels in the input.
-        out_channels (`int`, *optional*, default to be `None`):
-            The number of output channels for the first conv2d layer. If None, same as `in_channels`.
-        dropout (`float`, *optional*, defaults to `0.0`): The dropout probability to use.
-        temb_channels (`int`, *optional*, default to `512`): the number of channels in timestep embedding.
-        groups (`int`, *optional*, default to `32`): The number of groups to use for the first normalization layer.
-        groups_out (`int`, *optional*, default to None):
-            The number of groups to use for the second normalization layer. if set to None, same as `groups`.
-        eps (`float`, *optional*, defaults to `1e-6`): The epsilon to use for the normalization.
-        non_linearity (`str`, *optional*, default to `"swish"`): the activation function to use.
-        time_embedding_norm (`str`, *optional*, default to `"ada_group"` ):
-            The normalization layer for time embedding `temb`. Currently only support "ada_group" or "spatial".
-        kernel (`torch.Tensor`, optional, default to None): FIR filter, see
-            [`~models.resnet.FirUpsample2D`] and [`~models.resnet.FirDownsample2D`].
-        output_scale_factor (`float`, *optional*, default to be `1.0`): the scale factor to use for the output.
-        use_in_shortcut (`bool`, *optional*, default to `True`):
-            If `True`, add a 1x1 nn.conv2d layer for skip-connection.
-        up (`bool`, *optional*, default to `False`): If `True`, add an upsample layer.
-        down (`bool`, *optional*, default to `False`): If `True`, add a downsample layer.
-        conv_shortcut_bias (`bool`, *optional*, default to `True`):  If `True`, adds a learnable bias to the
-            `conv_shortcut` output.
-        conv_2d_out_channels (`int`, *optional*, default to `None`): the number of channels in the output.
-            If None, same as `out_channels`.
-    """
-
-    def __init__(
-        self,
-        *,
-        in_channels: int,
-        out_channels: Optional[int] = None,
-        conv_shortcut: bool = False,
-        dropout: float = 0.0,
-        temb_channels: int = 512,
-        groups: int = 32,
-        groups_out: Optional[int] = None,
-        eps: float = 1e-6,
-        non_linearity: str = "swish",
-        time_embedding_norm: str = "ada_group",  # ada_group, spatial
-        output_scale_factor: float = 1.0,
-        use_in_shortcut: Optional[bool] = None,
-        up: bool = False,
-        down: bool = False,
-        conv_shortcut_bias: bool = True,
-        conv_2d_out_channels: Optional[int] = None,
-    ):
-        super().__init__()
-        self.in_channels = in_channels
-        out_channels = in_channels if out_channels is None else out_channels
-        self.out_channels = out_channels
-        self.use_conv_shortcut = conv_shortcut
-        self.up = up
-        self.down = down
-        self.output_scale_factor = output_scale_factor
-        self.time_embedding_norm = time_embedding_norm
-
-        if groups_out is None:
-            groups_out = groups
-
-        if self.time_embedding_norm == "ada_group":  # ada_group
-            self.norm1 = AdaGroupNorm(temb_channels, in_channels, groups, eps=eps)
-        elif self.time_embedding_norm == "spatial":
-            self.norm1 = SpatialNorm(in_channels, temb_channels)
-        else:
-            raise ValueError(
-                f" unsupported time_embedding_norm: {self.time_embedding_norm}"
-            )
-
-        self.conv1 = nn.Conv2d(
-            in_channels, out_channels, kernel_size=3, stride=1, padding=1
-        )
-
-        if self.time_embedding_norm == "ada_group":  # ada_group
-            self.norm2 = AdaGroupNorm(temb_channels, out_channels, groups_out, eps=eps)
-        elif self.time_embedding_norm == "spatial":  # spatial
-            self.norm2 = SpatialNorm(out_channels, temb_channels)
-        else:
-            raise ValueError(
-                f" unsupported time_embedding_norm: {self.time_embedding_norm}"
-            )
-
-        self.dropout = torch.nn.Dropout(dropout)
-
-        conv_2d_out_channels = conv_2d_out_channels or out_channels
-        self.conv2 = nn.Conv2d(
-            out_channels, conv_2d_out_channels, kernel_size=3, stride=1, padding=1
-        )
-
-        self.nonlinearity = get_activation(non_linearity)
-
-        self.upsample = self.downsample = None
-        if self.up:
-            self.upsample = Upsample2D(in_channels, use_conv=False)
-        elif self.down:
-            self.downsample = Downsample2D(
-                in_channels, use_conv=False, padding=1, name="op"
-            )
-
-        self.use_in_shortcut = (
-            self.in_channels != conv_2d_out_channels
-            if use_in_shortcut is None
-            else use_in_shortcut
-        )
-
-        self.conv_shortcut = None
-        if self.use_in_shortcut:
-            self.conv_shortcut = nn.Conv2d(
-                in_channels,
-                conv_2d_out_channels,
-                kernel_size=1,
-                stride=1,
-                padding=0,
-                bias=conv_shortcut_bias,
-            )
-
-    def forward(
-        self, input_tensor: torch.Tensor, temb: torch.Tensor, *args, **kwargs
-    ) -> torch.Tensor:
-        if len(args) > 0 or kwargs.get("scale", None) is not None:
-            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
-            # deprecate("scale", "1.0.0", deprecation_message)
-
-        hidden_states = input_tensor
-
-        hidden_states = self.norm1(hidden_states, temb)
-
-        hidden_states = self.nonlinearity(hidden_states)
-
-        if self.upsample is not None:
-            # upsample_nearest_nhwc fails with large batch sizes. see https://github.com/huggingface/diffusers/issues/984
-            if hidden_states.shape[0] >= 64:
-                input_tensor = input_tensor.contiguous()
-                hidden_states = hidden_states.contiguous()
-            input_tensor = self.upsample(input_tensor)
-            hidden_states = self.upsample(hidden_states)
-
-        elif self.downsample is not None:
-            input_tensor = self.downsample(input_tensor)
-            hidden_states = self.downsample(hidden_states)
-
-        hidden_states = self.conv1(hidden_states)
-
-        hidden_states = self.norm2(hidden_states, temb)
-
-        hidden_states = self.nonlinearity(hidden_states)
-
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = self.conv2(hidden_states)
-
-        if self.conv_shortcut is not None:
-            input_tensor = self.conv_shortcut(input_tensor)
-
-        output_tensor = (input_tensor + hidden_states) / self.output_scale_factor
-
-        return output_tensor
 
 
 class RMSNorm(nn.Module):
@@ -4735,14 +3896,6 @@ class ResnetBlock2D(nn.Module):
         conv_2d_out_channels: Optional[int] = None,
     ):
         super().__init__()
-        if time_embedding_norm == "ada_group":
-            raise ValueError(
-                "This class cannot be used with `time_embedding_norm==ada_group`, please use `ResnetBlockCondNorm2D` instead",
-            )
-        if time_embedding_norm == "spatial":
-            raise ValueError(
-                "This class cannot be used with `time_embedding_norm==spatial`, please use `ResnetBlockCondNorm2D` instead",
-            )
 
         self.pre_norm = True
         self.in_channels = in_channels
@@ -4794,25 +3947,25 @@ class ResnetBlock2D(nn.Module):
 
         self.upsample = self.downsample = None
         # self.up=False
-        if self.up:
-            if kernel == "fir":
-                fir_kernel = (1, 3, 3, 1)
-                self.upsample = lambda x: upsample_2d(x, kernel=fir_kernel)
-            elif kernel == "sde_vp":
-                self.upsample = partial(F.interpolate, scale_factor=2.0, mode="nearest")
-            else:
-                self.upsample = Upsample2D(in_channels, use_conv=False)
+        # if self.up:
+        #     if kernel == "fir":
+        #         fir_kernel = (1, 3, 3, 1)
+        #         self.upsample = lambda x: upsample_2d(x, kernel=fir_kernel)
+        #     elif kernel == "sde_vp":
+        #         self.upsample = partial(F.interpolate, scale_factor=2.0, mode="nearest")
+        #     else:
+        #         self.upsample = Upsample2D(in_channels, use_conv=False)
         # self.down=False
-        elif self.down:
-            if kernel == "fir":
-                fir_kernel = (1, 3, 3, 1)
-                self.downsample = lambda x: downsample_2d(x, kernel=fir_kernel)
-            elif kernel == "sde_vp":
-                self.downsample = partial(F.avg_pool2d, kernel_size=2, stride=2)
-            else:
-                self.downsample = Downsample2D(
-                    in_channels, use_conv=False, padding=1, name="op"
-                )
+        # elif self.down:
+        #     if kernel == "fir":
+        #         fir_kernel = (1, 3, 3, 1)
+        #         self.downsample = lambda x: downsample_2d(x, kernel=fir_kernel)
+        #     elif kernel == "sde_vp":
+        #         self.downsample = partial(F.avg_pool2d, kernel_size=2, stride=2)
+        #     else:
+        #         self.downsample = Downsample2D(
+        #             in_channels, use_conv=False, padding=1, name="op"
+        #         )
         # self.use_in_shortcut=False
         self.use_in_shortcut = (
             self.in_channels != conv_2d_out_channels
