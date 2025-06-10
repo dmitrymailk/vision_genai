@@ -52,45 +52,24 @@ from diffusers.models.activations import get_activation
 
 from diffusers.utils import deprecate
 from functools import partial
-from diffusers.utils import is_torch_npu_available
 import numbers
 
-from diffusers.utils import deprecate, is_torch_xla_available, logging
-from diffusers.utils.import_utils import (
-    is_torch_npu_available,
-    is_torch_xla_version,
-    is_xformers_available,
-)
+from diffusers.utils import deprecate, logging
 from diffusers.utils.torch_utils import is_torch_version, maybe_allow_in_graph
 from diffusers.models.attention_processor import (
-    XLAFluxFlashAttnProcessor2_0,
-    XLAFlashAttnProcessor2_0,
-    AttnProcessorNPU,
-    XFormersAttnAddedKVProcessor,
-    IPAdapterXFormersAttnProcessor,
-    CustomDiffusionAttnProcessor,
-    CustomDiffusionXFormersAttnProcessor,
-    CustomDiffusionAttnProcessor2_0,
     AttnAddedKVProcessor,
-    AttnAddedKVProcessor2_0,
     SlicedAttnAddedKVProcessor,
-    IPAdapterAttnProcessor,
-    IPAdapterAttnProcessor2_0,
-    JointAttnProcessor2_0,
-    XFormersJointAttnProcessor,
-    XFormersAttnProcessor,
     SlicedAttnProcessor,
     AttentionProcessor,
 )
 import inspect
 import math
-from typing import Callable, List, Optional, Tuple, Union
-import xformers
+from typing import List, Optional, Tuple, Union
 
 logger = logging.get_logger(__name__)
 
 from diffusers.utils.torch_utils import apply_freeu
-from diffusers.configuration_utils import LegacyConfigMixin, register_to_config
+from diffusers.configuration_utils import register_to_config
 from diffusers.utils import deprecate, logging
 
 
@@ -1180,199 +1159,6 @@ def get_up_block(
     raise ValueError(f"{up_block_type} does not exist.")
 
 
-def upfirdn2d_native(
-    tensor: torch.Tensor,
-    kernel: torch.Tensor,
-    up: int = 1,
-    down: int = 1,
-    pad: Tuple[int, int] = (0, 0),
-) -> torch.Tensor:
-    up_x = up_y = up
-    down_x = down_y = down
-    pad_x0 = pad_y0 = pad[0]
-    pad_x1 = pad_y1 = pad[1]
-
-    _, channel, in_h, in_w = tensor.shape
-    tensor = tensor.reshape(-1, in_h, in_w, 1)
-
-    _, in_h, in_w, minor = tensor.shape
-    kernel_h, kernel_w = kernel.shape
-
-    out = tensor.view(-1, in_h, 1, in_w, 1, minor)
-    out = F.pad(out, [0, 0, 0, up_x - 1, 0, 0, 0, up_y - 1])
-    out = out.view(-1, in_h * up_y, in_w * up_x, minor)
-
-    out = F.pad(
-        out, [0, 0, max(pad_x0, 0), max(pad_x1, 0), max(pad_y0, 0), max(pad_y1, 0)]
-    )
-    out = out.to(tensor.device)  # Move back to mps if necessary
-    out = out[
-        :,
-        max(-pad_y0, 0) : out.shape[1] - max(-pad_y1, 0),
-        max(-pad_x0, 0) : out.shape[2] - max(-pad_x1, 0),
-        :,
-    ]
-
-    out = out.permute(0, 3, 1, 2)
-    out = out.reshape(
-        [-1, 1, in_h * up_y + pad_y0 + pad_y1, in_w * up_x + pad_x0 + pad_x1]
-    )
-    w = torch.flip(kernel, [0, 1]).view(1, 1, kernel_h, kernel_w)
-    out = F.conv2d(out, w)
-    out = out.reshape(
-        -1,
-        minor,
-        in_h * up_y + pad_y0 + pad_y1 - kernel_h + 1,
-        in_w * up_x + pad_x0 + pad_x1 - kernel_w + 1,
-    )
-    out = out.permute(0, 2, 3, 1)
-    out = out[:, ::down_y, ::down_x, :]
-
-    out_h = (in_h * up_y + pad_y0 + pad_y1 - kernel_h) // down_y + 1
-    out_w = (in_w * up_x + pad_x0 + pad_x1 - kernel_w) // down_x + 1
-
-    return out.view(-1, channel, out_h, out_w)
-
-
-def upsample_2d(
-    hidden_states: torch.Tensor,
-    kernel: Optional[torch.Tensor] = None,
-    factor: int = 2,
-    gain: float = 1,
-) -> torch.Tensor:
-    r"""Upsample2D a batch of 2D images with the given filter.
-    Accepts a batch of 2D images of the shape `[N, C, H, W]` or `[N, H, W, C]` and upsamples each image with the given
-    filter. The filter is normalized so that if the input pixels are constant, they will be scaled by the specified
-    `gain`. Pixels outside the image are assumed to be zero, and the filter is padded with zeros so that its shape is
-    a: multiple of the upsampling factor.
-
-    Args:
-        hidden_states (`torch.Tensor`):
-            Input tensor of the shape `[N, C, H, W]` or `[N, H, W, C]`.
-        kernel (`torch.Tensor`, *optional*):
-            FIR filter of the shape `[firH, firW]` or `[firN]` (separable). The default is `[1] * factor`, which
-            corresponds to nearest-neighbor upsampling.
-        factor (`int`, *optional*, default to `2`):
-            Integer upsampling factor.
-        gain (`float`, *optional*, default to `1.0`):
-            Scaling factor for signal magnitude (default: 1.0).
-
-    Returns:
-        output (`torch.Tensor`):
-            Tensor of the shape `[N, C, H * factor, W * factor]`
-    """
-    assert isinstance(factor, int) and factor >= 1
-    if kernel is None:
-        kernel = [1] * factor
-
-    kernel = torch.tensor(kernel, dtype=torch.float32)
-    if kernel.ndim == 1:
-        kernel = torch.outer(kernel, kernel)
-    kernel /= torch.sum(kernel)
-
-    kernel = kernel * (gain * (factor**2))
-    pad_value = kernel.shape[0] - factor
-    output = upfirdn2d_native(
-        hidden_states,
-        kernel.to(device=hidden_states.device),
-        up=factor,
-        pad=((pad_value + 1) // 2 + factor - 1, pad_value // 2),
-    )
-    return output
-
-
-def downsample_2d(
-    hidden_states: torch.Tensor,
-    kernel: Optional[torch.Tensor] = None,
-    factor: int = 2,
-    gain: float = 1,
-) -> torch.Tensor:
-    r"""Downsample2D a batch of 2D images with the given filter.
-    Accepts a batch of 2D images of the shape `[N, C, H, W]` or `[N, H, W, C]` and downsamples each image with the
-    given filter. The filter is normalized so that if the input pixels are constant, they will be scaled by the
-    specified `gain`. Pixels outside the image are assumed to be zero, and the filter is padded with zeros so that its
-    shape is a multiple of the downsampling factor.
-
-    Args:
-        hidden_states (`torch.Tensor`)
-            Input tensor of the shape `[N, C, H, W]` or `[N, H, W, C]`.
-        kernel (`torch.Tensor`, *optional*):
-            FIR filter of the shape `[firH, firW]` or `[firN]` (separable). The default is `[1] * factor`, which
-            corresponds to average pooling.
-        factor (`int`, *optional*, default to `2`):
-            Integer downsampling factor.
-        gain (`float`, *optional*, default to `1.0`):
-            Scaling factor for signal magnitude.
-
-    Returns:
-        output (`torch.Tensor`):
-            Tensor of the shape `[N, C, H // factor, W // factor]`
-    """
-
-    assert isinstance(factor, int) and factor >= 1
-    if kernel is None:
-        kernel = [1] * factor
-
-    kernel = torch.tensor(kernel, dtype=torch.float32)
-    if kernel.ndim == 1:
-        kernel = torch.outer(kernel, kernel)
-    kernel /= torch.sum(kernel)
-
-    kernel = kernel * gain
-    pad_value = kernel.shape[0] - factor
-    output = upfirdn2d_native(
-        hidden_states,
-        kernel.to(device=hidden_states.device),
-        down=factor,
-        pad=((pad_value + 1) // 2, pad_value // 2),
-    )
-    return output
-
-
-def betas_for_alpha_bar(
-    num_diffusion_timesteps,
-    max_beta=0.999,
-    alpha_transform_type="cosine",
-):
-    """
-    ok Create a beta schedule that discretizes the given alpha_t_bar function, which defines the cumulative product of
-    (1-beta) over time from t = [0,1].
-
-    Contains a function alpha_bar that takes an argument t and transforms it to the cumulative product of (1-beta) up
-    to that part of the diffusion process.
-
-
-    Args:
-        num_diffusion_timesteps (`int`): the number of betas to produce.
-        max_beta (`float`): the maximum beta to use; use values lower than 1 to
-                     prevent singularities.
-        alpha_transform_type (`str`, *optional*, default to `cosine`): the type of noise schedule for alpha_bar.
-                     Choose from `cosine` or `exp`
-
-    Returns:
-        betas (`np.ndarray`): the betas used by the scheduler to step the model outputs
-    """
-    if alpha_transform_type == "cosine":
-
-        def alpha_bar_fn(t):
-            return math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2
-
-    elif alpha_transform_type == "exp":
-
-        def alpha_bar_fn(t):
-            return math.exp(t * -12.0)
-
-    else:
-        raise ValueError(f"Unsupported alpha_transform_type: {alpha_transform_type}")
-
-    betas = []
-    for i in range(num_diffusion_timesteps):
-        t1 = i / num_diffusion_timesteps
-        t2 = (i + 1) / num_diffusion_timesteps
-        betas.append(min(1 - alpha_bar_fn(t2) / alpha_bar_fn(t1), max_beta))
-    return torch.tensor(betas, dtype=torch.float32)
-
-
 # Copied from diffusers.schedulers.scheduling_ddim.rescale_zero_terminal_snr
 def rescale_zero_terminal_snr(betas):
     """
@@ -1554,161 +1340,51 @@ class Attention(nn.Module):
         else:
             self.group_norm = None
 
-        if spatial_norm_dim is not None:
-            self.spatial_norm = SpatialNorm(
-                f_channels=query_dim, zq_channels=spatial_norm_dim
-            )
-        else:
-            self.spatial_norm = None
+        self.spatial_norm = None
 
-        if qk_norm is None:
-            self.norm_q = None
-            self.norm_k = None
-        elif qk_norm == "layer_norm":
-            self.norm_q = nn.LayerNorm(
-                dim_head, eps=eps, elementwise_affine=elementwise_affine
-            )
-            self.norm_k = nn.LayerNorm(
-                dim_head, eps=eps, elementwise_affine=elementwise_affine
-            )
-        elif qk_norm == "fp32_layer_norm":
-            self.norm_q = FP32LayerNorm(
-                dim_head, elementwise_affine=False, bias=False, eps=eps
-            )
-            self.norm_k = FP32LayerNorm(
-                dim_head, elementwise_affine=False, bias=False, eps=eps
-            )
-        elif qk_norm == "layer_norm_across_heads":
-            # Lumina applies qk norm across all heads
-            self.norm_q = nn.LayerNorm(dim_head * heads, eps=eps)
-            self.norm_k = nn.LayerNorm(dim_head * kv_heads, eps=eps)
-        elif qk_norm == "rms_norm":
-            self.norm_q = RMSNorm(dim_head, eps=eps)
-            self.norm_k = RMSNorm(dim_head, eps=eps)
-        elif qk_norm == "rms_norm_across_heads":
-            # LTX applies qk norm across all heads
-            self.norm_q = RMSNorm(dim_head * heads, eps=eps)
-            self.norm_k = RMSNorm(dim_head * kv_heads, eps=eps)
-        elif qk_norm == "l2":
-            self.norm_q = LpNorm(p=2, dim=-1, eps=eps)
-            self.norm_k = LpNorm(p=2, dim=-1, eps=eps)
-        else:
-            raise ValueError(
-                f"unknown qk_norm: {qk_norm}. Should be one of None, 'layer_norm', 'fp32_layer_norm', 'layer_norm_across_heads', 'rms_norm', 'rms_norm_across_heads', 'l2'."
-            )
+        self.norm_q = None
+        self.norm_k = None
 
-        if cross_attention_norm is None:
-            self.norm_cross = None
-        elif cross_attention_norm == "layer_norm":
-            self.norm_cross = nn.LayerNorm(self.cross_attention_dim)
-        elif cross_attention_norm == "group_norm":
-            if self.added_kv_proj_dim is not None:
-                # The given `encoder_hidden_states` are initially of shape
-                # (batch_size, seq_len, added_kv_proj_dim) before being projected
-                # to (batch_size, seq_len, cross_attention_dim). The norm is applied
-                # before the projection, so we need to use `added_kv_proj_dim` as
-                # the number of channels for the group norm.
-                norm_cross_num_channels = added_kv_proj_dim
-            else:
-                norm_cross_num_channels = self.cross_attention_dim
+        self.norm_cross = None
 
-            self.norm_cross = nn.GroupNorm(
-                num_channels=norm_cross_num_channels,
-                num_groups=cross_attention_norm_num_groups,
-                eps=1e-5,
-                affine=True,
-            )
-        else:
-            raise ValueError(
-                f"unknown cross_attention_norm: {cross_attention_norm}. Should be None, 'layer_norm' or 'group_norm'"
-            )
+        self.to_q = nn.Linear(
+            query_dim,
+            self.inner_dim,
+            bias=bias,
+        )
 
-        self.to_q = nn.Linear(query_dim, self.inner_dim, bias=bias)
-
-        if not self.only_cross_attention:
-            # only relevant for the `AddedKVProcessor` classes
-            self.to_k = nn.Linear(
-                self.cross_attention_dim, self.inner_kv_dim, bias=bias
-            )
-            self.to_v = nn.Linear(
-                self.cross_attention_dim, self.inner_kv_dim, bias=bias
-            )
-        else:
-            self.to_k = None
-            self.to_v = None
+        # only relevant for the `AddedKVProcessor` classes
+        self.to_k = nn.Linear(
+            self.cross_attention_dim,
+            self.inner_kv_dim,
+            bias=bias,
+        )
+        self.to_v = nn.Linear(
+            self.cross_attention_dim,
+            self.inner_kv_dim,
+            bias=bias,
+        )
 
         self.added_proj_bias = added_proj_bias
-        if self.added_kv_proj_dim is not None:
-            self.add_k_proj = nn.Linear(
-                added_kv_proj_dim, self.inner_kv_dim, bias=added_proj_bias
-            )
-            self.add_v_proj = nn.Linear(
-                added_kv_proj_dim, self.inner_kv_dim, bias=added_proj_bias
-            )
-            if self.context_pre_only is not None:
-                self.add_q_proj = nn.Linear(
-                    added_kv_proj_dim, self.inner_dim, bias=added_proj_bias
-                )
-        else:
-            self.add_q_proj = None
-            self.add_k_proj = None
-            self.add_v_proj = None
 
-        if not self.pre_only:
-            self.to_out = nn.ModuleList([])
-            self.to_out.append(nn.Linear(self.inner_dim, self.out_dim, bias=out_bias))
-            self.to_out.append(nn.Dropout(dropout))
-        else:
-            self.to_out = None
+        self.add_q_proj = None
+        self.add_k_proj = None
+        self.add_v_proj = None
 
-        if self.context_pre_only is not None and not self.context_pre_only:
-            self.to_add_out = nn.Linear(
-                self.inner_dim, self.out_context_dim, bias=out_bias
-            )
-        else:
-            self.to_add_out = None
+        self.to_out = nn.ModuleList([])
+        self.to_out.append(nn.Linear(self.inner_dim, self.out_dim, bias=out_bias))
+        self.to_out.append(nn.Dropout(dropout))
 
-        if qk_norm is not None and added_kv_proj_dim is not None:
-            if qk_norm == "layer_norm":
-                self.norm_added_q = nn.LayerNorm(
-                    dim_head, eps=eps, elementwise_affine=elementwise_affine
-                )
-                self.norm_added_k = nn.LayerNorm(
-                    dim_head, eps=eps, elementwise_affine=elementwise_affine
-                )
-            elif qk_norm == "fp32_layer_norm":
-                self.norm_added_q = FP32LayerNorm(
-                    dim_head, elementwise_affine=False, bias=False, eps=eps
-                )
-                self.norm_added_k = FP32LayerNorm(
-                    dim_head, elementwise_affine=False, bias=False, eps=eps
-                )
-            elif qk_norm == "rms_norm":
-                self.norm_added_q = RMSNorm(dim_head, eps=eps)
-                self.norm_added_k = RMSNorm(dim_head, eps=eps)
-            elif qk_norm == "rms_norm_across_heads":
-                # Wan applies qk norm across all heads
-                # Wan also doesn't apply a q norm
-                self.norm_added_q = None
-                self.norm_added_k = RMSNorm(dim_head * kv_heads, eps=eps)
-            else:
-                raise ValueError(
-                    f"unknown qk_norm: {qk_norm}. Should be one of `None,'layer_norm','fp32_layer_norm','rms_norm'`"
-                )
-        else:
-            self.norm_added_q = None
-            self.norm_added_k = None
+        self.to_add_out = None
 
-        # set attention processor
-        # We use the AttnProcessor2_0 by default when torch 2.x is used which uses
-        # torch.nn.functional.scaled_dot_product_attention for native Flash/memory_efficient_attention
-        # but only if it has the default `scale` argument. TODO remove scale_qk check when we move to torch 2.1
-        if processor is None:
-            processor = (
-                AttnProcessor2_0()
-                if hasattr(F, "scaled_dot_product_attention") and self.scale_qk
-                else AttnProcessor()
-            )
+        self.norm_added_q = None
+        self.norm_added_k = None
+
+        processor = (
+            AttnProcessor2_0()
+            if hasattr(F, "scaled_dot_product_attention") and self.scale_qk
+            else AttnProcessor()
+        )
         self.set_processor(processor)
 
     def set_attention_slice(self, slice_size: int) -> None:
@@ -2033,91 +1709,6 @@ class Attention(nn.Module):
 
         return encoder_hidden_states
 
-    @torch.no_grad()
-    def fuse_projections(self, fuse=True):
-        device = self.to_q.weight.data.device
-        dtype = self.to_q.weight.data.dtype
-
-        if not self.is_cross_attention:
-            # fetch weight matrices.
-            concatenated_weights = torch.cat(
-                [self.to_q.weight.data, self.to_k.weight.data, self.to_v.weight.data]
-            )
-            in_features = concatenated_weights.shape[1]
-            out_features = concatenated_weights.shape[0]
-
-            # create a new single projection layer and copy over the weights.
-            self.to_qkv = nn.Linear(
-                in_features,
-                out_features,
-                bias=self.use_bias,
-                device=device,
-                dtype=dtype,
-            )
-            self.to_qkv.weight.copy_(concatenated_weights)
-            if self.use_bias:
-                concatenated_bias = torch.cat(
-                    [self.to_q.bias.data, self.to_k.bias.data, self.to_v.bias.data]
-                )
-                self.to_qkv.bias.copy_(concatenated_bias)
-
-        else:
-            concatenated_weights = torch.cat(
-                [self.to_k.weight.data, self.to_v.weight.data]
-            )
-            in_features = concatenated_weights.shape[1]
-            out_features = concatenated_weights.shape[0]
-
-            self.to_kv = nn.Linear(
-                in_features,
-                out_features,
-                bias=self.use_bias,
-                device=device,
-                dtype=dtype,
-            )
-            self.to_kv.weight.copy_(concatenated_weights)
-            if self.use_bias:
-                concatenated_bias = torch.cat(
-                    [self.to_k.bias.data, self.to_v.bias.data]
-                )
-                self.to_kv.bias.copy_(concatenated_bias)
-
-        # handle added projections for SD3 and others.
-        if (
-            getattr(self, "add_q_proj", None) is not None
-            and getattr(self, "add_k_proj", None) is not None
-            and getattr(self, "add_v_proj", None) is not None
-        ):
-            concatenated_weights = torch.cat(
-                [
-                    self.add_q_proj.weight.data,
-                    self.add_k_proj.weight.data,
-                    self.add_v_proj.weight.data,
-                ]
-            )
-            in_features = concatenated_weights.shape[1]
-            out_features = concatenated_weights.shape[0]
-
-            self.to_added_qkv = nn.Linear(
-                in_features,
-                out_features,
-                bias=self.added_proj_bias,
-                device=device,
-                dtype=dtype,
-            )
-            self.to_added_qkv.weight.copy_(concatenated_weights)
-            if self.added_proj_bias:
-                concatenated_bias = torch.cat(
-                    [
-                        self.add_q_proj.bias.data,
-                        self.add_k_proj.bias.data,
-                        self.add_v_proj.bias.data,
-                    ]
-                )
-                self.to_added_qkv.bias.copy_(concatenated_bias)
-
-        self.fused_projections = fuse
-
 
 class AttnProcessor2_0:
     r"""
@@ -2406,28 +1997,6 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                 beta_end,
                 num_train_timesteps,
                 dtype=torch.float32,
-            )
-        elif beta_schedule == "scaled_linear":
-            # this schedule is very specific to the latent diffusion model.
-            self.betas = (
-                torch.linspace(
-                    beta_start**0.5,
-                    beta_end**0.5,
-                    num_train_timesteps,
-                    dtype=torch.float32,
-                )
-                ** 2
-            )
-        elif beta_schedule == "squaredcos_cap_v2":
-            # Glide cosine schedule
-            self.betas = betas_for_alpha_bar(num_train_timesteps)
-        elif beta_schedule == "sigmoid":
-            # GeoDiff sigmoid schedule
-            betas = torch.linspace(-6, 6, num_train_timesteps)
-            self.betas = torch.sigmoid(betas) * (beta_end - beta_start) + beta_start
-        else:
-            raise NotImplementedError(
-                f"{beta_schedule} is not implemented for {self.__class__}"
             )
 
         # Rescale for zero SNR
@@ -3810,33 +3379,19 @@ class RMSNorm(nn.Module):
                 self.bias = nn.Parameter(torch.zeros(dim))
 
     def forward(self, hidden_states):
-        if is_torch_npu_available():
-            pass
-            # import torch_npu
+        input_dtype = hidden_states.dtype
+        variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * torch.rsqrt(variance + self.eps)
 
-            # if self.weight is not None:
-            #     # convert into half-precision if necessary
-            #     if self.weight.dtype in [torch.float16, torch.bfloat16]:
-            #         hidden_states = hidden_states.to(self.weight.dtype)
-            # hidden_states = torch_npu.npu_rms_norm(
-            #     hidden_states, self.weight, epsilon=self.eps
-            # )[0]
-            # if self.bias is not None:
-            #     hidden_states = hidden_states + self.bias
+        if self.weight is not None:
+            # convert into half-precision if necessary
+            if self.weight.dtype in [torch.float16, torch.bfloat16]:
+                hidden_states = hidden_states.to(self.weight.dtype)
+            hidden_states = hidden_states * self.weight
+            if self.bias is not None:
+                hidden_states = hidden_states + self.bias
         else:
-            input_dtype = hidden_states.dtype
-            variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)
-            hidden_states = hidden_states * torch.rsqrt(variance + self.eps)
-
-            if self.weight is not None:
-                # convert into half-precision if necessary
-                if self.weight.dtype in [torch.float16, torch.bfloat16]:
-                    hidden_states = hidden_states.to(self.weight.dtype)
-                hidden_states = hidden_states * self.weight
-                if self.bias is not None:
-                    hidden_states = hidden_states + self.bias
-            else:
-                hidden_states = hidden_states.to(input_dtype)
+            hidden_states = hidden_states.to(input_dtype)
 
         return hidden_states
 
@@ -3946,26 +3501,6 @@ class ResnetBlock2D(nn.Module):
         self.nonlinearity = get_activation(non_linearity)
 
         self.upsample = self.downsample = None
-        # self.up=False
-        # if self.up:
-        #     if kernel == "fir":
-        #         fir_kernel = (1, 3, 3, 1)
-        #         self.upsample = lambda x: upsample_2d(x, kernel=fir_kernel)
-        #     elif kernel == "sde_vp":
-        #         self.upsample = partial(F.interpolate, scale_factor=2.0, mode="nearest")
-        #     else:
-        #         self.upsample = Upsample2D(in_channels, use_conv=False)
-        # self.down=False
-        # elif self.down:
-        #     if kernel == "fir":
-        #         fir_kernel = (1, 3, 3, 1)
-        #         self.downsample = lambda x: downsample_2d(x, kernel=fir_kernel)
-        #     elif kernel == "sde_vp":
-        #         self.downsample = partial(F.avg_pool2d, kernel_size=2, stride=2)
-        #     else:
-        #         self.downsample = Downsample2D(
-        #             in_channels, use_conv=False, padding=1, name="op"
-        #         )
         # self.use_in_shortcut=False
         self.use_in_shortcut = (
             self.in_channels != conv_2d_out_channels
