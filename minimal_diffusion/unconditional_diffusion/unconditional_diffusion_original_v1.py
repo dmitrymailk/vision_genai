@@ -6,7 +6,7 @@ import os
 import math
 
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import torch
 import torch.nn.functional as F
 from accelerate import Accelerator

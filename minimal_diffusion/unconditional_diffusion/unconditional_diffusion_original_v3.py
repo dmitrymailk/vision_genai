@@ -5,6 +5,10 @@ annotated minimal version, diffusers compatible
 import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# export http_proxy="127.0.0.1:2334"
+# export https_proxy="127.0.0.1:2334"
+os.environ["http_proxy"] = "127.0.0.1:2334"
+os.environ["https_proxy"] = "127.0.0.1:2334"
 
 import torch
 import torch.nn.functional as F
@@ -281,52 +285,21 @@ class Downsample2D(nn.Module):
         stride = 2
         self.name = name
 
-        if norm_type == "ln_norm":
-            self.norm = nn.LayerNorm(channels, eps, elementwise_affine)
-        elif norm_type == "rms_norm":
-            self.norm = RMSNorm(channels, eps, elementwise_affine)
-        elif norm_type is None:
-            self.norm = None
-        else:
-            raise ValueError(f"unknown norm_type: {norm_type}")
+        self.norm = None
 
-        if use_conv:
-            conv = nn.Conv2d(
-                self.channels,
-                self.out_channels,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=padding,
-                bias=bias,
-            )
-        else:
-            assert self.channels == self.out_channels
-            conv = nn.AvgPool2d(kernel_size=stride, stride=stride)
+        # сокращаем размер в 2 раза
+        conv = nn.Conv2d(
+            self.channels,
+            self.out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            bias=bias,
+        )
 
-        # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
-        if name == "conv":
-            self.Conv2d_0 = conv
-            self.conv = conv
-        elif name == "Conv2d_0":
-            self.conv = conv
-        else:
-            self.conv = conv
+        self.conv = conv
 
     def forward(self, hidden_states: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        if len(args) > 0 or kwargs.get("scale", None) is not None:
-            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
-            deprecate("scale", "1.0.0", deprecation_message)
-        assert hidden_states.shape[1] == self.channels
-
-        if self.norm is not None:
-            hidden_states = self.norm(hidden_states.permute(0, 2, 3, 1)).permute(
-                0, 3, 1, 2
-            )
-
-        if self.use_conv and self.padding == 0:
-            pad = (0, 1, 0, 1)
-            hidden_states = F.pad(hidden_states, pad, mode="constant", value=0)
-
         assert hidden_states.shape[1] == self.channels
 
         hidden_states = self.conv(hidden_states)
@@ -2992,12 +2965,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         # )
 
         for downsample_block in self.down_blocks:
-            if hasattr(downsample_block, "skip_conv"):
-                sample, res_samples, skip_sample = downsample_block(
-                    hidden_states=sample, temb=emb, skip_sample=skip_sample
-                )
-            else:
-                sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
+            sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
 
             down_block_res_samples += res_samples
 
@@ -3201,12 +3169,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
                 : -len(upsample_block.resnets)
             ]
 
-            if hasattr(upsample_block, "skip_conv"):
-                sample, skip_sample = upsample_block(
-                    sample, res_samples, emb, skip_sample
-                )
-            else:
-                sample = upsample_block(sample, res_samples, emb)
+            sample = upsample_block(sample, res_samples, emb)
 
         # 6. post-process
         # sample.shape=torch.Size([16, 128, 64, 64])
@@ -3476,17 +3439,7 @@ class ResnetBlock2D(nn.Module):
             in_channels, out_channels, kernel_size=3, stride=1, padding=1
         )
 
-        if temb_channels is not None:
-            if self.time_embedding_norm == "default":
-                self.time_emb_proj = nn.Linear(temb_channels, out_channels)
-            elif self.time_embedding_norm == "scale_shift":
-                self.time_emb_proj = nn.Linear(temb_channels, 2 * out_channels)
-            else:
-                raise ValueError(
-                    f"unknown time_embedding_norm : {self.time_embedding_norm} "
-                )
-        else:
-            self.time_emb_proj = None
+        self.time_emb_proj = nn.Linear(temb_channels, out_channels)
 
         self.norm2 = torch.nn.GroupNorm(
             num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True
@@ -3529,25 +3482,13 @@ class ResnetBlock2D(nn.Module):
         if len(args) > 0 or kwargs.get("scale", None) is not None:
             deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
             deprecate("scale", "1.0.0", deprecation_message)
-
         hidden_states = input_tensor
 
+        # torch.Size([16, 128, 64, 64])
         hidden_states = self.norm1(hidden_states)
+        # torch.Size([16, 128, 64, 64])
         hidden_states = self.nonlinearity(hidden_states)
-
-        # self.upsample=None
-        if self.upsample is not None:
-            # upsample_nearest_nhwc fails with large batch sizes. see https://github.com/huggingface/diffusers/issues/984
-            if hidden_states.shape[0] >= 64:
-                input_tensor = input_tensor.contiguous()
-                hidden_states = hidden_states.contiguous()
-            input_tensor = self.upsample(input_tensor)
-            hidden_states = self.upsample(hidden_states)
-        # self.downsample=None
-        elif self.downsample is not None:
-            input_tensor = self.downsample(input_tensor)
-            hidden_states = self.downsample(hidden_states)
-
+        # torch.Size([16, 128, 64, 64])
         hidden_states = self.conv1(hidden_states)
 
         if self.time_emb_proj is not None:
@@ -3555,26 +3496,16 @@ class ResnetBlock2D(nn.Module):
                 temb = self.nonlinearity(temb)
             temb = self.time_emb_proj(temb)[:, :, None, None]
         # self.time_embedding_norm="default"
-        # THIS BRANCH
-        if self.time_embedding_norm == "default":
-            # temb=torch.Size([4, 512])
-            if temb is not None:
-                hidden_states = hidden_states + temb
-            hidden_states = self.norm2(hidden_states)
-        elif self.time_embedding_norm == "scale_shift":
-            if temb is None:
-                raise ValueError(
-                    f" `temb` should not be None when `time_embedding_norm` is {self.time_embedding_norm}"
-                )
-            time_scale, time_shift = torch.chunk(temb, 2, dim=1)
-            hidden_states = self.norm2(hidden_states)
-            hidden_states = hidden_states * (1 + time_scale) + time_shift
-        else:
-            hidden_states = self.norm2(hidden_states)
+
+        # temb=torch.Size([16, 128, 1, 1])
+        if temb is not None:
+            hidden_states = hidden_states + temb
+        hidden_states = self.norm2(hidden_states)
 
         hidden_states = self.nonlinearity(hidden_states)
 
         hidden_states = self.dropout(hidden_states)
+        # torch.Size([16, 128, 64, 64])
         hidden_states = self.conv2(hidden_states)
 
         if self.conv_shortcut is not None:
@@ -3585,96 +3516,6 @@ class ResnetBlock2D(nn.Module):
         output_tensor = (input_tensor + hidden_states) / self.output_scale_factor
 
         return output_tensor
-
-
-class Downsample2D(nn.Module):
-    """ok A 2D downsampling layer with an optional convolution.
-
-    Parameters:
-        channels (`int`):
-            number of channels in the inputs and outputs.
-        use_conv (`bool`, default `False`):
-            option to use a convolution.
-        out_channels (`int`, optional):
-            number of output channels. Defaults to `channels`.
-        padding (`int`, default `1`):
-            padding for the convolution.
-        name (`str`, default `conv`):
-            name of the downsampling 2D layer.
-    """
-
-    def __init__(
-        self,
-        channels: int,
-        use_conv: bool = False,
-        out_channels: Optional[int] = None,
-        padding: int = 1,
-        name: str = "conv",
-        kernel_size=3,
-        norm_type=None,
-        eps=None,
-        elementwise_affine=None,
-        bias=True,
-    ):
-        super().__init__()
-        self.channels = channels
-        self.out_channels = out_channels or channels
-        self.use_conv = use_conv
-        self.padding = padding
-        stride = 2
-        self.name = name
-
-        if norm_type == "ln_norm":
-            self.norm = nn.LayerNorm(channels, eps, elementwise_affine)
-        elif norm_type == "rms_norm":
-            self.norm = RMSNorm(channels, eps, elementwise_affine)
-        elif norm_type is None:
-            self.norm = None
-        else:
-            raise ValueError(f"unknown norm_type: {norm_type}")
-
-        if use_conv:
-            conv = nn.Conv2d(
-                self.channels,
-                self.out_channels,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=padding,
-                bias=bias,
-            )
-        else:
-            assert self.channels == self.out_channels
-            conv = nn.AvgPool2d(kernel_size=stride, stride=stride)
-
-        # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
-        if name == "conv":
-            self.Conv2d_0 = conv
-            self.conv = conv
-        elif name == "Conv2d_0":
-            self.conv = conv
-        else:
-            self.conv = conv
-
-    def forward(self, hidden_states: torch.Tensor, *args, **kwargs) -> torch.Tensor:
-        if len(args) > 0 or kwargs.get("scale", None) is not None:
-            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
-            deprecate("scale", "1.0.0", deprecation_message)
-        assert hidden_states.shape[1] == self.channels
-
-        if self.norm is not None:
-            hidden_states = self.norm(hidden_states.permute(0, 2, 3, 1)).permute(
-                0, 3, 1, 2
-            )
-
-        if self.use_conv and self.padding == 0:
-            pad = (0, 1, 0, 1)
-            hidden_states = F.pad(hidden_states, pad, mode="constant", value=0)
-
-        assert hidden_states.shape[1] == self.channels
-
-        hidden_states = self.conv(hidden_states)
-
-        return hidden_states
 
 
 def get_timestep_embedding(
@@ -3750,36 +3591,23 @@ class TimestepEmbedding(nn.Module):
 
         self.linear_1 = nn.Linear(in_channels, time_embed_dim, sample_proj_bias)
 
-        if cond_proj_dim is not None:
-            self.cond_proj = nn.Linear(cond_proj_dim, in_channels, bias=False)
-        else:
-            self.cond_proj = None
+        self.cond_proj = None
 
         self.act = get_activation(act_fn)
 
-        if out_dim is not None:
-            time_embed_dim_out = out_dim
-        else:
-            time_embed_dim_out = time_embed_dim
+        time_embed_dim_out = time_embed_dim
         self.linear_2 = nn.Linear(time_embed_dim, time_embed_dim_out, sample_proj_bias)
 
-        if post_act_fn is None:
-            self.post_act = None
-        else:
-            self.post_act = get_activation(post_act_fn)
+        self.post_act = None
 
     def forward(self, sample, condition=None):
-        if condition is not None:
-            sample = sample + self.cond_proj(condition)
+
         sample = self.linear_1(sample)
 
-        if self.act is not None:
-            sample = self.act(sample)
+        sample = self.act(sample)
 
         sample = self.linear_2(sample)
 
-        if self.post_act is not None:
-            sample = self.post_act(sample)
         return sample
 
 
@@ -4044,11 +3872,10 @@ for epoch in range(first_epoch, args.num_epochs):
             # Predict the noise residual
             model_output = model(noisy_images, timesteps).sample
 
-            if args.prediction_type == "epsilon":
-                loss = F.mse_loss(
-                    model_output.float(),
-                    noise.float(),
-                )
+            loss = F.mse_loss(
+                model_output.float(),
+                noise.float(),
+            )
 
             accelerator.backward(loss)
 
