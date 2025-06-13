@@ -160,3 +160,4 @@ cython_debug/
 mnist
 wandb
 docker
+trace*.json

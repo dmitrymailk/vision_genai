@@ -3482,6 +3482,7 @@ class ResnetBlock2D(nn.Module):
         if len(args) > 0 or kwargs.get("scale", None) is not None:
             deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
             deprecate("scale", "1.0.0", deprecation_message)
+        # temb=torch.Size([16, 512])
         hidden_states = input_tensor
 
         # torch.Size([16, 128, 64, 64])
