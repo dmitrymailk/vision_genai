@@ -1,5 +1,5 @@
 """
-annotated minimal version, diffusers compatible, with torch compile
+annotated minimal version, with torch compile
 """
 
 import os
@@ -11,7 +11,7 @@ os.environ["TORCH_LOGS"] = "recompiles"
 
 import torch
 
-torch._dynamo.config.force_parameter_static_shapes = False
+torch.set_float32_matmul_precision("high")
 import torch.nn.functional as F
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration
@@ -619,35 +619,35 @@ class DownBlock2D(nn.Module):
                 # non_linearity=resnet_act_fn='silu'
                 # output_scale_factor=output_scale_factor=1.0
                 # pre_norm=resnet_pre_norm=True
-                # ResnetBlock2D(
-                #     in_channels=in_channels,
-                #     out_channels=out_channels,
-                #     temb_channels=temb_channels,
-                #     eps=resnet_eps,
-                #     groups=resnet_groups,
-                #     dropout=dropout,
-                #     time_embedding_norm=resnet_time_scale_shift,
-                #     non_linearity=resnet_act_fn,
-                #     output_scale_factor=output_scale_factor,
-                #     pre_norm=resnet_pre_norm,
-                # )
-                torch.compile(
-                    ResnetBlock2D(
-                        in_channels=in_channels,
-                        out_channels=out_channels,
-                        temb_channels=temb_channels,
-                        eps=resnet_eps,
-                        groups=resnet_groups,
-                        dropout=dropout,
-                        time_embedding_norm=resnet_time_scale_shift,
-                        non_linearity=resnet_act_fn,
-                        output_scale_factor=output_scale_factor,
-                        pre_norm=resnet_pre_norm,
-                    ),
-                    fullgraph=True,
-                    dynamic=True,
-                    mode="reduce-overhead",
+                ResnetBlock2D(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    temb_channels=temb_channels,
+                    eps=resnet_eps,
+                    groups=resnet_groups,
+                    dropout=dropout,
+                    time_embedding_norm=resnet_time_scale_shift,
+                    non_linearity=resnet_act_fn,
+                    output_scale_factor=output_scale_factor,
+                    pre_norm=resnet_pre_norm,
                 )
+                # torch.compile(
+                #     ResnetBlock2D(
+                #         in_channels=in_channels,
+                #         out_channels=out_channels,
+                #         temb_channels=temb_channels,
+                #         eps=resnet_eps,
+                #         groups=resnet_groups,
+                #         dropout=dropout,
+                #         time_embedding_norm=resnet_time_scale_shift,
+                #         non_linearity=resnet_act_fn,
+                #         output_scale_factor=output_scale_factor,
+                #         pre_norm=resnet_pre_norm,
+                #     ),
+                #     fullgraph=True,
+                #     dynamic=True,
+                #     mode="reduce-overhead",
+                # )
             )
 
         self.resnets = nn.ModuleList(resnets)
@@ -878,35 +878,35 @@ class UpBlock2D(nn.Module):
                 # non_linearity=resnet_act_fn='silu'
                 # output_scale_factor=output_scale_factor
                 # pre_norm=resnet_pre_norm=1.0
-                # ResnetBlock2D(
-                #     in_channels=resnet_in_channels + res_skip_channels,
-                #     out_channels=out_channels,
-                #     temb_channels=temb_channels,
-                #     eps=resnet_eps,
-                #     groups=resnet_groups,
-                #     dropout=dropout,
-                #     time_embedding_norm=resnet_time_scale_shift,
-                #     non_linearity=resnet_act_fn,
-                #     output_scale_factor=output_scale_factor,
-                #     pre_norm=resnet_pre_norm,
-                # )
-                torch.compile(
-                    ResnetBlock2D(
-                        in_channels=resnet_in_channels + res_skip_channels,
-                        out_channels=out_channels,
-                        temb_channels=temb_channels,
-                        eps=resnet_eps,
-                        groups=resnet_groups,
-                        dropout=dropout,
-                        time_embedding_norm=resnet_time_scale_shift,
-                        non_linearity=resnet_act_fn,
-                        output_scale_factor=output_scale_factor,
-                        pre_norm=resnet_pre_norm,
-                    ),
-                    fullgraph=True,
-                    dynamic=True,
-                    mode="reduce-overhead",
+                ResnetBlock2D(
+                    in_channels=resnet_in_channels + res_skip_channels,
+                    out_channels=out_channels,
+                    temb_channels=temb_channels,
+                    eps=resnet_eps,
+                    groups=resnet_groups,
+                    dropout=dropout,
+                    time_embedding_norm=resnet_time_scale_shift,
+                    non_linearity=resnet_act_fn,
+                    output_scale_factor=output_scale_factor,
+                    pre_norm=resnet_pre_norm,
                 )
+                # torch.compile(
+                #     ResnetBlock2D(
+                #         in_channels=resnet_in_channels + res_skip_channels,
+                #         out_channels=out_channels,
+                #         temb_channels=temb_channels,
+                #         eps=resnet_eps,
+                #         groups=resnet_groups,
+                #         dropout=dropout,
+                #         time_embedding_norm=resnet_time_scale_shift,
+                #         non_linearity=resnet_act_fn,
+                #         output_scale_factor=output_scale_factor,
+                #         pre_norm=resnet_pre_norm,
+                #     ),
+                #     fullgraph=True,
+                #     dynamic=True,
+                #     mode="reduce-overhead",
+                # )
             )
 
         self.resnets = nn.ModuleList(resnets)
@@ -3624,8 +3624,10 @@ if accelerator.is_main_process:
     run = os.path.split(args.project_name)[-1].split(".")[0]
     accelerator.init_trackers(run)
 
+model = torch.compile(model)
 
 # Train!
+# with torch.profiler.profile() as prof:
 for epoch in range(first_epoch, args.num_epochs):
     model.train()
     progress_bar = tqdm(
@@ -3679,6 +3681,9 @@ for epoch in range(first_epoch, args.num_epochs):
             optimizer.step()
             lr_scheduler.step()
             optimizer.zero_grad()
+        # prof.step()
+        # if step > 2:
+        #     break
 
         # Checks if the accelerator has performed an optimization step behind the scenes
         if accelerator.sync_gradients:
@@ -3711,6 +3716,7 @@ for epoch in range(first_epoch, args.num_epochs):
     accelerator.wait_for_everyone()
 
     # Generate sample images for visual inspection
+    # break
     if accelerator.is_main_process:
         if epoch % args.save_images_epochs == 0 or epoch == args.num_epochs - 1:
             unet = accelerator.unwrap_model(model)
@@ -3768,6 +3774,8 @@ for epoch in range(first_epoch, args.num_epochs):
 
             if args.use_ema:
                 ema_model.restore(unet.parameters())
+        # break
 
 
 accelerator.end_training()
+# prof.export_chrome_trace("trace_accelerate.json")

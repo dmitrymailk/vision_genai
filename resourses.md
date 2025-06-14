@@ -1,5 +1,4 @@
 - [whisper.cpp](https://github.com/ggerganov/whisper.cpp)
-- [gpt-fast](https://github.com/pytorch-labs/gpt-fast)
 - [EAGLE](https://github.com/SafeAILab/EAGLE)
 - [koboldcpp](https://github.com/LostRuins/koboldcpp)
 - [speculative-decoding](https://github.com/lucidrains/speculative-decoding)
@@ -81,6 +80,13 @@
 - [PygmalionAI's large-scale inference engine](https://github.com/PygmalionAI/aphrodite-engine)
 - [[ICML 2023] SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models](https://github.com/mit-han-lab/smoothquant)
 - [A simple high performance CUDA GEMM implementation.](https://github.com/Cjkkkk/CUDA_gemm)
+- [Meta Lingua: a lean, efficient, and easy-to-hack codebase to research LLMs.](https://github.com/facebookresearch/lingua?tab=readme-ov-file)
+- [NanoGPT (124M) in 3 minutes](https://github.com/KellerJordan/modded-nanogpt)
+- https://github.com/pytorch-labs/applied-ai
+- [torch compile whisper](https://github.com/zhxchen17/torchnative/tree/main/whisper_aoti)
+- https://github.com/pytorch-labs/attention-gym
+- https://github.com/pytorch-labs/LeanRL
+- [Run PyTorch LLMs locally on servers, desktop and mobile](https://github.com/pytorch/torchchat)
 
 ### courses
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -94,6 +100,7 @@
 - [awesome-cuda-and-hpc](https://github.com/codingonion/awesome-cuda-and-hpc)
 - [Diffusion Policy Accelerated is a library that showcases the use of custom CUDA extensions and CUDA graphs to accelerate the inference of DiffusionPolicy-C.](https://github.com/vdesai2014/diffusion-policy-accelerated.git)
 - [A set of examples around pytorch in Vision, Text, Reinforcement Learning, etc.](https://github.com/pytorch/examples/tree/main/cpp)
+- https://docs.pytorch.org/functorch/nightly/generated/functorch.vmap.html
 
 ### UPenn CIS 5650 - GPU Programming and Architecture - Fall 2023
 - https://www.bilibili.com/video/BV1mQ4y177tj/
@@ -181,4 +188,12 @@ a
 - https://ui.perfetto.dev/
 - chrome://tracing/
 - [Torch Compile and External Kernels](https://docs.nvidia.com/deeplearning/physicsnemo/physicsnemo-core/tutorials/performance_docs/torch_compile_support.html)
-- 
+- https://github.com/MDK8888/GPTFast
+- [gpt-fast](https://github.com/pytorch-labs/gpt-fast)
+- [The dynamic shapes manual](https://docs.google.com/document/d/1GgvOe7C8_NVOMLOCwDaYV1mXXyHMXY7ExoewHqooxrs/edit?tab=t.0#heading=h.fh8zzonyw8ng)
+- [torch.compile Troubleshooting](https://docs.pytorch.org/docs/stable/torch.compiler_troubleshooting.html#torch-compile-troubleshooting)
+- https://blog.ezyang.com/2024/11/ways-to-use-torch-compile/
+- [превращение програм от torch compile в бинарники без libtorch](https://github.com/lianakoleva/no-libtorch-compile)
+- [torch.compile, the missing manual](https://docs.google.com/document/d/1y5CRfMLdwEoF1nTk9q8qEu1mgMUuUtvhklPKJ2emLU8/edit?tab=t.0#heading=h.ivdr7fmrbeab)
+- https://docs.pytorch.org/docs/stable/notes/cuda.html#whole-network-capture
+
