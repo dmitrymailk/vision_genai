@@ -1,5 +1,5 @@
 """
-annotated minimal version, diffusers compatible
+annotated minimal version, diffusers compatible, with torch compile
 """
 
 import os
@@ -7,8 +7,11 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["http_proxy"] = "127.0.0.1:2334"
 os.environ["https_proxy"] = "127.0.0.1:2334"
+os.environ["TORCH_LOGS"] = "recompiles"
 
 import torch
+
+torch._dynamo.config.force_parameter_static_shapes = False
 import torch.nn.functional as F
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration
@@ -616,17 +619,34 @@ class DownBlock2D(nn.Module):
                 # non_linearity=resnet_act_fn='silu'
                 # output_scale_factor=output_scale_factor=1.0
                 # pre_norm=resnet_pre_norm=True
-                ResnetBlock2D(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    temb_channels=temb_channels,
-                    eps=resnet_eps,
-                    groups=resnet_groups,
-                    dropout=dropout,
-                    time_embedding_norm=resnet_time_scale_shift,
-                    non_linearity=resnet_act_fn,
-                    output_scale_factor=output_scale_factor,
-                    pre_norm=resnet_pre_norm,
+                # ResnetBlock2D(
+                #     in_channels=in_channels,
+                #     out_channels=out_channels,
+                #     temb_channels=temb_channels,
+                #     eps=resnet_eps,
+                #     groups=resnet_groups,
+                #     dropout=dropout,
+                #     time_embedding_norm=resnet_time_scale_shift,
+                #     non_linearity=resnet_act_fn,
+                #     output_scale_factor=output_scale_factor,
+                #     pre_norm=resnet_pre_norm,
+                # )
+                torch.compile(
+                    ResnetBlock2D(
+                        in_channels=in_channels,
+                        out_channels=out_channels,
+                        temb_channels=temb_channels,
+                        eps=resnet_eps,
+                        groups=resnet_groups,
+                        dropout=dropout,
+                        time_embedding_norm=resnet_time_scale_shift,
+                        non_linearity=resnet_act_fn,
+                        output_scale_factor=output_scale_factor,
+                        pre_norm=resnet_pre_norm,
+                    ),
+                    fullgraph=True,
+                    dynamic=True,
+                    mode="reduce-overhead",
                 )
             )
 
@@ -858,17 +878,34 @@ class UpBlock2D(nn.Module):
                 # non_linearity=resnet_act_fn='silu'
                 # output_scale_factor=output_scale_factor
                 # pre_norm=resnet_pre_norm=1.0
-                ResnetBlock2D(
-                    in_channels=resnet_in_channels + res_skip_channels,
-                    out_channels=out_channels,
-                    temb_channels=temb_channels,
-                    eps=resnet_eps,
-                    groups=resnet_groups,
-                    dropout=dropout,
-                    time_embedding_norm=resnet_time_scale_shift,
-                    non_linearity=resnet_act_fn,
-                    output_scale_factor=output_scale_factor,
-                    pre_norm=resnet_pre_norm,
+                # ResnetBlock2D(
+                #     in_channels=resnet_in_channels + res_skip_channels,
+                #     out_channels=out_channels,
+                #     temb_channels=temb_channels,
+                #     eps=resnet_eps,
+                #     groups=resnet_groups,
+                #     dropout=dropout,
+                #     time_embedding_norm=resnet_time_scale_shift,
+                #     non_linearity=resnet_act_fn,
+                #     output_scale_factor=output_scale_factor,
+                #     pre_norm=resnet_pre_norm,
+                # )
+                torch.compile(
+                    ResnetBlock2D(
+                        in_channels=resnet_in_channels + res_skip_channels,
+                        out_channels=out_channels,
+                        temb_channels=temb_channels,
+                        eps=resnet_eps,
+                        groups=resnet_groups,
+                        dropout=dropout,
+                        time_embedding_norm=resnet_time_scale_shift,
+                        non_linearity=resnet_act_fn,
+                        output_scale_factor=output_scale_factor,
+                        pre_norm=resnet_pre_norm,
+                    ),
+                    fullgraph=True,
+                    dynamic=True,
+                    mode="reduce-overhead",
                 )
             )
 
@@ -3464,6 +3501,7 @@ model = UNet2DModel(
     ),
 )
 model = model.cuda()
+
 
 ema_model = EMAModel(
     model.parameters(),
