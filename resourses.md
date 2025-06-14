@@ -180,3 +180,5 @@ a
 - [Identifying the cause of a graph break](https://docs.pytorch.org/docs/stable/torch.compiler_faq.html#why-am-i-not-seeing-speedups)
 - https://ui.perfetto.dev/
 - chrome://tracing/
+- [Torch Compile and External Kernels](https://docs.nvidia.com/deeplearning/physicsnemo/physicsnemo-core/tutorials/performance_docs/torch_compile_support.html)
+- 
