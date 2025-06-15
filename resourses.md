@@ -93,6 +93,9 @@
 - [torchtitan A PyTorch native platform for training generative AI models](https://github.com/pytorch/torchtitan)
 - [Native PyTorch library for quantization and sparsity](https://github.com/pytorch/ao)
 - [diffusion-fast Faster generation with text-to-image diffusion models.](https://github.com/huggingface/diffusion-fast)
+- [AITemplate is a Python framework which renders neural network into high performance CUDA/HIP C++ code. Specialized for FP16 TensorCore (NVIDIA GPU) and MatrixCore (AMD GPU) inference.](https://github.com/facebookincubator/AITemplate/tree/main)
+- [The largest collection of PyTorch image encoders / backbones. Including train, eval, inference, export scripts, and pretrained weights -- ResNet, ResNeXT, EfficientNet, NFNet, Vision Transformer (ViT), MobileNetV4, MobileNet-V3 & V2, RegNet, DPN, CSPNet, Swin Transformer, MaxViT, CoAtNet, ConvNeXt, and more](https://github.com/huggingface/pytorch-image-models?tab=readme-ov-file#models)
+- [A coding-free framework built on PyTorch for reproducible deep learning studies. PyTorch Ecosystem. 🏆25 knowledge distillation methods presented at CVPR, ICLR, ECCV, NeurIPS, ICCV, etc are implemented so far. 🎁 Trained models, training logs and configurations are available for ensuring the reproducibiliy and benchmark.](https://github.com/yoshitomo-matsubara/torchdistill)
 
 ### courses
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -207,3 +210,6 @@ a
 - [Speeding Up Graph Learning Models with PyG and torch.compile](https://kumo.ai/research/speeding-up-graph-learning-models-with-pyg-and-torch-compile/)
 - [tensorrt Torch Compile Advanced Usage](https://docs.pytorch.org/TensorRT/tutorials/_rendered_examples/dynamo/torch_compile_advanced_usage.html)
 - [A Walk Through Example of torch.compile](https://depyf.readthedocs.io/en/latest/walk_through.html)
+- [Introducing depyf: mastering torch.compile with ease](https://pytorch.org/blog/introducing-depyf/)
+- [torch.compile Frequently Asked Questions](https://docs.pytorch.org/docs/stable/torch.compiler_faq.html)
+- [PyTorch 2: Faster Machine Learning Through Dynamic Python Bytecode Transformation and Graph Compilation](https://assets-global.website-files.com/5eda9dd611c901bc56b01a91/65cbd869aff1b575ff2bc95e_pytorch_2.pdf)

@@ -3624,7 +3624,7 @@ if accelerator.is_main_process:
     run = os.path.split(args.project_name)[-1].split(".")[0]
     accelerator.init_trackers(run)
 
-model = torch.compile(model)
+# model = torch.compile(model)
 
 # Train!
 # with torch.profiler.profile() as prof:

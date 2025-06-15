@@ -161,3 +161,4 @@ mnist
 wandb
 docker
 trace*.json
+dump_src_dir
