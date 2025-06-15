@@ -72,7 +72,6 @@
 - [TensorRT 10. Working with Loops](https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#work-with-loops)
 - [TensorRT 11.5.1. Simple If-Conditional](https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#work-with-loops)
 - [neural-compressor Intel](https://github.com/intel/neural-compressor)
-- [Native PyTorch library for quantization and sparsity](https://github.com/pytorch/ao)
 - [AIMET is a library that provides advanced quantization and compression techniques for trained neural network models.](https://github.com/quic/aimet/tree/develop)
 - [Neural Network Compression Framework for enhanced OpenVINO™ inference](https://github.com/openvinotoolkit/nncf)
 - [OpenVINO™ is an open-source toolkit for optimizing and deploying AI inference](https://github.com/openvinotoolkit/openvino)
@@ -86,7 +85,14 @@
 - [torch compile whisper](https://github.com/zhxchen17/torchnative/tree/main/whisper_aoti)
 - https://github.com/pytorch-labs/attention-gym
 - https://github.com/pytorch-labs/LeanRL
-- [Run PyTorch LLMs locally on servers, desktop and mobile](https://github.com/pytorch/torchchat)
+- [torchchat Run PyTorch LLMs locally on servers, desktop and mobile](https://github.com/pytorch/torchchat)
+- [🚀 Collection of components for development, training, tuning, and inference of foundation models leveraging PyTorch native components.](https://github.com/foundation-model-stack/foundation-model-stack)
+- 🚀 [Efficiently (pre)training foundation models with native PyTorch features, including FSDP for training and SDPA implementation of Flash attention v2.](https://github.com/foundation-model-stack/fms-fsdp)
+- [Modeling, training, eval, and inference code for OLMo](https://github.com/allenai/OLMo)
+- [torchtune PyTorch native post-training library](https://github.com/pytorch/torchtune)
+- [torchtitan A PyTorch native platform for training generative AI models](https://github.com/pytorch/torchtitan)
+- [Native PyTorch library for quantization and sparsity](https://github.com/pytorch/ao)
+- [diffusion-fast Faster generation with text-to-image diffusion models.](https://github.com/huggingface/diffusion-fast)
 
 ### courses
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -196,4 +202,8 @@ a
 - [превращение програм от torch compile в бинарники без libtorch](https://github.com/lianakoleva/no-libtorch-compile)
 - [torch.compile, the missing manual](https://docs.google.com/document/d/1y5CRfMLdwEoF1nTk9q8qEu1mgMUuUtvhklPKJ2emLU8/edit?tab=t.0#heading=h.ivdr7fmrbeab)
 - https://docs.pytorch.org/docs/stable/notes/cuda.html#whole-network-capture
-
+- [Benchmark Individual Triton Kernel](https://docs.pytorch.org/docs/stable/torch.compiler_inductor_profiling.html#benchmark-individual-triton-kernel)
+- [(Beta) Implementing High-Performance Transformers with Scaled Dot Product Attention (SDPA)](https://docs.pytorch.org/tutorials/intermediate/scaled_dot_product_attention_tutorial.html)
+- [Speeding Up Graph Learning Models with PyG and torch.compile](https://kumo.ai/research/speeding-up-graph-learning-models-with-pyg-and-torch-compile/)
+- [tensorrt Torch Compile Advanced Usage](https://docs.pytorch.org/TensorRT/tutorials/_rendered_examples/dynamo/torch_compile_advanced_usage.html)
+- [A Walk Through Example of torch.compile](https://depyf.readthedocs.io/en/latest/walk_through.html)

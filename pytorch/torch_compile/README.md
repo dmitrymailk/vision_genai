@@ -63,3 +63,14 @@ At a high level, you should only expect programs that correspond to a fixed sequ
 ### Printing things out at compile time
 - https://docs.google.com/document/d/1y5CRfMLdwEoF1nTk9q8qEu1mgMUuUtvhklPKJ2emLU8/edit?tab=t.0#heading=h.2pn0ke53ckbb
 Normally, if you add a print statement to compiled code, this will cause a graph break.
+
+### CUDA graphs advice
+Smaller graphs are more likely to exhibit dynamic behavior (seeing different sizes), and in general dynamic shapes codegen is less performant than static shapes codegen.
+
+By default, if you have any data-dependent computation, e.g., boolean masking, item() call, nonzero(), etc, this will trigger a graph break. If you are feeling brave, you can get past these problems by setting torch._dynamo.config.capture_scalar_outputs = True and torch._dynamo.config.capture_dynamic_output_shape_ops = True.
+
+CUDA graphs don’t support dynamic shapes. We actually do support mode=”reduce-overhead” in conjunction with dynamic=True, but the way this is implemented is by recording a distinct CUDA graph for each size you see. If this is too many CUDA graphs, you will want to pad sizes to multiples to reduce the number of CUDA graphs you need to record. See also notes at Compiled results are slow on first run
+
+### RoPE implementation
+- https://pytorch.org/blog/maximizing-training-throughput/
+RoPE implementation uses complex numbers, which was not supported in torch.compile at the time of testing
