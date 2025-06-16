@@ -98,6 +98,8 @@
 - [A coding-free framework built on PyTorch for reproducible deep learning studies. PyTorch Ecosystem. 🏆25 knowledge distillation methods presented at CVPR, ICLR, ECCV, NeurIPS, ICCV, etc are implemented so far. 🎁 Trained models, training logs and configurations are available for ensuring the reproducibiliy and benchmark.](https://github.com/yoshitomo-matsubara/torchdistill)
 - https://docs.pytorch.org/functorch/nightly/generated/functorch.vmap.html
 - [stable-fast is an ultra lightweight inference optimization framework for HuggingFace Diffusers on NVIDIA GPUs](https://github.com/chengzeyi/stable-fast)
+- [\[MLSys 2024 Best Paper Award\] AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration](https://github.com/mit-han-lab/llm-awq)
+- [🏎️ Enhance Your Models in 5 Minutes with the Hugging Face Kernel Hub](https://huggingface.co/blog/hello-hf-kernels)
 
 ### courses
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -135,7 +137,8 @@
 - [cuda-samples](https://github.com/NVIDIA/cuda-samples)
 - [cuda-training-series](https://youtube.com/playlist?list=PL6RdenZrxrw-zNX7uuGppWETdxt_JxdMj&si=uPw8lt5skigLditP) - [github](https://github.com/olcf/cuda-training-series)
 - [CUDA Library Samples](https://github.com/NVIDIA/CUDALibrarySamples)
-a
+- [Unsloth.ai: Easily finetune & train LLMs](https://youtu.be/MQwryfkydc0?si=w3JAQJtDtkWaWgKS)
+
 ### CUDA, main themes
 - [warp shuffle, reduction, Using CUDA Warp-Level Primitives](https://developer.nvidia.com/blog/using-cuda-warp-level-primitives/)
 - [debug kernels, Using Nsight Compute to Inspect your Kernels](https://developer.nvidia.com/blog/using-nsight-compute-to-inspect-your-kernels/)
