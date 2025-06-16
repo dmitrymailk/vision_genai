@@ -96,6 +96,8 @@
 - [AITemplate is a Python framework which renders neural network into high performance CUDA/HIP C++ code. Specialized for FP16 TensorCore (NVIDIA GPU) and MatrixCore (AMD GPU) inference.](https://github.com/facebookincubator/AITemplate/tree/main)
 - [The largest collection of PyTorch image encoders / backbones. Including train, eval, inference, export scripts, and pretrained weights -- ResNet, ResNeXT, EfficientNet, NFNet, Vision Transformer (ViT), MobileNetV4, MobileNet-V3 & V2, RegNet, DPN, CSPNet, Swin Transformer, MaxViT, CoAtNet, ConvNeXt, and more](https://github.com/huggingface/pytorch-image-models?tab=readme-ov-file#models)
 - [A coding-free framework built on PyTorch for reproducible deep learning studies. PyTorch Ecosystem. 🏆25 knowledge distillation methods presented at CVPR, ICLR, ECCV, NeurIPS, ICCV, etc are implemented so far. 🎁 Trained models, training logs and configurations are available for ensuring the reproducibiliy and benchmark.](https://github.com/yoshitomo-matsubara/torchdistill)
+- https://docs.pytorch.org/functorch/nightly/generated/functorch.vmap.html
+- [stable-fast is an ultra lightweight inference optimization framework for HuggingFace Diffusers on NVIDIA GPUs](https://github.com/chengzeyi/stable-fast)
 
 ### courses
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -109,7 +111,7 @@
 - [awesome-cuda-and-hpc](https://github.com/codingonion/awesome-cuda-and-hpc)
 - [Diffusion Policy Accelerated is a library that showcases the use of custom CUDA extensions and CUDA graphs to accelerate the inference of DiffusionPolicy-C.](https://github.com/vdesai2014/diffusion-policy-accelerated.git)
 - [A set of examples around pytorch in Vision, Text, Reinforcement Learning, etc.](https://github.com/pytorch/examples/tree/main/cpp)
-- https://docs.pytorch.org/functorch/nightly/generated/functorch.vmap.html
+- [Andrej Karpathy Let's build GPT: from scratch, in code, spelled out.](https://youtu.be/kCc8FmEb1nY?si=Wtxzi-kWVvEZFlO-)
 
 ### UPenn CIS 5650 - GPU Programming and Architecture - Fall 2023
 - https://www.bilibili.com/video/BV1mQ4y177tj/
@@ -213,3 +215,7 @@ a
 - [Introducing depyf: mastering torch.compile with ease](https://pytorch.org/blog/introducing-depyf/)
 - [torch.compile Frequently Asked Questions](https://docs.pytorch.org/docs/stable/torch.compiler_faq.html)
 - [PyTorch 2: Faster Machine Learning Through Dynamic Python Bytecode Transformation and Graph Compilation](https://assets-global.website-files.com/5eda9dd611c901bc56b01a91/65cbd869aff1b575ff2bc95e_pytorch_2.pdf)
+- [Reducing torch.compile cold start compilation time with regional compilation](https://docs.pytorch.org/tutorials/recipes/regional_compilation.html)
+- [py gnn compile examples](https://github.com/pyg-team/pytorch_geometric/tree/master/examples/compile)
+- [workshop torch compile Using torch.compile()](https://shashankprasanna.com/workshops/a-tour-of-pytorch2/3_getting_started/)
+- [Dynamo Deep-Dive](https://docs.pytorch.org/docs/stable/torch.compiler_dynamo_deepdive.html)

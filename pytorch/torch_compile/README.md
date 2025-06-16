@@ -74,3 +74,8 @@ CUDA graphs don’t support dynamic shapes. We actually do support mode=”reduc
 ### RoPE implementation
 - https://pytorch.org/blog/maximizing-training-throughput/
 RoPE implementation uses complex numbers, which was not supported in torch.compile at the time of testing
+
+
+### Torch.compile() before or after .cuda()
+- https://discuss.pytorch.org/t/torch-compile-before-or-after-cuda/176031
+- Call .cuda() before torch.compile and compile before passing in to DDP or FSDP
