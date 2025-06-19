@@ -79,3 +79,6 @@ RoPE implementation uses complex numbers, which was not supported in torch.compi
 ### Torch.compile() before or after .cuda()
 - https://discuss.pytorch.org/t/torch-compile-before-or-after-cuda/176031
 - Call .cuda() before torch.compile and compile before passing in to DDP or FSDP
+
+
+TORCH_COMPILE_DEBUG=1

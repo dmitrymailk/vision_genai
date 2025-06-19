@@ -100,6 +100,10 @@
 - [stable-fast is an ultra lightweight inference optimization framework for HuggingFace Diffusers on NVIDIA GPUs](https://github.com/chengzeyi/stable-fast)
 - [\[MLSys 2024 Best Paper Award\] AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration](https://github.com/mit-han-lab/llm-awq)
 - [🏎️ Enhance Your Models in 5 Minutes with the Hugging Face Kernel Hub](https://huggingface.co/blog/hello-hf-kernels)
+- https://github.com/huggingface/smollm
+- https://github.com/huggingface/open-r1
+- https://github.com/hkust-nlp/simpleRL-reason
+- https://github.com/Jiayi-Pan/TinyZero
 
 ### courses
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
