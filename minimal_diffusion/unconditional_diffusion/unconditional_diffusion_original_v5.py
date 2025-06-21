@@ -5,8 +5,8 @@ annotated minimal version, with torch compile
 import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-os.environ["http_proxy"] = "127.0.0.1:2334"
-os.environ["https_proxy"] = "127.0.0.1:2334"
+# os.environ["http_proxy"] = "127.0.0.1:2334"
+# os.environ["https_proxy"] = "127.0.0.1:2334"
 # os.environ["TORCH_LOGS"] = "recompiles"
 
 import torch
@@ -121,47 +121,21 @@ class Upsample2D(nn.Module):
         self.name = name
         self.interpolate = interpolate
 
-        if norm_type == "ln_norm":
-            self.norm = nn.LayerNorm(channels, eps, elementwise_affine)
-        elif norm_type == "rms_norm":
-            self.norm = RMSNorm(channels, eps, elementwise_affine)
-        # THIS BRANCH
-        elif norm_type is None:
-            self.norm = None
-        else:
-            raise ValueError(f"unknown norm_type: {norm_type}")
+        self.norm = None
 
         conv = None
-        # use_conv_transpose=False
-        if use_conv_transpose:
-            if kernel_size is None:
-                kernel_size = 4
-            conv = nn.ConvTranspose2d(
-                channels,
-                self.out_channels,
-                kernel_size=kernel_size,
-                stride=2,
-                padding=padding,
-                bias=bias,
-            )
-        # THIS BRANCH
-        elif use_conv:
-            if kernel_size is None:
-                kernel_size = 3
-            conv = nn.Conv2d(
-                self.channels,
-                self.out_channels,
-                kernel_size=kernel_size,
-                padding=padding,
-                bias=bias,
-            )
 
-        # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
-        # name='conv'
-        if name == "conv":
-            self.conv = conv
-        else:
-            self.Conv2d_0 = conv
+        if kernel_size is None:
+            kernel_size = 3
+        conv = nn.Conv2d(
+            self.channels,
+            self.out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+            bias=bias,
+        )
+
+        self.conv = conv
 
     def forward(
         self,
@@ -170,27 +144,8 @@ class Upsample2D(nn.Module):
         *args,
         **kwargs,
     ) -> torch.Tensor:
-        if len(args) > 0 or kwargs.get("scale", None) is not None:
-            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
-            deprecate("scale", "1.0.0", deprecation_message)
-
-        assert hidden_states.shape[1] == self.channels
         # self.norm=None
         # hidden_states=torch.Size([4, 512, 2, 2])
-        if self.norm is not None:
-            # hidden_states=
-            hidden_states = self.norm(hidden_states.permute(0, 2, 3, 1)).permute(
-                0, 3, 1, 2
-            )
-        # self.use_conv_transpose=False
-        if self.use_conv_transpose:
-            return self.conv(hidden_states)
-
-        # Cast to float32 to as 'upsample_nearest2d_out_frame' op does not support bfloat16 until PyTorch 2.1
-        # https://github.com/pytorch/pytorch/issues/86679#issuecomment-1783978767
-        dtype = hidden_states.dtype
-        if dtype == torch.bfloat16 and is_torch_version("<", "2.1"):
-            hidden_states = hidden_states.to(torch.float32)
 
         # upsample_nearest_nhwc fails with large batch sizes. see https://github.com/huggingface/diffusers/issues/984
         if hidden_states.shape[0] >= 64:
@@ -212,32 +167,16 @@ class Upsample2D(nn.Module):
             if hidden_states.numel() * scale_factor > pow(2, 31):
                 hidden_states = hidden_states.contiguous()
             # hidden_states=torch.Size([4, 512, 2, 2])
-            # THIS BRANCH
-            if output_size is None:
-                # hidden_states=torch.Size([4, 512, 4, 4])
-                hidden_states = F.interpolate(
-                    hidden_states, scale_factor=2.0, mode="nearest"
-                )
-            else:
-                hidden_states = F.interpolate(
-                    hidden_states, size=output_size, mode="nearest"
-                )
 
-        # Cast back to original dtype
-        if dtype == torch.bfloat16 and is_torch_version("<", "2.1"):
-            hidden_states = hidden_states.to(dtype)
+            # hidden_states=torch.Size([4, 512, 4, 4])
+            hidden_states = F.interpolate(
+                hidden_states, scale_factor=2.0, mode="nearest"
+            )
 
-        # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
-        if self.use_conv:
-            # self.name='conv'
-            # THIS BRANCH
-            if self.name == "conv":
-                # hidden_states=torch.Size([4, 512, 4, 4])
-                hidden_states = self.conv(hidden_states)
-                # hidden_states=torch.Size([4, 512, 4, 4])
-                hidden_states
-            else:
-                hidden_states = self.Conv2d_0(hidden_states)
+        # hidden_states=torch.Size([4, 512, 4, 4])
+        hidden_states = self.conv(hidden_states)
+        # hidden_states=torch.Size([4, 512, 4, 4])
+        hidden_states
 
         return hidden_states
 
@@ -682,9 +621,6 @@ class DownBlock2D(nn.Module):
         *args,
         **kwargs,
     ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, ...]]:
-        if len(args) > 0 or kwargs.get("scale", None) is not None:
-            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
-            deprecate("scale", "1.0.0", deprecation_message)
 
         output_states = ()
 
@@ -811,9 +747,6 @@ class AttnUpBlock2D(nn.Module):
         *args,
         **kwargs,
     ) -> torch.Tensor:
-        if len(args) > 0 or kwargs.get("scale", None) is not None:
-            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
-            deprecate("scale", "1.0.0", deprecation_message)
 
         for resnet, attn in zip(self.resnets, self.attentions):
             # pop res hidden states
@@ -945,12 +878,12 @@ class UpBlock2D(nn.Module):
             deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
             deprecate("scale", "1.0.0", deprecation_message)
         # is_freeu_enabled=None=False
-        is_freeu_enabled = (
-            getattr(self, "s1", None)
-            and getattr(self, "s2", None)
-            and getattr(self, "b1", None)
-            and getattr(self, "b2", None)
-        )
+        # is_freeu_enabled = (
+        #     getattr(self, "s1", None)
+        #     and getattr(self, "s2", None)
+        #     and getattr(self, "b1", None)
+        #     and getattr(self, "b2", None)
+        # )
 
         for resnet in self.resnets:
             # pop res hidden states
@@ -961,16 +894,16 @@ class UpBlock2D(nn.Module):
             res_hidden_states_tuple = res_hidden_states_tuple[:-1]
 
             # FreeU: Only operate on the first two stages
-            if is_freeu_enabled:
-                hidden_states, res_hidden_states = apply_freeu(
-                    self.resolution_idx,
-                    hidden_states,
-                    res_hidden_states,
-                    s1=self.s1,
-                    s2=self.s2,
-                    b1=self.b1,
-                    b2=self.b2,
-                )
+            # if is_freeu_enabled:
+            #     hidden_states, res_hidden_states = apply_freeu(
+            #         self.resolution_idx,
+            #         hidden_states,
+            #         res_hidden_states,
+            #         s1=self.s1,
+            #         s2=self.s2,
+            #         b1=self.b1,
+            #         b2=self.b2,
+            #     )
             # hidden_states=torch.Size([4, 512, 2, 2])
             # res_hidden_states=torch.Size([4, 512, 2, 2])
             hidden_states = torch.cat([hidden_states, res_hidden_states], dim=1)
@@ -1146,43 +1079,6 @@ def get_up_block(
         )
 
     raise ValueError(f"{up_block_type} does not exist.")
-
-
-# Copied from diffusers.schedulers.scheduling_ddim.rescale_zero_terminal_snr
-def rescale_zero_terminal_snr(betas):
-    """
-    ok Rescales betas to have zero terminal SNR Based on https://arxiv.org/pdf/2305.08891.pdf (Algorithm 1)
-
-
-    Args:
-        betas (`torch.Tensor`):
-            the betas that the scheduler is being initialized with.
-
-    Returns:
-        `torch.Tensor`: rescaled betas with zero terminal SNR
-    """
-    # Convert betas to alphas_bar_sqrt
-    alphas = 1.0 - betas
-    alphas_cumprod = torch.cumprod(alphas, dim=0)
-    alphas_bar_sqrt = alphas_cumprod.sqrt()
-
-    # Store old values.
-    alphas_bar_sqrt_0 = alphas_bar_sqrt[0].clone()
-    alphas_bar_sqrt_T = alphas_bar_sqrt[-1].clone()
-
-    # Shift so the last timestep is zero.
-    alphas_bar_sqrt -= alphas_bar_sqrt_T
-
-    # Scale so the first timestep is back to the old value.
-    alphas_bar_sqrt *= alphas_bar_sqrt_0 / (alphas_bar_sqrt_0 - alphas_bar_sqrt_T)
-
-    # Convert alphas_bar_sqrt to betas
-    alphas_bar = alphas_bar_sqrt**2  # Revert sqrt
-    alphas = alphas_bar[1:] / alphas_bar[:-1]  # Revert cumprod
-    alphas = torch.cat([alphas_bar[0:1], alphas])
-    betas = 1 - alphas
-
-    return betas
 
 
 @maybe_allow_in_graph
@@ -1486,26 +1382,11 @@ class Attention(nn.Module):
 
         current_length: int = attention_mask.shape[-1]
         if current_length != target_length:
-            if attention_mask.device.type == "mps":
-                # HACK: MPS: Does not support padding by greater than dimension of input tensor.
-                # Instead, we can manually construct the padding tensor.
-                padding_shape = (
-                    attention_mask.shape[0],
-                    attention_mask.shape[1],
-                    target_length,
-                )
-                padding = torch.zeros(
-                    padding_shape,
-                    dtype=attention_mask.dtype,
-                    device=attention_mask.device,
-                )
-                attention_mask = torch.cat([attention_mask, padding], dim=2)
-            else:
-                # TODO: for pipelines such as stable-diffusion, padding cross-attn mask:
-                #       we want to instead pad by (0, remaining_length), where remaining_length is:
-                #       remaining_length: int = target_length - current_length
-                # TODO: re-enable tests/models/test_models_unet_2d_condition.py#test_model_xattn_padding
-                attention_mask = F.pad(attention_mask, (0, target_length), value=0.0)
+            # TODO: for pipelines such as stable-diffusion, padding cross-attn mask:
+            #       we want to instead pad by (0, remaining_length), where remaining_length is:
+            #       remaining_length: int = target_length - current_length
+            # TODO: re-enable tests/models/test_models_unet_2d_condition.py#test_model_xattn_padding
+            attention_mask = F.pad(attention_mask, (0, target_length), value=0.0)
 
         if out_dim == 3:
             if attention_mask.shape[0] < batch_size * head_size:
@@ -1569,9 +1450,6 @@ class AttnProcessor2_0:
         *args,
         **kwargs,
     ) -> torch.Tensor:
-        if len(args) > 0 or kwargs.get("scale", None) is not None:
-            deprecation_message = "The `scale` argument is deprecated and will be ignored. Please remove it, as passing it will raise an error in the future. `scale` should directly be passed while calling the underlying pipeline component i.e., via `cross_attention_kwargs`."
-            deprecate("scale", "1.0.0", deprecation_message)
         # hidden_states=torch.Size([16, 512, 4, 4])
         # residual=torch.Size([16, 512, 4, 4])
         residual = hidden_states
@@ -1612,13 +1490,8 @@ class AttnProcessor2_0:
         # query=torch.Size([16, 16, 512])
         query = attn.to_q(hidden_states)
 
-        # THIS BRANCH
-        if encoder_hidden_states is None:
-            encoder_hidden_states = hidden_states
-        elif attn.norm_cross:
-            encoder_hidden_states = attn.norm_encoder_hidden_states(
-                encoder_hidden_states
-            )
+        encoder_hidden_states = hidden_states
+
         # key=torch.Size([16, 16, 512])
         # value=torch.Size([16, 16, 512])
         key = attn.to_k(encoder_hidden_states)
@@ -1741,26 +1614,18 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
     ):
         # trained_betas=None
         # beta_schedule='linear'
-        if trained_betas is not None:
-            self.betas = torch.tensor(trained_betas, dtype=torch.float32)
-        # THIS BRANCH
-        elif beta_schedule == "linear":
-            # beta_start=0.0001
-            # beta_end=0.02
-            # num_train_timesteps=1000
-            # self.betas=torch.Size([1000])
-            # self.betas[:5]=tensor([1.0000e-04, 1.1992e-04, 1.3984e-04, 1.5976e-04, 1.7968e-04])
-            self.betas = torch.linspace(
-                beta_start,
-                beta_end,
-                num_train_timesteps,
-                dtype=torch.float32,
-            ).cuda()
+        # beta_start=0.0001
+        # beta_end=0.02
+        # num_train_timesteps=1000
+        # self.betas=torch.Size([1000])
+        # self.betas[:5]=tensor([1.0000e-04, 1.1992e-04, 1.3984e-04, 1.5976e-04, 1.7968e-04])
+        self.betas = torch.linspace(
+            beta_start,
+            beta_end,
+            num_train_timesteps,
+            dtype=torch.float32,
+        ).cuda()
 
-        # Rescale for zero SNR
-        # rescale_betas_zero_snr=False
-        if rescale_betas_zero_snr:
-            self.betas = rescale_zero_terminal_snr(self.betas)
         #  self.alphas=torch.Size([1000])
         self.alphas = 1.0 - self.betas
         # self.alphas_cumprod=torch.Size([1000])
@@ -1920,31 +1785,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         variance = torch.clamp(variance, min=1e-20)
 
         # variance_type=None
-        # THIS BRANCH
-        if variance_type is None:
-            variance_type = self.config.variance_type
-
-        # hacks - were probably added for training stability
-        # variance_type='fixed_small'
-        # THIS BRANCH
-        if variance_type == "fixed_small":
-            variance = variance
-        # for rl-diffuser https://arxiv.org/abs/2205.09991
-        elif variance_type == "fixed_small_log":
-            variance = torch.log(variance)
-            variance = torch.exp(0.5 * variance)
-        elif variance_type == "fixed_large":
-            variance = current_beta_t
-        elif variance_type == "fixed_large_log":
-            # Glide max_log
-            variance = torch.log(current_beta_t)
-        elif variance_type == "learned":
-            return predicted_variance
-        elif variance_type == "learned_range":
-            min_log = torch.log(variance)
-            max_log = torch.log(current_beta_t)
-            frac = (predicted_variance + 1) / 2
-            variance = frac * max_log + (1 - frac) * min_log
+        variance = variance
 
         return variance
 
@@ -2025,17 +1866,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         # model_output.shape[1]=3
         # sample.shape[1]=3
         # sample.shape[1]*2=6
-        if model_output.shape[1] == sample.shape[1] * 2 and self.variance_type in [
-            "learned",
-            "learned_range",
-        ]:
-            model_output, predicted_variance = torch.split(
-                model_output, sample.shape[1], dim=1
-            )
-            # THIS BRANCH
-        else:
-            # predicted_variance=None
-            predicted_variance = None
+        predicted_variance = None
 
         # 1. compute alphas, betas
         # self.alphas_cumprod=torch.Size([1000])
@@ -2061,29 +1892,12 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
             pred_original_sample = (
                 sample - beta_prod_t ** (0.5) * model_output
             ) / alpha_prod_t ** (0.5)
-        elif self.config.prediction_type == "sample":
-            pred_original_sample = model_output
-        elif self.config.prediction_type == "v_prediction":
-            pred_original_sample = (alpha_prod_t**0.5) * sample - (
-                beta_prod_t**0.5
-            ) * model_output
-        else:
-            raise ValueError(
-                f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, `sample` or"
-                " `v_prediction`  for the DDPMScheduler."
-            )
 
         # 3. Clip or threshold "predicted x_0"
-        # self.config.thresholding=False
-        if self.config.thresholding:
-            pred_original_sample = self._threshold_sample(pred_original_sample)
-        # self.config.clip_sample=True
-        # THIS BRANCH
-        elif self.config.clip_sample:
-            # self.config.clip_sample_range=1.0
-            pred_original_sample = pred_original_sample.clamp(
-                -self.config.clip_sample_range, self.config.clip_sample_range
-            )
+        # self.config.clip_sample_range=1.0
+        pred_original_sample = pred_original_sample.clamp(
+            -self.config.clip_sample_range, self.config.clip_sample_range
+        )
 
         # 4. Compute coefficients for pred_original_sample x_0 and current sample x_t
         # See formula (7) from https://arxiv.org/pdf/2006.11239.pdf
@@ -2124,22 +1938,9 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                 dtype=model_output.dtype,
             )
             # self.variance_type='fixed_small'
-            if self.variance_type == "fixed_small_log":
-                variance = (
-                    self._get_variance(t, predicted_variance=predicted_variance)
-                    * variance_noise
-                )
-            elif self.variance_type == "learned_range":
-                variance = self._get_variance(t, predicted_variance=predicted_variance)
-                variance = torch.exp(0.5 * variance) * variance_noise
-            # THIS BRANCH
-            else:
-                # variance_noise=torch.Size([16, 3, 64, 64])
-                # predicted_variance=None
-                # t=tensor(999)
-                variance = (
-                    self._get_variance(t, predicted_variance=predicted_variance) ** 0.5
-                ) * variance_noise
+            variance = (
+                self._get_variance(t, predicted_variance=predicted_variance) ** 0.5
+            ) * variance_noise
         # pred_prev_sample=torch.Size([16, 3, 64, 64])
         pred_prev_sample = pred_prev_sample + variance
 
@@ -3614,20 +3415,20 @@ accelerator_project_config = ProjectConfiguration(
     project_dir=args.output_dir, logging_dir=logging_dir
 )
 
-# pipeline = DDPMPipeline(
-#     unet=model,
-#     scheduler=noise_scheduler,
-# )
+pipeline = DDPMPipeline(
+    unet=model,
+    scheduler=noise_scheduler,
+)
 
-# generator = torch.Generator(device=pipeline.device).manual_seed(0)
-# # run pipeline in inference (sample random noise and denoise)
-# # args.ddpm_num_inference_steps=1000
-# images = pipeline(
-#     generator=generator,
-#     batch_size=args.eval_batch_size,
-#     num_inference_steps=args.ddpm_num_inference_steps,
-#     output_type="np",
-# ).images
+generator = torch.Generator(device=pipeline.device).manual_seed(0)
+# run pipeline in inference (sample random noise and denoise)
+# args.ddpm_num_inference_steps=1000
+images = pipeline(
+    generator=generator,
+    batch_size=args.eval_batch_size,
+    num_inference_steps=args.ddpm_num_inference_steps,
+    output_type="np",
+).images
 
 
 accelerator = Accelerator(
@@ -3645,15 +3446,15 @@ if accelerator.is_main_process:
     run = os.path.split(args.project_name)[-1].split(".")[0]
     accelerator.init_trackers(run)
 
-model = torch.compile(
-    model,
-    fullgraph=True,
-    mode="reduce-overhead",
-)
+# model = torch.compile(
+#     model,
+#     fullgraph=True,
+#     mode="reduce-overhead",
+# )
 
 
 # Train!
-@torch.compile(fullgraph=False)
+# @torch.compile(fullgraph=False)
 def train_step():
     optimizer.step()
     lr_scheduler.step()
