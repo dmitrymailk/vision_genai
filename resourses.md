@@ -118,6 +118,9 @@
 - [Diffusion Policy Accelerated is a library that showcases the use of custom CUDA extensions and CUDA graphs to accelerate the inference of DiffusionPolicy-C.](https://github.com/vdesai2014/diffusion-policy-accelerated.git)
 - [A set of examples around pytorch in Vision, Text, Reinforcement Learning, etc.](https://github.com/pytorch/examples/tree/main/cpp)
 - [Andrej Karpathy Let's build GPT: from scratch, in code, spelled out.](https://youtu.be/kCc8FmEb1nY?si=Wtxzi-kWVvEZFlO-)
+- https://github.com/GeeeekExplorer/nano-vllm
+- https://github.com/lucidrains
+- https://github.com/BlinkDL/modded-nanogpt-rwkv
 
 ### UPenn CIS 5650 - GPU Programming and Architecture - Fall 2023
 - https://www.bilibili.com/video/BV1mQ4y177tj/
