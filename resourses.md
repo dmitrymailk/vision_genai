@@ -82,7 +82,6 @@
 - [NanoGPT (124M) in 3 minutes](https://github.com/KellerJordan/modded-nanogpt)
 - https://github.com/pytorch-labs/applied-ai
 - [torch compile whisper](https://github.com/zhxchen17/torchnative/tree/main/whisper_aoti)
-- https://github.com/pytorch-labs/attention-gym
 - https://github.com/pytorch-labs/LeanRL
 - [torchchat Run PyTorch LLMs locally on servers, desktop and mobile](https://github.com/pytorch/torchchat)
 - [🚀 Collection of components for development, training, tuning, and inference of foundation models leveraging PyTorch native components.](https://github.com/foundation-model-stack/foundation-model-stack)
@@ -112,6 +111,15 @@
 - [unslothai Cut Your Losses in Large-Vocabulary Language Models](https://github.com/unslothai/cut-cross-entropy)
 - [original Cut Your Losses in Large-Vocabulary Language Models](https://github.com/apple/ml-cross-entropy) 
 - https://github.com/JonasGeiping/linear_cross_entropy_loss
+- https://github.com/allenai/OLMo-core
+- https://github.com/facebookresearch/xformers/tree/main/examples/llama_inference
+- https://github.com/showlab/Show-o/tree/main/show-o2
+- https://github.com/flashinfer-ai/flashinfer
+- https://github.com/pytorch-labs/attention-gym
+- https://github.com/unslothai/unsloth
+- https://github.com/Dao-AILab/flash-attention/tree/main/training
+- https://github.com/facebookresearch/xformers/tree/main/examples
+- https://github.com/facebookresearch/fairseq2
 
 ### courses
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -127,6 +135,9 @@
 - [A set of examples around pytorch in Vision, Text, Reinforcement Learning, etc.](https://github.com/pytorch/examples/tree/main/cpp)
 - [Andrej Karpathy Let's build GPT: from scratch, in code, spelled out.](https://youtu.be/kCc8FmEb1nY?si=Wtxzi-kWVvEZFlO-)
 - https://github.com/lucidrains
+- https://stanford-cs336.github.io/spring2025/
+- https://github.com/foundation-model-stack/fms-extras/blob/main/scripts/paged_speculative_inference.py
+- 
 
 ### UPenn CIS 5650 - GPU Programming and Architecture - Fall 2023
 - https://www.bilibili.com/video/BV1mQ4y177tj/
@@ -245,4 +256,7 @@
 - [Deep Compression Autoencoder for Efficient High-Resolution Diffusion Models](https://github.com/mit-han-lab/efficientvit/tree/master/applications/dc_ae)
 - [SANA: Efficient High-Resolution Image Synthesis with Linear Diffusion Transformer](https://github.com/NVlabs/Sana)
 - [🏃SANA-Sprint: One-Step Diffusion with Continuous-Time Consistency Distillation](https://github.com/NVlabs/Sana/blob/main/asset/docs/sana_sprint.md)
+- 
+### Torch compile benchmarks
+- https://github.com/pytorch/torchtitan/blob/main/benchmarks/llama3_h100_202412_torchtitan.md#user-content-fn-2-cae6e35c41ee7ec0bdbbad5503a98dd1
 - 
