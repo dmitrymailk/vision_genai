@@ -83,7 +83,6 @@
 - [NanoGPT (124M) in 3 minutes](https://github.com/KellerJordan/modded-nanogpt)
 - https://github.com/pytorch-labs/applied-ai
 - [torch compile whisper](https://github.com/zhxchen17/torchnative/tree/main/whisper_aoti)
-- https://github.com/pytorch-labs/attention-gym
 - https://github.com/pytorch-labs/LeanRL
 - [torchchat Run PyTorch LLMs locally on servers, desktop and mobile](https://github.com/pytorch/torchchat)
 - [🚀 Collection of components for development, training, tuning, and inference of foundation models leveraging PyTorch native components.](https://github.com/foundation-model-stack/foundation-model-stack)
@@ -107,6 +106,15 @@
 - https://github.com/pytorch/torchft
 - https://github.com/GeeeekExplorer/nano-vllm
 - https://github.com/BlinkDL/modded-nanogpt-rwkv
+- https://github.com/allenai/OLMo-core
+- https://github.com/facebookresearch/xformers/tree/main/examples/llama_inference
+- https://github.com/showlab/Show-o/tree/main/show-o2
+- https://github.com/flashinfer-ai/flashinfer
+- https://github.com/pytorch-labs/attention-gym
+- https://github.com/unslothai/unsloth
+- https://github.com/Dao-AILab/flash-attention/tree/main/training
+- https://github.com/facebookresearch/xformers/tree/main/examples
+- https://github.com/facebookresearch/fairseq2
 
 ### courses
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -122,6 +130,9 @@
 - [A set of examples around pytorch in Vision, Text, Reinforcement Learning, etc.](https://github.com/pytorch/examples/tree/main/cpp)
 - [Andrej Karpathy Let's build GPT: from scratch, in code, spelled out.](https://youtu.be/kCc8FmEb1nY?si=Wtxzi-kWVvEZFlO-)
 - https://github.com/lucidrains
+- https://stanford-cs336.github.io/spring2025/
+- https://github.com/foundation-model-stack/fms-extras/blob/main/scripts/paged_speculative_inference.py
+- 
 
 ### UPenn CIS 5650 - GPU Programming and Architecture - Fall 2023
 - https://www.bilibili.com/video/BV1mQ4y177tj/
@@ -230,3 +241,7 @@
 - [py gnn compile examples](https://github.com/pyg-team/pytorch_geometric/tree/master/examples/compile)
 - [workshop torch compile Using torch.compile()](https://shashankprasanna.com/workshops/a-tour-of-pytorch2/3_getting_started/)
 - [Dynamo Deep-Dive](https://docs.pytorch.org/docs/stable/torch.compiler_dynamo_deepdive.html)
+
+### Torch compile benchmarks
+- https://github.com/pytorch/torchtitan/blob/main/benchmarks/llama3_h100_202412_torchtitan.md#user-content-fn-2-cae6e35c41ee7ec0bdbbad5503a98dd1
+- 
