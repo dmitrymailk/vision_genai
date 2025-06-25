@@ -31,8 +31,7 @@
 - [An easy to use PyTorch to TensorRT converter](https://github.com/NVIDIA-AI-IOT/torch2trt)
 - [Lite Transformer with Long-Short Range Attention](https://github.com/mit-han-lab/lite-transformer)
 - [EdgeTran: Co-designing Transformers for Efficient Inference on Mobile Edge Platforms](https://arxiv.org/pdf/2303.13745.pdf)
-- [MOBILEVIT: LIGHT-WEIGHT, GENERAL-PURPOSE, AND MOBILE-FRIENDLY VISION TRANSFORMER](https://arxiv.org/pdf/2110.02178.pdf)
-- [EfficientViT: Multi-Scale Linear Attention for High-Resolution Dense Prediction](https://hanlab.mit.edu/projects/efficientvit)
+
 - [Efficient AI Inference & Serving](https://github.com/hpcaitech/SwiftInfer)
 - [[ICLR 2024] Efficient Streaming Language Models with Attention Sinks](https://github.com/mit-han-lab/streaming-llm)
 - [TinyChat: Efficient and Lightweight Chatbot with AWQ](https://github.com/mit-han-lab/llm-awq/tree/main/tinychat) 
@@ -107,6 +106,12 @@
 - https://github.com/pytorch/torchft
 - https://github.com/GeeeekExplorer/nano-vllm
 - https://github.com/BlinkDL/modded-nanogpt-rwkv
+- [Efficient LLM Pretraining: Packed Sequences and Masked Attention](https://huggingface.co/blog/sirluk/llm-sequence-packing)
+- [A multi-GPU training framework that combines Unsloth with multi-GPU support and sequence packing optimizations.](https://github.com/anhvth/opensloth)
+- [Efficient Triton Kernels for LLM Training](https://github.com/linkedin/Liger-Kernel)
+- [unslothai Cut Your Losses in Large-Vocabulary Language Models](https://github.com/unslothai/cut-cross-entropy)
+- [original Cut Your Losses in Large-Vocabulary Language Models](https://github.com/apple/ml-cross-entropy) 
+- https://github.com/JonasGeiping/linear_cross_entropy_loss
 
 ### courses
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -230,3 +235,14 @@
 - [py gnn compile examples](https://github.com/pyg-team/pytorch_geometric/tree/master/examples/compile)
 - [workshop torch compile Using torch.compile()](https://shashankprasanna.com/workshops/a-tour-of-pytorch2/3_getting_started/)
 - [Dynamo Deep-Dive](https://docs.pytorch.org/docs/stable/torch.compiler_dynamo_deepdive.html)
+
+### Vision Models
+- [⚡ Flash Diffusion ⚡: Accelerating Any Conditional Diffusion Model for Few Steps Image Generation (AAAI 2025 Oral)](https://github.com/gojasper/flash-diffusion)
+- [LBM: Latent Bridge Matching for Fast Image-to-Image Translation ✨](https://github.com/gojasper/LBM)
+- [Unifying Variational Autoencoder (VAE) implementations in Pytorch (NeurIPS 2022)](https://github.com/clementchadebec/benchmark_VAE)
+- [MOBILEVIT: LIGHT-WEIGHT, GENERAL-PURPOSE, AND MOBILE-FRIENDLY VISION TRANSFORMER](https://arxiv.org/pdf/2110.02178.pdf)
+- [EfficientViT: Multi-Scale Linear Attention for High-Resolution Dense Prediction](https://hanlab.mit.edu/projects/efficientvit)
+- [Deep Compression Autoencoder for Efficient High-Resolution Diffusion Models](https://github.com/mit-han-lab/efficientvit/tree/master/applications/dc_ae)
+- [SANA: Efficient High-Resolution Image Synthesis with Linear Diffusion Transformer](https://github.com/NVlabs/Sana)
+- [🏃SANA-Sprint: One-Step Diffusion with Continuous-Time Consistency Distillation](https://github.com/NVlabs/Sana/blob/main/asset/docs/sana_sprint.md)
+- 
