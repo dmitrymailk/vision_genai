@@ -12,7 +12,7 @@
 - [EdgeBERT: Sentence-Level Energy Optimizations for Latency-Aware Multi-Task NLP Inference](https://arxiv.org/pdf/2011.14203.pdf)
 - [https://github.com/ELS-RD/kernl/tree/main](https://github.com/ELS-RD/kernl/tree/main) - зависает на большой модели, не заработало.
 - [Fast & Simple repository for pre-training and fine-tuning T5-style models](https://github.com/PiotrNawrot/nanoT5)
-- [Fused Softmax triton](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)
+
 - [PyTorch compile to speed up inference on Llama 2](https://pytorch.org/blog/pytorch-compile-to-speed-up-inference/)
 - [Fuse Modules Recipe](https://pytorch.org/tutorials/recipes/fuse.html)
 - [Dynamic Quantization pytorch](https://pytorch.org/tutorials/recipes/recipes/dynamic_quantization.html) - хорошо работает
@@ -107,7 +107,7 @@
 - https://github.com/BlinkDL/modded-nanogpt-rwkv
 - [Efficient LLM Pretraining: Packed Sequences and Masked Attention](https://huggingface.co/blog/sirluk/llm-sequence-packing)
 - [A multi-GPU training framework that combines Unsloth with multi-GPU support and sequence packing optimizations.](https://github.com/anhvth/opensloth)
-- [Efficient Triton Kernels for LLM Training](https://github.com/linkedin/Liger-Kernel)
+
 - [unslothai Cut Your Losses in Large-Vocabulary Language Models](https://github.com/unslothai/cut-cross-entropy)
 - [original Cut Your Losses in Large-Vocabulary Language Models](https://github.com/apple/ml-cross-entropy) 
 - https://github.com/JonasGeiping/linear_cross_entropy_loss
@@ -120,8 +120,19 @@
 - https://github.com/Dao-AILab/flash-attention/tree/main/training
 - https://github.com/facebookresearch/xformers/tree/main/examples
 - https://github.com/facebookresearch/fairseq2
+- https://github.com/apple/ml-dataset-decomposition
+- [How to implement example packing with flash_attn v2](https://github.com/Dao-AILab/flash-attention/issues/654)
+- https://github.com/zyushun/Adam-mini
+- https://github.com/llm-efficiency-challenge/neurips_llm_efficiency_challenge
+- https://huggingface.co/docs/bitsandbytes/en/explanations/optimizers#8-bit-optimizers
+- [BitNet b1.58 training](https://github.com/pytorch/ao/pull/930)
+- [Add INT8 mixed-precision training](https://github.com/pytorch/ao/pull/748)
+- https://github.com/gau-nernst/quantized-training
+- https://github.com/thu-ml/Jetfire-INT8Training
 
 ### courses
+
+
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
 - [tinyML youtube channel](https://www.youtube.com/@tinyML)
 - [Stanford CS149, Fall 2021 PARALLEL COMPUTING](https://gfxcourses.stanford.edu/cs149/fall23)
@@ -135,10 +146,19 @@
 - [A set of examples around pytorch in Vision, Text, Reinforcement Learning, etc.](https://github.com/pytorch/examples/tree/main/cpp)
 - [Andrej Karpathy Let's build GPT: from scratch, in code, spelled out.](https://youtu.be/kCc8FmEb1nY?si=Wtxzi-kWVvEZFlO-)
 - https://github.com/lucidrains
-- https://stanford-cs336.github.io/spring2025/
 - https://github.com/foundation-model-stack/fms-extras/blob/main/scripts/paged_speculative_inference.py
-- 
+- [CS336: Language Modeling from Scratch](https://stanford-cs336.github.io/spring2025/)
+- [Material for gpu-mode lectures](https://github.com/gpu-mode/lectures)
+- [The Ultra-Scale Playbook: Training LLMs on GPU Clusters](https://huggingface.co/spaces/nanotron/ultrascale-playbook)
+- https://huggingface.co/spaces/nanotron/predict_memory
+- [Learn CUDA with PyTorch](https://github.com/gau-nernst/learn-cuda)
+- https://www.youtube.com/@umarjamilai/videos
+- https://triton-lang.org/main/getting-started/tutorials/index.html
 
+### Triton 
+- [Fused Softmax triton](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)
+- [Efficient Triton Kernels for LLM Training](https://github.com/linkedin/Liger-Kernel)
+ 
 ### UPenn CIS 5650 - GPU Programming and Architecture - Fall 2023
 - https://www.bilibili.com/video/BV1mQ4y177tj/
 - https://cis565-fall-2023.github.io/syllabus/
