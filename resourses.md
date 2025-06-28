@@ -135,6 +135,8 @@
 - https://github.com/IST-DASLab/QuEST
 - https://github.com/BlackSamorez/tensor_parallel
 - https://github.com/Vahe1994/AQLM
+- https://github.com/mosaicml/composer
+- https://pytorch.org/blog/maximizing-training-throughput/
 
 ### courses
 
@@ -272,7 +274,7 @@
 - [py gnn compile examples](https://github.com/pyg-team/pytorch_geometric/tree/master/examples/compile)
 - [workshop torch compile Using torch.compile()](https://shashankprasanna.com/workshops/a-tour-of-pytorch2/3_getting_started/)
 - [Dynamo Deep-Dive](https://docs.pytorch.org/docs/stable/torch.compiler_dynamo_deepdive.html)
-
+#
 ### Vision Models
 - [⚡ Flash Diffusion ⚡: Accelerating Any Conditional Diffusion Model for Few Steps Image Generation (AAAI 2025 Oral)](https://github.com/gojasper/flash-diffusion)
 - [LBM: Latent Bridge Matching for Fast Image-to-Image Translation ✨](https://github.com/gojasper/LBM)
@@ -285,4 +287,6 @@
 - 
 ### Torch compile benchmarks
 - https://github.com/pytorch/torchtitan/blob/main/benchmarks/llama3_h100_202412_torchtitan.md#user-content-fn-2-cae6e35c41ee7ec0bdbbad5503a98dd1
-- 
+- [Getting started with Pytorch 2.0 and Hugging Face Transformers](https://www.philschmid.de/getting-started-pytorch-2-0-transformers)- time is reduced by 52.5%
+- https://sebastianraschka.com/blog/2023/pytorch-faster.html - наоборот увеличил 
+
