@@ -129,6 +129,12 @@
 - [Add INT8 mixed-precision training](https://github.com/pytorch/ao/pull/748)
 - https://github.com/gau-nernst/quantized-training
 - https://github.com/thu-ml/Jetfire-INT8Training
+- https://github.com/JonasGeiping/cramming
+- https://github.com/JonasGeiping/linear_cross_entropy_loss
+- https://github.com/BorealisAI/flora-opt
+- https://github.com/IST-DASLab/QuEST
+- https://github.com/BlackSamorez/tensor_parallel
+- https://github.com/Vahe1994/AQLM
 
 ### courses
 
