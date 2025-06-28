@@ -50,7 +50,8 @@ from transformers import (
 from transformers.testing_utils import CaptureLogger
 from transformers.utils.versions import require_version
 from liger_kernel.transformers.functional import liger_cross_entropy
-
+from typing import Any, Sequence, cast
+from cut_cross_entropy.transformers import cce_patch
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 # check_min_version("4.54.0.dev0")
@@ -118,6 +119,7 @@ def main():
 
     match model_args.optimization_level:
         case "opt_1":
+            print("opt_1")
             # https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.from_pretrained.attn_implementation
             model = AutoModelForCausalLM.from_pretrained(
                 model_name_or_path,
@@ -125,6 +127,7 @@ def main():
                 attn_implementation=model_args.attn_implementation,
             )
         case "opt_2":
+            print("opt_2")
             model = AutoLigerKernelForCausalLM.from_pretrained(
                 model_name_or_path,
                 trust_remote_code=True,
@@ -132,6 +135,7 @@ def main():
                 torch_dtype=torch_dtype,
             )
         case "opt_3":
+            print("opt_3")
             model = AutoLigerKernelForCausalLM.from_pretrained(
                 model_name_or_path,
                 trust_remote_code=True,
@@ -141,6 +145,7 @@ def main():
                 fused_linear_cross_entropy=False,
             )
         case "opt_4":
+            print("opt_4")
             model = AutoLigerKernelForCausalLM.from_pretrained(
                 model_name_or_path,
                 trust_remote_code=True,
@@ -150,6 +155,7 @@ def main():
                 fused_linear_cross_entropy=True,
             )
         case "opt_5":
+            print("opt_5")
             from transformers.loss.loss_utils import nn
 
             nn.functional.cross_entropy = liger_cross_entropy
@@ -158,7 +164,33 @@ def main():
                 torch_dtype=torch_dtype,
                 attn_implementation=model_args.attn_implementation,
             )
-            pass
+        case "opt_6":
+            print("opt_6")
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                torch_dtype=torch_dtype,
+                attn_implementation=model_args.attn_implementation,
+            )
+            model = cast(transformers.PreTrainedModel, model)
+            cross_entropy_impl = "cce"
+            model = cce_patch(
+                model,
+                cross_entropy_impl,
+                train_only=True,
+            )
+        case "opt_7":
+            print("opt_7")
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                torch_dtype=torch_dtype,
+                attn_implementation=model_args.attn_implementation,
+            )
+            model = cast(transformers.PreTrainedModel, model)
+            cross_entropy_impl = "cce"
+            model = cce_patch(
+                model,
+                cross_entropy_impl,
+            )
 
     print("model_args.attn_implementation", model_args.attn_implementation)
 
@@ -266,11 +298,6 @@ def main():
 
     metrics = train_result.metrics
 
-    max_train_samples = (
-        data_args.max_train_samples
-        if data_args.max_train_samples is not None
-        else len(train_dataset)
-    )
     metrics["train_samples"] = len(train_dataset)
 
     trainer.log_metrics("train", metrics)
