@@ -121,7 +121,7 @@
 - https://github.com/facebookresearch/xformers/tree/main/examples
 - https://github.com/facebookresearch/fairseq2
 - https://github.com/apple/ml-dataset-decomposition
-- [How to implement example packing with flash_attn v2](https://github.com/Dao-AILab/flash-attention/issues/654)
+
 - https://github.com/zyushun/Adam-mini
 - https://github.com/llm-efficiency-challenge/neurips_llm_efficiency_challenge
 - https://huggingface.co/docs/bitsandbytes/en/explanations/optimizers#8-bit-optimizers
@@ -137,6 +137,10 @@
 - https://github.com/Vahe1994/AQLM
 - https://github.com/mosaicml/composer
 - https://pytorch.org/blog/maximizing-training-throughput/
+- [FlexFlow Serve: Low-Latency, High-Performance LLM Serving](https://github.com/flexflow/flexflow-serve)
+- [Welcome to the Llama Cookbook! This is your go to guide for Building with Llama: Getting started with Inference, Fine-Tuning, RAG. We also show you how to solve end to end problems using Llama model family and using them on various provider services](https://github.com/meta-llama/llama-cookbook)
+
+
 
 ### courses
 
@@ -161,16 +165,34 @@
 - https://huggingface.co/spaces/nanotron/predict_memory
 - [Learn CUDA with PyTorch](https://github.com/gau-nernst/learn-cuda)
 - https://www.youtube.com/@umarjamilai/videos
-- https://triton-lang.org/main/getting-started/tutorials/index.html
+- https://www.youtube.com/@Tunadorable/videos
+- https://github.com/yandexdataschool/Practical_RL
+- https://github.com/yandexdataschool/sdc_course
+- https://github.com/yandexdataschool/speech_course
+- https://github.com/yandexdataschool/recsys_course
+- https://erdem.pl/2023/11/step-by-step-visual-introduction-to-diffusion-models
+- https://www.bilibili.com/video/BV1mQ4y177tj/
+- https://cis565-fall-2023.github.io/syllabus/
 
 ### Triton 
 - [Fused Softmax triton](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)
 - [Efficient Triton Kernels for LLM Training](https://github.com/linkedin/Liger-Kernel)
- 
-### UPenn CIS 5650 - GPU Programming and Architecture - Fall 2023
-- https://www.bilibili.com/video/BV1mQ4y177tj/
-- https://cis565-fall-2023.github.io/syllabus/
+- [Triton GPU Kernels 101: Syllabus day (Lesson #1)](https://youtu.be/TUQAyCNxFe4?si=yZ_JywD1qTm-uVJO)
+- https://triton-lang.org/main/getting-started/tutorials/index.html
 
+### dataset Packing, no cross-contamination
+- [Improving Hugging Face Training Efficiency Through Packing with Flash Attention](https://huggingface.co/blog/packing-with-FA2)
+- [torchtune Sample packing](https://docs.pytorch.org/torchtune/stable/basics/packing.html)
+- [Packing Inputs Without Cross-Contamination Attention](https://github.com/MeetKai/functionary/tree/main/functionary/train/packing)
+- [How to implement example packing with flash_attn v2](https://github.com/Dao-AILab/flash-attention/issues/654)
+- [Multipack (Sample Packing)](https://github.com/axolotl-ai-cloud/axolotl/blob/main/docs/multipack.qmd)
+- [Sample packing for map datasets with correct RoPE encoding and no cross-contamination](https://github.com/pytorch/torchtune/pull/875)
+- [INTRO‌DUC‍ING‌‍ PAC‌‍KED‍ BER‌‍T FO‌R‌ 2‌X TR‌‍A‌INING SP‌‍EED‍-U‌P‍ IN NATUR‌‍A‌L LANGU‍A‌G‍E P‌R‌O‌C‍ESSING](https://www.graphcore.ai/posts/introducing-packed-bert-for-2x-faster-training-in-natural-language-processing)
+- [Packing without cross-contamination (huggingface) ](https://github.com/huggingface/transformers/issues/25452)
+- [Enhancing Training Efficiency Using Packing with Flash Attention](https://arxiv.org/pdf/2407.09105v4) лучше всего делать это в батче, а не заранее
+- https://huggingface.co/docs/transformers/en/main_classes/data_collator#transformers.DataCollatorWithFlattening
+- [Optimizing Transformer Models for Variable-Length Input Sequences](https://medium.com/data-science/optimizing-transformer-models-for-variable-length-input-sequences-19fb88fddf71)
+- [4D masks support in Transformers](https://huggingface.co/blog/poedator/4d-masks)
 
 ### Lists
 - [Awesome LLM compression research papers and tools.](https://github.com/HuangOwen/Awesome-LLM-Compression)
@@ -274,7 +296,8 @@
 - [py gnn compile examples](https://github.com/pyg-team/pytorch_geometric/tree/master/examples/compile)
 - [workshop torch compile Using torch.compile()](https://shashankprasanna.com/workshops/a-tour-of-pytorch2/3_getting_started/)
 - [Dynamo Deep-Dive](https://docs.pytorch.org/docs/stable/torch.compiler_dynamo_deepdive.html)
-#
+
+
 ### Vision Models
 - [⚡ Flash Diffusion ⚡: Accelerating Any Conditional Diffusion Model for Few Steps Image Generation (AAAI 2025 Oral)](https://github.com/gojasper/flash-diffusion)
 - [LBM: Latent Bridge Matching for Fast Image-to-Image Translation ✨](https://github.com/gojasper/LBM)
