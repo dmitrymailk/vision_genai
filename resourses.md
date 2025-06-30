@@ -22,7 +22,7 @@
 - [Quantized Transfer Learning for Computer Vision Tutorial](https://pytorch.org/tutorials/intermediate/quantized_transfer_learning_tutorial.html)
 - [Pytorch Mobile Performance Recipes](https://pytorch.org/tutorials/recipes/mobile_perf.html)
 - [A BetterTransformer for Fast Transformer Inference](https://pytorch.org/blog/a-better-transformer-for-fast-transformer-encoder-inference/)
-- [fastseq An efficient implementation of the popular sequence models for text generation, translation tasks.](https://github.com/microsoft/fastseq) - не получилось получить никакого прироста на целевой задаче. требует дополнительного изучения.
+- [fastseq An efficient implementation of the popular sequence models for text generation, translation tasks.](https://github.com/microsoft/fastseq)
 - [Accelerating HuggingFace T5 Inference with TensorRT](https://github.com/NVIDIA/TensorRT/blob/release/8.2/demo/HuggingFace/notebooks/t5.ipynb)
 - [TensorRT-LLM provides users with an easy-to-use Python API to define Large Language Models (LLMs)](https://github.com/NVIDIA/TensorRT-LLM/tree/main)
 - [https://github.com/NVIDIA/FasterTransformer](https://github.com/NVIDIA/FasterTransformer)
@@ -139,7 +139,8 @@
 - https://pytorch.org/blog/maximizing-training-throughput/
 - [FlexFlow Serve: Low-Latency, High-Performance LLM Serving](https://github.com/flexflow/flexflow-serve)
 - [Welcome to the Llama Cookbook! This is your go to guide for Building with Llama: Getting started with Inference, Fine-Tuning, RAG. We also show you how to solve end to end problems using Llama model family and using them on various provider services](https://github.com/meta-llama/llama-cookbook)
-
+- [Look Ma, No Bubbles! Designing a Low-Latency Megakernel for Llama-1B](https://github.com/HazyResearch/Megakernels)
+- 
 
 
 ### courses
@@ -173,6 +174,9 @@
 - https://erdem.pl/2023/11/step-by-step-visual-introduction-to-diffusion-models
 - https://www.bilibili.com/video/BV1mQ4y177tj/
 - https://cis565-fall-2023.github.io/syllabus/
+- [ML Performance Reading Group Session 2: Flash Attention](https://youtu.be/Lys0TpsLIEc?si=wNoLKsKi8Kib_PXb)
+- [nanoMoE: Mixture-of-Experts (MoE) LLMs from Scratch in PyTorch](https://cameronrwolfe.substack.com/p/nano-moe)
+- 
 
 ### Triton 
 - [Fused Softmax triton](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)
@@ -182,9 +186,9 @@
 
 ### dataset Packing, no cross-contamination
 - [Improving Hugging Face Training Efficiency Through Packing with Flash Attention](https://huggingface.co/blog/packing-with-FA2)
+- [How to implement example packing with flash_attn v2](https://github.com/Dao-AILab/flash-attention/issues/654)
 - [torchtune Sample packing](https://docs.pytorch.org/torchtune/stable/basics/packing.html)
 - [Packing Inputs Without Cross-Contamination Attention](https://github.com/MeetKai/functionary/tree/main/functionary/train/packing)
-- [How to implement example packing with flash_attn v2](https://github.com/Dao-AILab/flash-attention/issues/654)
 - [Multipack (Sample Packing)](https://github.com/axolotl-ai-cloud/axolotl/blob/main/docs/multipack.qmd)
 - [Sample packing for map datasets with correct RoPE encoding and no cross-contamination](https://github.com/pytorch/torchtune/pull/875)
 - [INTRO‌DUC‍ING‌‍ PAC‌‍KED‍ BER‌‍T FO‌R‌ 2‌X TR‌‍A‌INING SP‌‍EED‍-U‌P‍ IN NATUR‌‍A‌L LANGU‍A‌G‍E P‌R‌O‌C‍ESSING](https://www.graphcore.ai/posts/introducing-packed-bert-for-2x-faster-training-in-natural-language-processing)

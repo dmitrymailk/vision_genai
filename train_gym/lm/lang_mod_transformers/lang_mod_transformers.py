@@ -52,9 +52,14 @@ from transformers.utils.versions import require_version
 from liger_kernel.transformers.functional import liger_cross_entropy
 from typing import Any, Sequence, cast
 from cut_cross_entropy.transformers import cce_patch
+from transformers import DataCollatorWithFlattening
+from transformers.models.llama.modeling_llama import (
+    LlamaAttention,
+    LlamaDecoderLayer,
+    LlamaModel,
+)
 
-# Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-# check_min_version("4.54.0.dev0")
+from transformers.modeling_outputs import BaseModelOutputWithPast
 
 require_version(
     "datasets>=2.14.0",
@@ -69,6 +74,122 @@ MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
 from lang_mod_transformers.utils import ModelArguments, DataTrainingArguments
 from liger_kernel.transformers import AutoLigerKernelForCausalLM
+
+
+def cuda_streams_forward(
+    self,
+    input_ids: Optional[torch.LongTensor] = None,
+    attention_mask: Optional[torch.Tensor] = None,
+    position_ids: Optional[torch.LongTensor] = None,
+    past_key_values=None,
+    inputs_embeds: Optional[torch.FloatTensor] = None,
+    use_cache: Optional[bool] = None,
+    output_attentions: Optional[bool] = None,
+    output_hidden_states: Optional[bool] = None,
+    cache_position: Optional[torch.LongTensor] = None,
+    **flash_attn_kwargs,
+):
+    output_attentions = (
+        output_attentions
+        if output_attentions is not None
+        else self.config.output_attentions
+    )
+    output_hidden_states = (
+        output_hidden_states
+        if output_hidden_states is not None
+        else self.config.output_hidden_states
+    )
+    use_cache = use_cache if use_cache is not None else self.config.use_cache
+
+    if (input_ids is None) ^ (inputs_embeds is not None):
+        raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
+
+    if self.gradient_checkpointing and self.training and use_cache:
+        logger.warning_once(
+            "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`."
+        )
+        use_cache = False
+
+    # TODO (joao): remove this exception in v4.56 -- it exists for users that try to pass a legacy cache
+    # if not isinstance(past_key_values, (type(None), Cache)):
+    #     raise ValueError(
+    #         "The `past_key_values` should be either a `Cache` object or `None`."
+    #     )
+
+    if inputs_embeds is None:
+        inputs_embeds = self.embed_tokens(input_ids)
+
+    # if use_cache and past_key_values is None:
+    #     past_key_values = DynamicCache()
+
+    if cache_position is None:
+        past_seen_tokens = (
+            past_key_values.get_seq_length() if past_key_values is not None else 0
+        )
+        cache_position = torch.arange(
+            past_seen_tokens,
+            past_seen_tokens + inputs_embeds.shape[1],
+            device=inputs_embeds.device,
+        )
+
+    if position_ids is None:
+        position_ids = cache_position.unsqueeze(0)
+
+    causal_mask = self._update_causal_mask(
+        attention_mask,
+        inputs_embeds,
+        cache_position,
+        past_key_values,
+        output_attentions,
+    )
+
+    hidden_states = inputs_embeds
+
+    # create position embeddings to be shared across the decoder layers
+    position_embeddings = self.rotary_emb(hidden_states, position_ids)
+
+    # decoder layers
+    all_hidden_states = () if output_hidden_states else None
+    all_self_attns = () if output_attentions else None
+    for num, decoder_layer in enumerate(self.layers[: self.config.num_hidden_layers]):
+        if output_hidden_states:
+            all_hidden_states += (hidden_states,)
+        with torch.cuda.stream(self.cuda_streams[num]):
+            if num > 0:
+                self.cuda_streams[num].wait_stream(self.cuda_streams[num - 1])
+                
+            layer_outputs = decoder_layer(
+                hidden_states,
+                attention_mask=causal_mask,
+                position_ids=position_ids,
+                past_key_value=past_key_values,
+                output_attentions=output_attentions,
+                use_cache=use_cache,
+                cache_position=cache_position,
+                position_embeddings=position_embeddings,
+                **flash_attn_kwargs,
+            )
+
+            hidden_states = layer_outputs[0]
+            # hidden_states.record_stream(self.cuda_streams[num])
+
+            if output_attentions:
+                all_self_attns += (layer_outputs[1],)
+
+    torch.cuda.current_stream().wait_stream(self.cuda_streams[-1])
+
+    hidden_states = self.norm(hidden_states)
+
+    # add hidden states from the last decoder layer
+    if output_hidden_states:
+        all_hidden_states += (hidden_states,)
+
+    return BaseModelOutputWithPast(
+        last_hidden_state=hidden_states,
+        past_key_values=past_key_values if use_cache else None,
+        hidden_states=all_hidden_states,
+        attentions=all_self_attns,
+    )
 
 
 def main():
@@ -116,7 +237,7 @@ def main():
     )
 
     torch_dtype = torch.bfloat16
-
+    data_collator = default_data_collator
     match model_args.optimization_level:
         case "opt_1":
             print("opt_1")
@@ -173,6 +294,7 @@ def main():
             )
             model = cast(transformers.PreTrainedModel, model)
             cross_entropy_impl = "cce"
+            # original apple implementation
             model = cce_patch(
                 model,
                 cross_entropy_impl,
@@ -187,10 +309,215 @@ def main():
             )
             model = cast(transformers.PreTrainedModel, model)
             cross_entropy_impl = "cce"
+            # unsloth
             model = cce_patch(
                 model,
                 cross_entropy_impl,
             )
+        case "opt_8":
+            print("opt_8")
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                torch_dtype=torch_dtype,
+                attn_implementation=model_args.attn_implementation,
+            )
+            # packed sequence with flash attention
+            data_collator = DataCollatorWithFlattening()
+        case "opt_9":
+            print("opt_9")
+            model = AutoLigerKernelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            # unsloth
+            cross_entropy_impl = "cce"
+            model = cce_patch(
+                model,
+                cross_entropy_impl,
+            )
+        case "opt_10":
+            print("opt_10")
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            model = torch.compile(
+                model,
+                backend="inductor",
+            )
+        case "opt_11":
+            print("opt_11")
+            model = AutoLigerKernelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            # unsloth
+            cross_entropy_impl = "cce"
+            model = cce_patch(
+                model,
+                cross_entropy_impl,
+            )
+            model = torch.compile(
+                model,
+                backend="inductor",
+            )
+        case "opt_12":
+            print("opt_12")
+            model = AutoLigerKernelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+                cross_entropy=True,
+                fused_linear_cross_entropy=False,
+            )
+            model = torch.compile(
+                model,
+                backend="inductor",
+            )
+        case "opt_13":
+            print("opt_13")
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            for m in reversed(list(model.modules())):
+                if isinstance(m, LlamaAttention):
+                    m.compile(backend="inductor")
+        case "opt_14":
+            print("opt_14")
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            for m in reversed(list(model.modules())):
+                if isinstance(m, LlamaDecoderLayer):
+                    m.compile(backend="inductor")
+        case "opt_15":
+            print("opt_15")
+            model = AutoLigerKernelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            # unsloth
+            cross_entropy_impl = "cce"
+            model = cce_patch(
+                model,
+                cross_entropy_impl,
+            )
+
+            for m in reversed(list(model.modules())):
+                if isinstance(m, LlamaDecoderLayer):
+                    m.compile(
+                        backend="inductor",
+                    )
+        case "opt_16":
+            print("opt_16")
+            model = AutoLigerKernelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            # unsloth
+            cross_entropy_impl = "cce"
+            model = cce_patch(
+                model,
+                cross_entropy_impl,
+            )
+
+            for m in reversed(list(model.modules())):
+                if isinstance(m, LlamaDecoderLayer):
+                    m.compile(
+                        backend="inductor",
+                        mode="max-autotune",
+                    )
+        case "opt_17":
+            print("opt_17")
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+
+            for m in reversed(list(model.modules())):
+                if isinstance(m, LlamaDecoderLayer):
+                    m.compile(
+                        backend="inductor",
+                        mode="max-autotune",
+                    )
+        case "opt_18":
+            print("opt_18")
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            # unsloth
+            cross_entropy_impl = "cce"
+            model = cce_patch(
+                model,
+                cross_entropy_impl,
+            )
+
+            for m in reversed(list(model.modules())):
+                if isinstance(m, LlamaDecoderLayer):
+                    m.compile(
+                        backend="inductor",
+                        mode="max-autotune",
+                    )
+        case "opt_19":
+            print("opt_19")
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            model = torch.compile(
+                model,
+                backend="inductor",
+                mode="max-autotune",
+            )
+        case "opt_20":
+            print("opt_20")
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            cuda_streams = [torch.cuda.Stream() for _ in model.model.layers]
+            model.model.cuda_streams = cuda_streams
+            LlamaModel.forward = cuda_streams_forward
+            # unsloth
+            cross_entropy_impl = "cce"
+            model = cce_patch(
+                model,
+                cross_entropy_impl,
+            )
+
+            for m in reversed(list(model.modules())):
+                if isinstance(m, LlamaDecoderLayer):
+                    m.compile(
+                        backend="inductor",
+                        mode="max-autotune",
+                        fullgraph=True,
+                    )
 
     print("model_args.attn_implementation", model_args.attn_implementation)
 
@@ -280,6 +607,7 @@ def main():
 
     print(training_args)
     # Initialize our Trainer
+    training_args.gradient_checkpointing = False
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -287,7 +615,8 @@ def main():
         eval_dataset=eval_dataset,
         processing_class=tokenizer,
         # Data collator will default to DataCollatorWithPadding, so we change it.
-        data_collator=default_data_collator,
+        # data_collator=default_data_collator,
+        data_collator=data_collator,
         compute_metrics=compute_metrics,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics,
     )
