@@ -140,7 +140,8 @@
 - [FlexFlow Serve: Low-Latency, High-Performance LLM Serving](https://github.com/flexflow/flexflow-serve)
 - [Welcome to the Llama Cookbook! This is your go to guide for Building with Llama: Getting started with Inference, Fine-Tuning, RAG. We also show you how to solve end to end problems using Llama model family and using them on various provider services](https://github.com/meta-llama/llama-cookbook)
 - [Look Ma, No Bubbles! Designing a Low-Latency Megakernel for Llama-1B](https://github.com/HazyResearch/Megakernels)
-- 
+- [GaLore: Memory-Efficient LLM Training by Gradient Low-Rank Projection](https://github.com/jiaweizzhao/GaLore)
+- [Code for Adam-mini: Use Fewer Learning Rates To Gain More](https://github.com/zyushun/Adam-mini)
 
 
 ### courses

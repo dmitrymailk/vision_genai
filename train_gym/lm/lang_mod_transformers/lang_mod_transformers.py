@@ -19,10 +19,11 @@ Here is the full list of checkpoints on the hub that can be fine-tuned by this s
 https://huggingface.co/models?filter=text-generation
 """
 # You can also adapt this script on your own causal language modeling task. Pointers for this are left as comments.
-
 import logging
 import math
 import os
+
+os.environ["WANDB_PROJECT"] = "llm_pretraining_optimization"
 import sys
 from dataclasses import dataclass, field
 from itertools import chain
@@ -57,14 +58,12 @@ from transformers.models.llama.modeling_llama import (
     LlamaAttention,
     LlamaDecoderLayer,
     LlamaModel,
+    LlamaForCausalLM,
 )
 
 from transformers.modeling_outputs import BaseModelOutputWithPast
+from transformers.loss.loss_utils import nn
 
-require_version(
-    "datasets>=2.14.0",
-    "To fix: pip install -r examples/pytorch/language-modeling/requirements.txt",
-)
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +73,7 @@ MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
 from lang_mod_transformers.utils import ModelArguments, DataTrainingArguments
 from liger_kernel.transformers import AutoLigerKernelForCausalLM
+from types import MethodType
 
 
 def cuda_streams_forward(
@@ -157,7 +157,7 @@ def cuda_streams_forward(
         with torch.cuda.stream(self.cuda_streams[num]):
             if num > 0:
                 self.cuda_streams[num].wait_stream(self.cuda_streams[num - 1])
-                
+
             layer_outputs = decoder_layer(
                 hidden_states,
                 attention_mask=causal_mask,
@@ -238,7 +238,9 @@ def main():
 
     torch_dtype = torch.bfloat16
     data_collator = default_data_collator
-    match model_args.optimization_level:
+    optimization_level = model_args.optimization_level
+    original_forward = LlamaForCausalLM.forward
+    match optimization_level:
         case "opt_1":
             print("opt_1")
             # https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.from_pretrained.attn_implementation
@@ -277,7 +279,6 @@ def main():
             )
         case "opt_5":
             print("opt_5")
-            from transformers.loss.loss_utils import nn
 
             nn.functional.cross_entropy = liger_cross_entropy
             model = AutoModelForCausalLM.from_pretrained(
@@ -608,6 +609,7 @@ def main():
     print(training_args)
     # Initialize our Trainer
     training_args.gradient_checkpointing = False
+    training_args.run_name = optimization_level
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -634,6 +636,8 @@ def main():
 
     # Evaluation
     logger.info("*** Evaluate ***")
+    torch.compiler.cudagraph_mark_step_begin()
+    model.forward = MethodType(original_forward, model)
     metrics = trainer.evaluate()
 
     metrics["eval_samples"] = len(eval_dataset)

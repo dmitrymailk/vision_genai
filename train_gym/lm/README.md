@@ -523,10 +523,12 @@ python -m lang_mod_transformers.lang_mod_transformers \
     --remove_unused_columns False
 ```
 ```console
-3.67it/s
+3.66it/s
 ```
-
-- 3.67/2.86=1.283
+- требует адекватного warm up, чтобы не было рекомпиляции во время тренировки
+- 3.66/2.86=1.279
+- в 1.236 быстрее по общему времени
+- в 1.37 быстрее при per_device_train_batch_size=8
 
 #### torch.compile+mode="max-autotune"
 ```bash
