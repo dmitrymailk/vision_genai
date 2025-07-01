@@ -114,7 +114,7 @@
 - https://github.com/allenai/OLMo-core
 - https://github.com/facebookresearch/xformers/tree/main/examples/llama_inference
 - https://github.com/showlab/Show-o/tree/main/show-o2
-- https://github.com/flashinfer-ai/flashinfer
+- [FlashInfer: Kernel Library for LLM Serving](https://github.com/flashinfer-ai/flashinfer)
 - https://github.com/pytorch-labs/attention-gym
 - https://github.com/unslothai/unsloth
 - https://github.com/Dao-AILab/flash-attention/tree/main/training
@@ -150,6 +150,8 @@
 - [How We Trained Stable Diffusion for Less than $50k (Part 3)](https://www.databricks.com/blog/diffusion)
 - [Benchmarking Large Language Models on NVIDIA H100 GPUs with CoreWeave (Part 1) float8 Transformer Engine](https://www.databricks.com/blog/coreweave-nvidia-h100-part-1)
 - [accelerate FP8 training torchao](https://github.com/huggingface/accelerate/tree/main/benchmarks/fp8/torchao)
+- [llm-foundry LLM training code for Databricks foundation models](https://github.com/mosaicml/llm-foundry)
+- [MegaBlocks is a light-weight library for mixture-of-experts (MoE) training.](https://github.com/databricks/megablocks)
 
 ### courses
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)

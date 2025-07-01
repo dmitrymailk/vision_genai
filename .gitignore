@@ -166,3 +166,4 @@ torch_compile_debug
 unsloth_compiled_cache
 outputs
 train_output
+*.deb
