@@ -142,11 +142,16 @@
 - [Look Ma, No Bubbles! Designing a Low-Latency Megakernel for Llama-1B](https://github.com/HazyResearch/Megakernels)
 - [GaLore: Memory-Efficient LLM Training by Gradient Low-Rank Projection](https://github.com/jiaweizzhao/GaLore)
 - [Code for Adam-mini: Use Fewer Learning Rates To Gain More](https://github.com/zyushun/Adam-mini)
-
+- [Scaling RL on advanced reasoning models](https://github.com/ChenxinAn-fdu/POLARIS)
+- [Reducing Model Checkpointing Times by Over 10x with PyTorch Distributed Asynchronous Checkpointing](https://pytorch.org/blog/reducing-checkpointing-times/)
+- [Supercharging Training using float8 and FSDP2](https://pytorch.org/blog/training-using-float8-fsdp2/)
+- [Efficient Pre-training of Llama 3-like model architectures using torchtitan on Amazon SageMaker](https://aws.amazon.com/blogs/machine-learning/efficient-pre-training-of-llama-3-like-model-architectures-using-torchtitan-on-amazon-sagemaker/)
+- [Basic Example for Using PyTorch Fully Sharded Data Parallel mode with Transformer Engine, float8](https://github.com/NVIDIA/TransformerEngine/blob/main/examples/pytorch/fsdp/fsdp.py)
+- [How We Trained Stable Diffusion for Less than $50k (Part 3)](https://www.databricks.com/blog/diffusion)
+- [Benchmarking Large Language Models on NVIDIA H100 GPUs with CoreWeave (Part 1) float8 Transformer Engine](https://www.databricks.com/blog/coreweave-nvidia-h100-part-1)
+- [accelerate FP8 training torchao](https://github.com/huggingface/accelerate/tree/main/benchmarks/fp8/torchao)
 
 ### courses
-
-
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
 - [tinyML youtube channel](https://www.youtube.com/@tinyML)
 - [Stanford CS149, Fall 2021 PARALLEL COMPUTING](https://gfxcourses.stanford.edu/cs149/fall23)

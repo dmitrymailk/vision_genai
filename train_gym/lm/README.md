@@ -577,3 +577,85 @@ python -m lang_mod_transformers.lang_mod_transformers \
 ```console
 3.66it/s
 ```
+
+#### torch.compile+torch.ao.float8+LlamaDecoderLayer
+```bash
+python -m lang_mod_transformers.lang_mod_transformers \
+    --model_name_or_path unsloth/Llama-3.2-1B-Instruct \
+    --dataset_name wikitext \
+    --dataset_config_name wikitext-2-raw-v1 \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 4 \
+    --do_train \
+    --do_eval \
+    --output_dir ./train_output \
+    --report_to wandb \
+    --block_size 1024 \
+    --logging_steps 8 \
+    --attn_implementation flash_attention_2 \
+    --optimization_level opt_21 \
+    --bf16 \
+    --remove_unused_columns False \
+    --gradient_checkpointing False \
+    --num_train_epochs=3
+```
+```console
+3.85it/s
+```
+- 
+
+#### torch.compile+torch.ao.float8+LlamaDecoderLayer+unsloth cut-cross-entropy
+```bash
+python -m lang_mod_transformers.lang_mod_transformers \
+    --model_name_or_path unsloth/Llama-3.2-1B-Instruct \
+    --dataset_name wikitext \
+    --dataset_config_name wikitext-2-raw-v1 \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 4 \
+    --do_train \
+    --do_eval \
+    --output_dir ./train_output \
+    --report_to wandb \
+    --block_size 1024 \
+    --logging_steps 8 \
+    --attn_implementation flash_attention_2 \
+    --optimization_level opt_22 \
+    --bf16 \
+    --remove_unused_columns False \
+    --gradient_checkpointing False \
+    --num_train_epochs=3
+```
+
+```console
+4.35it/s
+```
+- 4.35/2.86=1.52
+- в 1.454 быстрее по общему времени
+- в 1.603 быстрее при per_device_train_batch_size=8 (2.42it/s)
+- в 1.725 быстрее при per_device_train_batch_size=12 (1.70it/s)
+- в 1.762 быстрее при per_device_train_batch_size=14 (1.55it/s)
+
+#### accelerate.compile_regions+torch.ao.float8+LlamaDecoderLayer+unsloth cut-cross-entropy
+```bash
+python -m lang_mod_transformers.lang_mod_transformers \
+    --model_name_or_path unsloth/Llama-3.2-1B-Instruct \
+    --dataset_name wikitext \
+    --dataset_config_name wikitext-2-raw-v1 \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 4 \
+    --do_train \
+    --do_eval \
+    --output_dir ./train_output \
+    --report_to wandb \
+    --block_size 1024 \
+    --logging_steps 8 \
+    --attn_implementation flash_attention_2 \
+    --optimization_level opt_23 \
+    --bf16 \
+    --remove_unused_columns False \
+    --gradient_checkpointing False \
+    --num_train_epochs=3
+```
+```console
+4.27it/s
+```
