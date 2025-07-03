@@ -65,14 +65,6 @@ from transformers.modeling_outputs import BaseModelOutputWithPast
 from transformers.loss.loss_utils import nn
 from functools import partial
 from accelerate.utils import compile_regions
-
-
-logger = logging.getLogger(__name__)
-
-
-MODEL_CONFIG_CLASSES = list(MODEL_FOR_CAUSAL_LM_MAPPING.keys())
-MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
-
 from lang_mod_transformers.utils import (
     ModelArguments,
     DataTrainingArguments,
@@ -81,6 +73,16 @@ from lang_mod_transformers.utils import (
 from liger_kernel.transformers import AutoLigerKernelForCausalLM
 from types import MethodType
 from torchao.float8 import convert_to_float8_training, Float8LinearConfig
+from accelerate.utils import FP8RecipeKwargs
+
+# from transformers.trainer_pt_utils import AcceleratorConfig
+
+
+logger = logging.getLogger(__name__)
+
+
+MODEL_CONFIG_CLASSES = list(MODEL_FOR_CAUSAL_LM_MAPPING.keys())
+MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
 
 def filter_linear_layers(module, fqn, first_layer_name=None, last_layer_name=None):
@@ -529,6 +531,40 @@ def main():
                 module_filter_fn=func,
             )
             model = compile_regions(model)
+        case "opt_24":
+            print("opt_24")
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            FP8_RECIPE_KWARGS = {
+                "fp8_format": "HYBRID",
+                "amax_history_len": 32,
+                "amax_compute_algo": "max",
+            }
+            kwargs_handlers = [
+                FP8RecipeKwargs(backend="TE", **FP8_RECIPE_KWARGS),
+            ]
+            # old_kwargs = dict(training_args.accelerator_config)
+            # training_args.accelerator_config = {
+            #     "mixed_precision": "fp8",
+            #     "kwargs_handlers": kwargs_handlers,
+            #     **old_kwargs,
+            # }
+            # training_args.accelerator_config["mixed_precision"] = "fp8"
+            # training_args.accelerator_config["kwargs_handlers"] = kwargs_handlers
+            setattr(training_args.accelerator_config, "mixed_precision", "fp8")
+            setattr(
+                training_args.accelerator_config, "kwargs_handlers", kwargs_handlers
+            )
+            for m in reversed(list(model.modules())):
+                if isinstance(m, LlamaDecoderLayer):
+                    m.compile(
+                        backend="inductor",
+                        # mode="max-autotune",
+                    )
 
     print("model_args.attn_implementation", model_args.attn_implementation)
 
@@ -621,6 +657,7 @@ def main():
     training_args.gradient_checkpointing = False
     training_args.run_name = optimization_level
     # training_args.accelerator_config =
+    print(training_args.accelerator_config)
     trainer = Trainer(
         model=model,
         args=training_args,

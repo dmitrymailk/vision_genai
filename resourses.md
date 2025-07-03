@@ -152,8 +152,12 @@
 - [accelerate FP8 training torchao](https://github.com/huggingface/accelerate/tree/main/benchmarks/fp8/torchao)
 - [llm-foundry LLM training code for Databricks foundation models](https://github.com/mosaicml/llm-foundry)
 - [MegaBlocks is a light-weight library for mixture-of-experts (MoE) training.](https://github.com/databricks/megablocks)
+- [Multimodal example (LLaVA training pipeline) Megatron-LM](https://github.com/NVIDIA/Megatron-LM/tree/main/examples/multimodal)
+- [Arctic Long Sequence Training (ALST) for HF Transformers integration](https://www.deepspeed.ai/tutorials/ulysses-alst-sequence-pallellism/)
+- [A Scalable Inference Engine for Diffusion Transformers (DiTs) on Multiple Computing Devices](https://github.com/xdit-project/xDiT)
+- [Thunder makes optimizing PyTorch models easy, augmenting them with custom kernels, fusions, quantization, distributed strategies, and more.](https://github.com/Lightning-AI/lightning-thunder/tree/main)
 
-### courses
+### courses 
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
 - [tinyML youtube channel](https://www.youtube.com/@tinyML)
 - [Stanford CS149, Fall 2021 PARALLEL COMPUTING](https://gfxcourses.stanford.edu/cs149/fall23)
@@ -184,7 +188,7 @@
 - https://cis565-fall-2023.github.io/syllabus/
 - [ML Performance Reading Group Session 2: Flash Attention](https://youtu.be/Lys0TpsLIEc?si=wNoLKsKi8Kib_PXb)
 - [nanoMoE: Mixture-of-Experts (MoE) LLMs from Scratch in PyTorch](https://cameronrwolfe.substack.com/p/nano-moe)
-- 
+- [GPUs Go Brrr](https://hazyresearch.stanford.edu/blog/2024-05-12-tk)
 
 ### Triton 
 - [Fused Softmax triton](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)
@@ -319,9 +323,15 @@
 - [Deep Compression Autoencoder for Efficient High-Resolution Diffusion Models](https://github.com/mit-han-lab/efficientvit/tree/master/applications/dc_ae)
 - [SANA: Efficient High-Resolution Image Synthesis with Linear Diffusion Transformer](https://github.com/NVlabs/Sana)
 - [🏃SANA-Sprint: One-Step Diffusion with Continuous-Time Consistency Distillation](https://github.com/NVlabs/Sana/blob/main/asset/docs/sana_sprint.md)
-- 
+- [Tackling the Generative Learning Trilemma with Denoising Diffusion GANs](https://github.com/NVlabs/denoising-diffusion-gan)
+
 ### Torch compile benchmarks
 - https://github.com/pytorch/torchtitan/blob/main/benchmarks/llama3_h100_202412_torchtitan.md#user-content-fn-2-cae6e35c41ee7ec0bdbbad5503a98dd1
 - [Getting started with Pytorch 2.0 and Hugging Face Transformers](https://www.philschmid.de/getting-started-pytorch-2-0-transformers)- time is reduced by 52.5%
 - https://sebastianraschka.com/blog/2023/pytorch-faster.html - наоборот увеличил 
 
+### Audio models
+- [SOTA Open Source TTS](https://github.com/fishaudio/fish-speech)
+- [Moshi is a speech-text foundation model and full-duplex spoken dialogue framework. It uses Mimi, a state-of-the-art streaming neural audio codec.](https://github.com/kyutai-labs/moshi)
+- [Voila is a new family of large voice-language foundation models aiming to lift human-AI interaction experiences to the next level.](https://github.com/maitrix-org/Voila?tab=readme-ov-file)
+- [Text-to-Speech (TTS) Fine-tuning](https://docs.unsloth.ai/basics/text-to-speech-tts-fine-tuning)
