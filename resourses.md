@@ -334,6 +334,7 @@
 ### Audio models
 - [SOTA Open Source TTS](https://github.com/fishaudio/fish-speech)
 - [Moshi is a speech-text foundation model and full-duplex spoken dialogue framework. It uses Mimi, a state-of-the-art streaming neural audio codec.](https://github.com/kyutai-labs/moshi)
+- [Delayed Streams Modeling: Kyutai STT & TTS](https://github.com/kyutai-labs/delayed-streams-modeling/)
 - [Voila is a new family of large voice-language foundation models aiming to lift human-AI interaction experiences to the next level.](https://github.com/maitrix-org/Voila?tab=readme-ov-file)
 - [Orpheus TTS](https://github.com/canopyai/Orpheus-TTS)
 - [Text-to-Speech (TTS) Fine-tuning](https://docs.unsloth.ai/basics/text-to-speech-tts-fine-tuning)

@@ -74,7 +74,7 @@ from lang_mod_transformers.utils import (
 from liger_kernel.transformers import AutoLigerKernelForCausalLM
 from types import MethodType
 from torchao.float8 import convert_to_float8_training, Float8LinearConfig
-from accelerate.utils import FP8RecipeKwargs
+from accelerate.utils import FP8RecipeKwargs, TERecipeKwargs
 
 # from transformers.trainer_pt_utils import AcceleratorConfig
 from accelerate import Accelerator, DistributedType
@@ -152,19 +152,66 @@ def main():
     config = AutoConfig.from_pretrained(
         model_name_or_path,
     )
+    accelerator_log_kwargs = {
+        "log_with": "wandb",
+        "project_dir": "train_output",
+    }
+    accelerator = None
     match optimization_level:
         case "opt_1":
             print("opt_1")
             # https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.from_pretrained.attn_implementation
-            model = AutoModelForCausalLM.from_pretrained(
-                model_name_or_path,
+            # model = AutoModelForCausalLM.from_pretrained(
+            #     model_name_or_path,
+            #     torch_dtype=torch_dtype,
+            #     attn_implementation=model_args.attn_implementation,
+            # )
+            model = AutoModelForCausalLM.from_config(
+                config,
                 torch_dtype=torch_dtype,
                 attn_implementation=model_args.attn_implementation,
             )
-            # model = AutoModelForCausalLM.from_config(
-            #     config,
+            accelerator = Accelerator(
+                gradient_accumulation_steps=training_args.gradient_accumulation_steps,
+                **accelerator_log_kwargs,
+            )
+        case "opt_25":
+            # model = AutoModelForCausalLM.from_pretrained(
+            #     model_name_or_path,
             #     torch_dtype=torch_dtype,
             #     attn_implementation=model_args.attn_implementation,
+            # )
+            model = AutoModelForCausalLM.from_config(
+                config,
+                torch_dtype=torch_dtype,
+                attn_implementation=model_args.attn_implementation,
+            )
+            FP8_RECIPE_KWARGS = {
+                "fp8_format": "HYBRID",
+                # "fp8_format": "E4M3",
+                "amax_history_len": 2,
+                # "amax_history_len": None,
+                # "amax_compute_algo": "most_recent",
+                "amax_compute_algo": "max",
+                "backend": "TE",
+            }
+            # FP8_RECIPE_KWARGS = {
+            #     "opt_level": "O2",
+            #     "backend": "msamp",
+            # }
+            kwargs_handlers = [
+                FP8RecipeKwargs(
+                    **FP8_RECIPE_KWARGS,
+                )
+            ]
+            # AcceleratorState()._reset_state(True)
+            accelerator = Accelerator(
+                mixed_precision="fp8",
+                kwargs_handlers=kwargs_handlers,
+                **accelerator_log_kwargs,
+            )
+            # accelerator = Accelerator(
+            #     **accelerator_log_kwargs,
             # )
 
     print("model_args.attn_implementation", model_args.attn_implementation)
@@ -269,14 +316,7 @@ def main():
         collate_fn=default_data_collator,
         batch_size=training_args.per_device_eval_batch_size,
     )
-    accelerator_log_kwargs = {
-        "log_with": "wandb",
-        "project_dir": "train_output",
-    }
-    accelerator = Accelerator(
-        gradient_accumulation_steps=training_args.gradient_accumulation_steps,
-        **accelerator_log_kwargs,
-    )
+
     # Optimizer
     # Split weights in two groups, one with weight decay and the other not.
     # no_decay = ["bias", "layer_norm.weight"]
@@ -374,7 +414,11 @@ def main():
     # We need to initialize the trackers we use, and also store our configuration.
     # The trackers initializes automatically on the main process.
 
-    accelerator.init_trackers("llm_pretraining_optimization", training_args)
+    accelerator.init_trackers(
+        "llm_pretraining_optimization",
+        training_args,
+        init_kwargs={"wandb": {"name": f"{optimization_level}_acc"}},
+    )
 
     # Train!
     total_batch_size = (
@@ -382,6 +426,7 @@ def main():
         * accelerator.num_processes
         * training_args.gradient_accumulation_steps
     )
+    print("total_batch_size", total_batch_size)
 
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(train_dataset)}")
@@ -431,7 +476,14 @@ def main():
             if accelerator.sync_gradients:
                 progress_bar.update(1)
                 completed_steps += 1
-
+            if step == 0:
+                accelerator.log(
+                    {
+                        "train/loss": total_loss / training_args.logging_steps,
+                    },
+                    step=log_steps,
+                )
+                log_steps += 1
             if (step + 1) % training_args.logging_steps == 0:
                 accelerator.log(
                     {

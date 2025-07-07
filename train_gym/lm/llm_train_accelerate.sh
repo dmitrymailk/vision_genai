@@ -11,11 +11,11 @@ python -m lang_mod_transformers.lang_mod_accelerate \
     --block_size 1024 \
     --logging_steps 8 \
     --attn_implementation flash_attention_2 \
-    --optimization_level opt_1 \
+    --optimization_level opt_25 \
     --bf16 \
     --remove_unused_columns False \
     --gradient_checkpointing False \
-    --num_train_epochs=2
+    --num_train_epochs=3 \
 
 # 1797 - original steps
 # 1797 - accelerate steps
