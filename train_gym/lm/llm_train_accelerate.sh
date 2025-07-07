@@ -1,4 +1,4 @@
-python -m lang_mod_transformers.lang_mod_transformers \
+python -m lang_mod_transformers.lang_mod_accelerate \
     --model_name_or_path unsloth/Llama-3.2-1B-Instruct \
     --dataset_name wikitext \
     --dataset_config_name wikitext-2-raw-v1 \
@@ -17,3 +17,5 @@ python -m lang_mod_transformers.lang_mod_transformers \
     --gradient_checkpointing False \
     --num_train_epochs=2
 
+# 1797 - original steps
+# 1797 - accelerate steps

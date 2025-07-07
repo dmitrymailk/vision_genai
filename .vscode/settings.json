@@ -1,0 +1,6 @@
+{
+  "aide.convertLanguagePairs": {
+    "python": "c"
+  },
+  "git.ignoreLimitWarning": true
+}

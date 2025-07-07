@@ -156,6 +156,7 @@
 - [Arctic Long Sequence Training (ALST) for HF Transformers integration](https://www.deepspeed.ai/tutorials/ulysses-alst-sequence-pallellism/)
 - [A Scalable Inference Engine for Diffusion Transformers (DiTs) on Multiple Computing Devices](https://github.com/xdit-project/xDiT)
 - [Thunder makes optimizing PyTorch models easy, augmenting them with custom kernels, fusions, quantization, distributed strategies, and more.](https://github.com/Lightning-AI/lightning-thunder/tree/main)
+- [PiPPy: Pipeline Parallelism for PyTorch](https://github.com/PyTorch/PiPPy?tab=readme-ov-file)
 
 ### courses 
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -334,4 +335,7 @@
 - [SOTA Open Source TTS](https://github.com/fishaudio/fish-speech)
 - [Moshi is a speech-text foundation model and full-duplex spoken dialogue framework. It uses Mimi, a state-of-the-art streaming neural audio codec.](https://github.com/kyutai-labs/moshi)
 - [Voila is a new family of large voice-language foundation models aiming to lift human-AI interaction experiences to the next level.](https://github.com/maitrix-org/Voila?tab=readme-ov-file)
+- [Orpheus TTS](https://github.com/canopyai/Orpheus-TTS)
 - [Text-to-Speech (TTS) Fine-tuning](https://docs.unsloth.ai/basics/text-to-speech-tts-fine-tuning)
+- [OuteTTS(llama) really good](https://github.com/edwko/OuteTTS)
+- [Spark-TTS Inference Code](https://github.com/SparkAudio/Spark-TTS)

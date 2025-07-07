@@ -144,6 +144,9 @@ def main():
     data_collator = default_data_collator
     optimization_level = model_args.optimization_level
     original_forward = LlamaForCausalLM.forward
+    config = AutoConfig.from_pretrained(
+        model_name_or_path,
+    )
     match optimization_level:
         case "opt_1":
             print("opt_1")
@@ -153,6 +156,11 @@ def main():
                 torch_dtype=torch_dtype,
                 attn_implementation=model_args.attn_implementation,
             )
+            # model = AutoModelForCausalLM.from_config(
+            #     config,
+            #     torch_dtype=torch_dtype,
+            #     attn_implementation=model_args.attn_implementation,
+            # )
         case "opt_2":
             print("opt_2")
             model = AutoLigerKernelForCausalLM.from_pretrained(
@@ -696,7 +704,6 @@ def main():
     metrics["perplexity"] = perplexity
 
     trainer.log_metrics("eval", metrics)
-    # trainer.save_metrics("eval", metrics)
 
 
 if __name__ == "__main__":
