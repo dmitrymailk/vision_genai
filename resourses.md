@@ -157,6 +157,9 @@
 - [A Scalable Inference Engine for Diffusion Transformers (DiTs) on Multiple Computing Devices](https://github.com/xdit-project/xDiT)
 - [Thunder makes optimizing PyTorch models easy, augmenting them with custom kernels, fusions, quantization, distributed strategies, and more.](https://github.com/Lightning-AI/lightning-thunder/tree/main)
 - [PiPPy: Pipeline Parallelism for PyTorch](https://github.com/PyTorch/PiPPy?tab=readme-ov-file)
+- [SmolLM3: smol, multilingual, long-context reasoner](https://huggingface.co/blog/smollm3)
+- [Everything about the SmolLM and SmolVLM family of models](https://github.com/huggingface/smollm)
+
 
 ### courses 
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -190,6 +193,7 @@
 - [ML Performance Reading Group Session 2: Flash Attention](https://youtu.be/Lys0TpsLIEc?si=wNoLKsKi8Kib_PXb)
 - [nanoMoE: Mixture-of-Experts (MoE) LLMs from Scratch in PyTorch](https://cameronrwolfe.substack.com/p/nano-moe)
 - [GPUs Go Brrr](https://hazyresearch.stanford.edu/blog/2024-05-12-tk)
+
 
 ### Triton 
 - [Fused Softmax triton](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)
@@ -258,6 +262,7 @@
 
 - [EVERYTHING YOU NEED TO KNOW ABOUT UNIFIED MEMORY](https://on-demand.gputechconf.com/gtc/2018/presentation/s8430-everything-you-need-to-know-about-unified-memory.pdf)
 - [Maximizing Unified Memory Performance in CUDA](https://developer.nvidia.com/blog/maximizing-unified-memory-performance-cuda/)
+- [NVIDIA Tensor Core Programming](https://leimao.github.io/blog/NVIDIA-Tensor-Core-Programming/)
 
 ### CUDA Tutorial Projects
 - https://github.com/pwlnk/cuda-neural-network
