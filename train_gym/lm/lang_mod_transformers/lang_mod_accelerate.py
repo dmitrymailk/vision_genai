@@ -80,8 +80,41 @@ from accelerate.utils import FP8RecipeKwargs, TERecipeKwargs
 from accelerate import Accelerator, DistributedType
 
 from tqdm import tqdm
+from torch.utils.data import (
+    DataLoader,
+    Dataset,
+    IterableDataset,
+    RandomSampler,
+    SequentialSampler,
+)
 
-from torch.utils.data import DataLoader
+
+from transformers.trainer_utils import (
+    PREFIX_CHECKPOINT_DIR,
+    BestRun,
+    EvalLoopOutput,
+    EvalPrediction,
+    HPSearchBackend,
+    HubStrategy,
+    PredictionOutput,
+    RemoveColumnsCollator,
+    SaveStrategy,
+    TrainerMemoryTracker,
+    TrainOutput,
+    check_target_module_exists,
+    default_compute_objective,
+    denumpify_detensorize,
+    enable_full_determinism,
+    find_executable_batch_size,
+    get_last_checkpoint,
+    has_length,
+    neftune_post_forward_hook,
+    number_of_arguments,
+    seed_worker,
+    set_seed,
+    speed_metrics,
+)
+from accelerate.utils import DataLoaderConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -161,17 +194,31 @@ def main():
         case "opt_1":
             print("opt_1")
             # https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.from_pretrained.attn_implementation
-            # model = AutoModelForCausalLM.from_pretrained(
-            #     model_name_or_path,
-            #     torch_dtype=torch_dtype,
-            #     attn_implementation=model_args.attn_implementation,
-            # )
-            model = AutoModelForCausalLM.from_config(
-                config,
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
                 torch_dtype=torch_dtype,
                 attn_implementation=model_args.attn_implementation,
             )
+            # model = AutoModelForCausalLM.from_config(
+            #     config,
+            #     torch_dtype=torch_dtype,
+            #     attn_implementation=model_args.attn_implementation,
+            # )
+            dataloader_params = [
+                "split_batches",
+                "dispatch_batches",
+                "even_batches",
+                "use_seedable_sampler",
+            ]
+
+            dataloader_config = DataLoaderConfiguration(
+                **{
+                    param: training_args.accelerator_config.pop(param)
+                    for param in dataloader_params
+                }
+            )
             accelerator = Accelerator(
+                dataloader_config=dataloader_config,
                 gradient_accumulation_steps=training_args.gradient_accumulation_steps,
                 **accelerator_log_kwargs,
             )
@@ -282,6 +329,7 @@ def main():
 
     train_dataset = lm_datasets["train"]
     eval_dataset = lm_datasets["validation"]
+    # print(train_dataset[0])
 
     def preprocess_logits_for_metrics(logits, labels):
         if isinstance(logits, tuple):
@@ -310,6 +358,15 @@ def main():
         shuffle=True,
         collate_fn=default_data_collator,
         batch_size=training_args.per_device_train_batch_size,
+        # sampler=RandomSampler(train_dataset),
+        # worker_init_fn=partial(
+        #     seed_worker,
+        #     num_workers=training_args.dataloader_pin_memory,
+        #     rank=training_args.process_index,
+        # ),
+        # num_workers=0,
+        # pin_memory=True,
+        # persistent_workers=training_args.dataloader_persistent_workers,
     )
     eval_dataloader = DataLoader(
         eval_dataset,
@@ -452,6 +509,8 @@ def main():
 
     # update the progress_bar if load from checkpoint
     progress_bar.update(completed_steps)
+    # print(next(iter(train_dataloader)))
+    # exit()
 
     for epoch in range(starting_epoch, training_args.num_train_epochs):
         total_loss = 0
@@ -460,6 +519,8 @@ def main():
         print("active_dataloader=", len(active_dataloader))
         for step, batch in enumerate(active_dataloader):
             with accelerator.accumulate(model):
+                # print(batch)
+                # exit()
                 outputs = model(**batch)
                 loss = outputs.loss
                 # We keep track of the loss at each epoch
@@ -476,18 +537,20 @@ def main():
             if accelerator.sync_gradients:
                 progress_bar.update(1)
                 completed_steps += 1
-            if step == 0:
-                accelerator.log(
-                    {
-                        "train/loss": total_loss / training_args.logging_steps,
-                    },
-                    step=log_steps,
-                )
-                log_steps += 1
+            # if step == 0:
+            #     accelerator.log(
+            #         {
+            #             "train/loss": loss.detach().float(),
+            #         },
+            #         step=log_steps,
+            #     )
+            #     log_steps += 1
             if (step + 1) % training_args.logging_steps == 0:
                 accelerator.log(
                     {
                         "train/loss": total_loss / training_args.logging_steps,
+                        "train/learning_rate": lr_scheduler.get_last_lr()[0],
+                        "train/grad_norm": _grad_norm,
                     },
                     step=log_steps,
                 )

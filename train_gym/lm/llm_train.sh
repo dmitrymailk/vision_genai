@@ -15,5 +15,4 @@ python -m lang_mod_transformers.lang_mod_transformers_trainer \
     --bf16 \
     --remove_unused_columns False \
     --gradient_checkpointing False \
-    --num_train_epochs=3
-
+    --num_train_epochs=3 
