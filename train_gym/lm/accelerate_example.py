@@ -51,9 +51,11 @@ from transformers import (
 )
 from transformers.testing_utils import CaptureLogger
 from transformers.utils.versions import require_version
-from liger_kernel.transformers.functional import liger_cross_entropy
+
+# from liger_kernel.transformers.functional import liger_cross_entropy
 from typing import Any, Sequence, cast
-from cut_cross_entropy.transformers import cce_patch
+
+# from cut_cross_entropy.transformers import cce_patch
 from transformers import DataCollatorWithFlattening
 from transformers.models.llama.modeling_llama import (
     LlamaAttention,
@@ -71,9 +73,11 @@ from lang_mod_transformers.utils import (
     DataTrainingArguments,
     cuda_streams_forward,
 )
-from liger_kernel.transformers import AutoLigerKernelForCausalLM
+
+# from liger_kernel.transformers import AutoLigerKernelForCausalLM
 from types import MethodType
-from torchao.float8 import convert_to_float8_training, Float8LinearConfig
+
+# from torchao.float8 import convert_to_float8_training, Float8LinearConfig
 from accelerate.utils import FP8RecipeKwargs, TERecipeKwargs
 
 # from transformers.trainer_pt_utils import AcceleratorConfig
@@ -222,44 +226,6 @@ def main():
                 gradient_accumulation_steps=training_args.gradient_accumulation_steps,
                 **accelerator_log_kwargs,
             )
-        case "opt_25":
-            # model = AutoModelForCausalLM.from_pretrained(
-            #     model_name_or_path,
-            #     torch_dtype=torch_dtype,
-            #     attn_implementation=model_args.attn_implementation,
-            # )
-            model = AutoModelForCausalLM.from_config(
-                config,
-                torch_dtype=torch_dtype,
-                attn_implementation=model_args.attn_implementation,
-            )
-            FP8_RECIPE_KWARGS = {
-                "fp8_format": "HYBRID",
-                # "fp8_format": "E4M3",
-                "amax_history_len": 2,
-                # "amax_history_len": None,
-                # "amax_compute_algo": "most_recent",
-                "amax_compute_algo": "max",
-                "backend": "TE",
-            }
-            # FP8_RECIPE_KWARGS = {
-            #     "opt_level": "O2",
-            #     "backend": "msamp",
-            # }
-            kwargs_handlers = [
-                FP8RecipeKwargs(
-                    **FP8_RECIPE_KWARGS,
-                )
-            ]
-            # AcceleratorState()._reset_state(True)
-            accelerator = Accelerator(
-                mixed_precision="fp8",
-                kwargs_handlers=kwargs_handlers,
-                **accelerator_log_kwargs,
-            )
-            # accelerator = Accelerator(
-            #     **accelerator_log_kwargs,
-            # )
 
     print("model_args.attn_implementation", model_args.attn_implementation)
 

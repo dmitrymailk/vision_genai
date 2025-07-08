@@ -2952,6 +2952,7 @@ class Trainer:
             self._evaluate(trial, ignore_keys_for_eval, skip_scheduler=True)
 
         for epoch in range(epochs_trained, num_train_epochs):
+
             epoch_dataloader = train_dataloader
             if hasattr(epoch_dataloader, "set_epoch"):
                 epoch_dataloader.set_epoch(epoch)
@@ -2996,7 +2997,9 @@ class Trainer:
             total_updates = steps_in_epoch // args.gradient_accumulation_steps + int(
                 remainder < args.gradient_accumulation_steps
             )
+            # counter = 0
             for _ in range(total_updates):
+                counter += 1
                 update_step += 1
                 num_batches = (
                     args.gradient_accumulation_steps
@@ -3009,8 +3012,6 @@ class Trainer:
                     epoch_iterator, num_batches, args.device
                 )
                 for i, inputs in enumerate(batch_samples):
-                    # print(inputs)
-                    # exit()
                     step += 1
                     do_sync_step = (
                         step + 1
@@ -6837,3 +6838,58 @@ if __name__ == "__main__":
 #     self.use_stateful_dataloader,
 #     device_mesh,
 # )
+##d#D#D#d##d#d##d###D##
+##d#D#D#d##d#d##d###D##
+##d#D#D#d##d#d##d###D##
+##d#D#D#d##d#d##d###D##
+##d#D#D#d##d#d##d###D##
+##d#D#D#d##d#d##d###D##
+# second epoch trainer
+# {'input_ids': tensor([[  832,   574,  1694,  ...,  4216,   220,  2550],
+#         [  433,   449,   264,  ...,   220,    16,   883],
+#         [  323, 19913,   662,  ...,  2737,   279, 19912],
+#         [  220,    23, 37386,  ...,   311, 20634,  9313]], device='cuda:0'), 'attention_mask': tensor([[1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1]], device='cuda:0'), 'labels': tensor([[  832,   574,  1694,  ...,  4216,   220,  2550],
+#         [  433,   449,   264,  ...,   220,    16,   883],
+#         [  323, 19913,   662,  ...,  2737,   279, 19912],
+#         [  220,    23, 37386,  ...,   311, 20634,  9313]], device='cuda:0')}
+##########d#
+# second epoch accelerate
+# {'input_ids': tensor([[  832,   574,  1694,  ...,  4216,   220,  2550],
+#         [  433,   449,   264,  ...,   220,    16,   883],
+#         [  323, 19913,   662,  ...,  2737,   279, 19912],
+#         [  220,    23, 37386,  ...,   311, 20634,  9313]], device='cuda:0'), 'attention_mask': tensor([[1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1]], device='cuda:0'), 'labels': tensor([[  832,   574,  1694,  ...,  4216,   220,  2550],
+#         [  433,   449,   264,  ...,   220,    16,   883],
+#         [  323, 19913,   662,  ...,  2737,   279, 19912],
+#         [  220,    23, 37386,  ...,   311, 20634,  9313]], device='cuda:0')}
+#########
+#########
+#########
+# second epoch trainer 20 steps
+# {'input_ids': tensor([[   578,  44198,  24780,  ...,    220,  14498,    571],
+#         [   284,    284,  35009,  ...,   2052,     84,  17177],
+#         [  1139,    902,    568,  ...,   4216,   4394,  12383],
+#         [ 33834,    527,  44894,  ...,    720, 128000, 128000]],
+#        device='cuda:0'), 'attention_mask': tensor([[1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1]], device='cuda:0'), 'labels': tensor([[   578,  44198,  24780,  ...,    220,  14498,    571],
+#         [   284,    284,  35009,  ...,   2052,     84,  17177],
+#         [  1139,    902,    568,  ...,   4216,   4394,  12383],
+#         [ 33834,    527,  44894,  ...,    720, 128000, 128000]],
+#        device='cuda:0')}
+###################d#d
+# second epoch accelerate 20 steps
+# tensor([[1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1],
+#         [1, 1, 1,  ..., 1, 1, 1]], device='cuda:0'), 'labels': tensor([[   578,  44198,  24780,  ...,    220,  14498,    571],
+#         [   284,    284,  35009,  ...,   2052,     84,  17177],
+#         [  1139,    902,    568,  ...,   4216,   4394,  12383],
+#         [ 33834,    527,  44894,  ...,    720, 128000, 128000]],
+#        device='cuda:0')}
