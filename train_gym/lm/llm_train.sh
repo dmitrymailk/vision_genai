@@ -10,9 +10,9 @@ python -m lang_mod_transformers.lang_mod_transformers \
     --output_dir ./train_output \
     --report_to wandb \
     --block_size 1024 \
-    --logging_steps 1 \
+    --logging_steps 8 \
     --attn_implementation flash_attention_2 \
-    --optimization_level opt_1 \
+    --optimization_level opt_7 \
     --bf16 \
     --remove_unused_columns False \
     --gradient_checkpointing False \

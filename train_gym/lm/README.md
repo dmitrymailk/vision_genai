@@ -290,12 +290,14 @@ python -m lang_mod_transformers.lang_mod_transformers \
     --block_size 1024 \
     --logging_steps 8 \
     --attn_implementation flash_attention_2 \
-    --optimization_level opt_6 \
+    --optimization_level opt_7 \
     --bf16
 ```
 ```console
 [00:25<09:10,  3.13it/s]
 ```
+- в 1.076 быстрее при  per_device_train_batch_size 4
+- в 1.168 быстрее при  per_device_train_batch_size 7
 
 #### unsloth cut-cross-entropy+liger kernel
 ```bash
