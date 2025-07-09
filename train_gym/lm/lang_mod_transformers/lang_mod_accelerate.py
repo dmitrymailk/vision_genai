@@ -115,6 +115,8 @@ from transformers.trainer_utils import (
     speed_metrics,
 )
 from accelerate.utils import DataLoaderConfiguration
+from accelerate.utils.transformer_engine import convert_model
+from transformer_engine.common.recipe import DelayedScaling
 
 logger = logging.getLogger(__name__)
 
@@ -223,20 +225,26 @@ def main():
                 **accelerator_log_kwargs,
             )
         case "opt_25":
-            # model = AutoModelForCausalLM.from_pretrained(
-            #     model_name_or_path,
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                torch_dtype=torch_dtype,
+                attn_implementation=model_args.attn_implementation,
+            )
+            # model = AutoModelForCausalLM.from_config(
+            #     config,
             #     torch_dtype=torch_dtype,
             #     attn_implementation=model_args.attn_implementation,
             # )
-            model = AutoModelForCausalLM.from_config(
-                config,
-                torch_dtype=torch_dtype,
-                attn_implementation=model_args.attn_implementation,
+            # unsloth
+            cross_entropy_impl = "cce"
+            model = cce_patch(
+                model,
+                cross_entropy_impl,
             )
             FP8_RECIPE_KWARGS = {
                 "fp8_format": "HYBRID",
                 # "fp8_format": "E4M3",
-                "amax_history_len": 2,
+                "amax_history_len": 32,
                 # "amax_history_len": None,
                 # "amax_compute_algo": "most_recent",
                 "amax_compute_algo": "max",
@@ -481,6 +489,7 @@ def main():
     # exit()
     global_step = 0
     total_loss = 0
+    print(model)
     for epoch in range(starting_epoch, training_args.num_train_epochs):
         model.train()
         active_dataloader = train_dataloader
