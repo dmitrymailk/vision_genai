@@ -268,6 +268,56 @@ def main():
             # accelerator = Accelerator(
             #     **accelerator_log_kwargs,
             # )
+        case "opt_26":
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                torch_dtype=torch_dtype,
+                attn_implementation=model_args.attn_implementation,
+            )
+            # model = AutoModelForCausalLM.from_config(
+            #     config,
+            #     torch_dtype=torch_dtype,
+            #     attn_implementation=model_args.attn_implementation,
+            # )
+            # unsloth
+            cross_entropy_impl = "cce"
+            model = cce_patch(
+                model,
+                cross_entropy_impl,
+            )
+            FP8_RECIPE_KWARGS = {
+                "fp8_format": "HYBRID",
+                # "fp8_format": "E4M3",
+                "amax_history_len": 32,
+                # "amax_history_len": None,
+                # "amax_compute_algo": "most_recent",
+                "amax_compute_algo": "max",
+                "backend": "TE",
+            }
+            # FP8_RECIPE_KWARGS = {
+            #     "opt_level": "O2",
+            #     "backend": "msamp",
+            # }
+            kwargs_handlers = [
+                FP8RecipeKwargs(
+                    **FP8_RECIPE_KWARGS,
+                )
+            ]
+            # AcceleratorState()._reset_state(True)
+            accelerator = Accelerator(
+                mixed_precision="fp8",
+                kwargs_handlers=kwargs_handlers,
+                **accelerator_log_kwargs,
+            )
+            # accelerator = Accelerator(
+            #     **accelerator_log_kwargs,
+            # )
+            for m in reversed(list(model.modules())):
+                if isinstance(m, LlamaDecoderLayer):
+                    m.compile(
+                        backend="inductor",
+                        # mode="max-autotune",
+                    )
 
     print("model_args.attn_implementation", model_args.attn_implementation)
 
@@ -529,12 +579,6 @@ def main():
                 log_steps += 1
                 total_loss -= total_loss
 
-            if isinstance(save_steps, int):
-                if completed_steps % save_steps == 0 and accelerator.sync_gradients:
-                    output_dir = f"step_{completed_steps}"
-                    if training_args.output_dir is not None:
-                        output_dir = os.path.join(training_args.output_dir, output_dir)
-                    accelerator.save_state(output_dir)
             global_step += 1
 
     model.eval()
@@ -566,6 +610,11 @@ def main():
         },
         step=completed_steps,
     )
+
+    output_dir = f"step_{completed_steps}"
+    if training_args.output_dir is not None:
+        output_dir = os.path.join(training_args.output_dir, output_dir)
+    accelerator.save_state(output_dir)
 
     accelerator.wait_for_everyone()
     accelerator.end_training()
