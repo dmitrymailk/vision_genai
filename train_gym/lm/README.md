@@ -686,5 +686,7 @@ python -m lang_mod_transformers.lang_mod_accelerate \
 ```console
 3.85it/s
 ```
-
 - 3.85/2.86=1.34
+
+- в 1.328 быстрее при per_device_train_batch_size 4
+- в 1.43 быстрее при per_device_train_batch_size 7
