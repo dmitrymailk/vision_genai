@@ -33,7 +33,7 @@ import datasets
 import evaluate
 import torch
 from datasets import load_dataset
-
+import gc
 import transformers
 from transformers import (
     CONFIG_MAPPING,
@@ -117,7 +117,8 @@ from transformers.trainer_utils import (
 )
 from accelerate.utils import DataLoaderConfiguration
 from accelerate.utils.transformer_engine import convert_model
-from transformer_engine.common.recipe import DelayedScaling
+
+# from transformer_engine.common.recipe import DelayedScaling
 
 # torch.backends.cudnn.allow_tf32 = True
 # torch.backends.cuda.matmul.allow_tf32 = True
@@ -194,6 +195,7 @@ def main():
     accelerator_log_kwargs = {
         "log_with": "wandb",
         "project_dir": "train_output",
+        # Убираем "mixed_precision": "fp8" чтобы избежать конфликта с bf16
     }
     accelerator = None
     match optimization_level:
@@ -204,6 +206,7 @@ def main():
                 model_name_or_path,
                 torch_dtype=torch_dtype,
                 attn_implementation=model_args.attn_implementation,
+                # device_map={"": 0},
             )
             # model = AutoModelForCausalLM.from_config(
             #     config,
@@ -218,12 +221,17 @@ def main():
             ]
 
             dataloader_config = DataLoaderConfiguration(
-                **{
-                    param: training_args.accelerator_config.pop(param)
-                    for param in dataloader_params
-                }
+                # **{
+                #     param: training_args.accelerator_config.pop(param)
+                #     for param in dataloader_params
+                # }
+                split_batches=True,  # Включаем для лучшего распределения памяти
+                dispatch_batches=True,  # Включаем для оптимизации
+                even_batches=True,
+                use_seedable_sampler=True,  # Добавляем для воспроизводимости
             )
             accelerator = Accelerator(
+                mixed_precision="bf16",
                 dataloader_config=dataloader_config,
                 gradient_accumulation_steps=training_args.gradient_accumulation_steps,
                 **accelerator_log_kwargs,
@@ -403,7 +411,6 @@ def main():
             # Очищаем память
             del hf_model
             torch.cuda.empty_cache()
-            import gc
 
             gc.collect()
 
@@ -482,7 +489,6 @@ def main():
                 mixed_precision="bf16",
                 **accelerator_log_kwargs,
             )
-        case "opt_28":
 
     print("model_args.attn_implementation", model_args.attn_implementation)
 
@@ -573,7 +579,7 @@ def main():
 
     print(training_args)
     # Initialize our Trainer
-    training_args.gradient_checkpointing = False
+    # training_args.gradient_checkpointing = False
     training_args.run_name = optimization_level
 
     train_dataloader = DataLoader(
@@ -696,29 +702,34 @@ def main():
     # exit()
     global_step = 0
     total_loss = 0
-    print(model)
+    # print(model)
+    model.train()
+    model.zero_grad()
     for epoch in range(starting_epoch, training_args.num_train_epochs):
-        model.train()
         active_dataloader = train_dataloader
         active_dataloader_len = len(active_dataloader)
         print("active_dataloader=", active_dataloader_len)
         active_dataloader.set_epoch(epoch)
         for local_step, batch in enumerate(active_dataloader):
-            with accelerator.accumulate(model):
-                outputs = model(**batch)
-                loss = outputs.loss
-                # We keep track of the loss at each epoch
-                total_loss += loss.detach().float()
-                accelerator.backward(loss)
-                # так как gradient_accumulation_steps=1 в данном примере, то мы делаем
-                # клиппинг каждый шаг
-                _grad_norm = accelerator.clip_grad_norm_(
-                    model.parameters(),
-                    1.0,
-                )
-                optimizer.step()
-                lr_scheduler.step()
-                optimizer.zero_grad()
+            # with accelerator.no_sync(model):
+            outputs = model(**batch)
+            # batch["input_ids"] = batch["input_ids"].to("cpu")
+            # batch["attention_mask"] = batch["attention_mask"].to("cpu")
+            del batch
+            # gc.collect()  # сборка мусора после удаления
+            loss = outputs.loss
+            # We keep track of the loss at each epoch
+            accelerator.backward(loss)
+            total_loss += loss.detach().float()
+            # так как gradient_accumulation_steps=1 в данном примере, то мы делаем
+            # клиппинг каждый шаг
+            _grad_norm = accelerator.clip_grad_norm_(
+                model.parameters(),
+                1.0,
+            )
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
 
             if accelerator.sync_gradients:
                 progress_bar.update(1)
@@ -737,15 +748,17 @@ def main():
                 total_loss -= total_loss
 
             global_step += 1
+            if global_step > 30:
+                break
 
-    model.eval()
-    torch.compiler.cudagraph_mark_step_begin()
+    model = model.eval()
+    # torch.compiler.cudagraph_mark_step_begin()
     losses = []
     for step, batch in enumerate(eval_dataloader):
         with torch.no_grad():
             outputs = model(**batch)
 
-        loss = outputs.loss
+        loss = outputs.loss.detach().float()
         losses.append(
             accelerator.gather_for_metrics(
                 loss.repeat(training_args.per_device_eval_batch_size)

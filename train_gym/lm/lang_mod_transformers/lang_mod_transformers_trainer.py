@@ -2999,7 +2999,7 @@ class Trainer:
             )
             # counter = 0
             for _ in range(total_updates):
-                counter += 1
+                # counter += 1
                 update_step += 1
                 num_batches = (
                     args.gradient_accumulation_steps

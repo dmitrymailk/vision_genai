@@ -50,11 +50,6 @@ from transformers.utils import (
 from transformers.models.llama.configuration_llama import LlamaConfig
 
 
-# if is_torch_flex_attn_available():
-#     from torch.nn.attention.flex_attention import BlockMask
-
-#     from ...integrations.flex_attention import make_flex_block_causal_mask
-
 from transformers.integrations import use_kernel_forward_from_hub
 
 
@@ -268,8 +263,6 @@ class LlamaAttention(nn.Module):
                 key_states, value_states, self.layer_idx, cache_kwargs
             )
 
-        # attention_interface: Callable = eager_attention_forward
-        # use anything else than flash_attention_2 is pointless.
         attention_interface: Callable = None
 
         if self.config._attn_implementation != "eager":
@@ -360,7 +353,6 @@ class LlamaDecoderLayer(GradientCheckpointingLayer):
         return outputs
 
 
-@auto_docstring
 class LlamaPreTrainedModel(PreTrainedModel):
     config_class = LlamaConfig
     base_model_prefix = "model"
@@ -411,6 +403,14 @@ class LlamaModel(LlamaPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
+    def get_input_embeddings(self):
+        return self.embed_tokens
+
+    def set_input_embeddings(self, value):
+        self.embed_tokens = value
+
+    @can_return_tuple
+    @auto_docstring
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
@@ -667,7 +667,7 @@ class LlamaModel(LlamaPreTrainedModel):
 class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
 
 
-class LlamaForCausalLMHF(LlamaPreTrainedModel, GenerationMixin):
+class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
     _pp_plan = {"lm_head": (["hidden_states"], ["logits"])}
@@ -680,6 +680,12 @@ class LlamaForCausalLMHF(LlamaPreTrainedModel, GenerationMixin):
 
         # Initialize weights and apply final processing
         self.post_init()
+
+    def get_output_embeddings(self):
+        return self.lm_head
+
+    def set_output_embeddings(self, new_embeddings):
+        self.lm_head = new_embeddings
 
     def forward(
         self,

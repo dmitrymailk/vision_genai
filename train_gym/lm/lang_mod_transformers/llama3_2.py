@@ -56,12 +56,13 @@ from liger_kernel.transformers.functional import liger_cross_entropy
 from typing import Any, Sequence, cast
 from cut_cross_entropy.transformers import cce_patch
 from transformers import DataCollatorWithFlattening
-from transformers.models.llama.modeling_llama import (
-    LlamaAttention,
-    LlamaDecoderLayer,
-    LlamaModel,
-    LlamaForCausalLM,
-)
+
+# from transformers.models.llama.modeling_llama import (
+#     LlamaAttention,
+#     LlamaDecoderLayer,
+#     LlamaModel,
+#     LlamaForCausalLM,
+# )
 
 from transformers.modeling_outputs import BaseModelOutputWithPast
 from transformers.loss.loss_utils import nn
@@ -117,8 +118,12 @@ from transformers.trainer_utils import (
 )
 from accelerate.utils import DataLoaderConfiguration
 from accelerate.utils.transformer_engine import convert_model
-from transformer_engine.common.recipe import DelayedScaling
-from lang_mod_transformers.llama3_2_hf import LlamaForCausalLMHF
+
+# from transformer_engine.common.recipe import DelayedScaling
+# from lang_mod_transformers.llama3_2_hf import LlamaForCausalLM as LlamaForCausalLMHF
+from transformers.models.llama.modeling_llama import (
+    LlamaForCausalLM as LlamaForCausalLMHF,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +179,7 @@ def main():
     torch_dtype = torch.bfloat16
     data_collator = default_data_collator
     optimization_level = model_args.optimization_level
-    original_forward = LlamaForCausalLM.forward
+    original_forward = LlamaForCausalLMHF.forward
     config = AutoConfig.from_pretrained(
         model_name_or_path,
     )
@@ -187,7 +192,7 @@ def main():
         case "opt_1":
             print("opt_1")
             # https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.from_pretrained.attn_implementation
-            model = AutoModelForCausalLM.from_pretrained(
+            model = LlamaForCausalLMHF.from_pretrained(
                 model_name_or_path,
                 torch_dtype=torch_dtype,
                 attn_implementation=model_args.attn_implementation,

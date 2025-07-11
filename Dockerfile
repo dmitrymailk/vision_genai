@@ -2,8 +2,9 @@ FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-devel
 ARG DEBIAN_FRONTEND=noninteractive
 # https://github.com/docker/build-push-action/issues/933#issuecomment-1687372123
 RUN rm /etc/apt/sources.list.d/cuda*.list
-RUN apt-get update --fix-missing && apt-get upgrade -y && apt-get install ffmpeg libsm6 libxext6 ncdu -y
-RUN apt-get install git curl numactl wget unzip iproute2 htop git-lfs -y && pip install nvitop 
+# RUN  apt-get upgrade -y && apt-get install ffmpeg libsm6 libxext6 ncdu -y
+RUN apt-get update -y --fix-missing && apt-get install ffmpeg libsm6 libxext6 ncdu -y --no-install-recommends
+RUN apt-get install git curl numactl wget unzip iproute2 htop git-lfs -y --no-install-recommends && pip install nvitop 
 
 ARG USERNAME=user-name-goes-here
 ARG USER_UID=1000
