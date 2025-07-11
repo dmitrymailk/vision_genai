@@ -49,6 +49,7 @@ from transformers import (
     set_seed,
     get_scheduler,
 )
+from torchtune.models.llama3_2 import llama3_2_1b
 from transformers.testing_utils import CaptureLogger
 from transformers.utils.versions import require_version
 from liger_kernel.transformers.functional import liger_cross_entropy
@@ -117,6 +118,9 @@ from transformers.trainer_utils import (
 from accelerate.utils import DataLoaderConfiguration
 from accelerate.utils.transformer_engine import convert_model
 from transformer_engine.common.recipe import DelayedScaling
+
+# torch.backends.cudnn.allow_tf32 = True
+# torch.backends.cuda.matmul.allow_tf32 = True
 
 logger = logging.getLogger(__name__)
 
@@ -318,6 +322,166 @@ def main():
                         backend="inductor",
                         # mode="max-autotune",
                     )
+        case "opt_27":
+            # Возвращаем объект с loss как в Transformers
+            from dataclasses import dataclass
+            from typing import Optional, Tuple
+
+            @dataclass
+            class CausalLMOutputWithLoss:
+                loss: Optional[torch.FloatTensor] = None
+                logits: torch.FloatTensor = None
+                hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
+                attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
+
+            print("opt_27: Using Llama 3.2 from TorchTune with torch.compile")
+            # Загружаем модель Llama 3.2 из TorchTune
+            # Доступна только llama3_2_1b с предустановленными параметрами
+            torchtune_model = llama3_2_1b(
+                tie_word_embeddings=True,
+            )
+
+            # Загружаем веса из оригинальной HuggingFace модели
+            print(f"Loading weights from {model_name_or_path} into TorchTune model")
+            hf_model = AutoModelForCausalLM.from_pretrained(
+                model_name_or_path,
+                torch_dtype=torch.bfloat16,
+                device_map="cpu",  # Загружаем на CPU для копирования весов
+            )
+
+            # Используем готовую функцию hf_to_tune для преобразования весов
+            from torchtune.models.convert_weights import hf_to_tune
+
+            # Получаем state_dict из HF модели
+            hf_state_dict = hf_model.state_dict()
+
+            # Параметры для Llama 3.2 1B
+            # Получаем параметры из конфигурации HF модели
+            hf_config = hf_model.config
+            num_heads = hf_config.num_attention_heads
+            num_kv_heads = getattr(
+                hf_config, "num_key_value_heads", num_heads
+            )  # GQA может не быть
+            dim = hf_config.hidden_size
+            head_dim = hf_config.hidden_size // hf_config.num_attention_heads
+
+            print(
+                f"Model config: num_heads={num_heads}, num_kv_heads={num_kv_heads}, dim={dim}, head_dim={head_dim}"
+            )
+
+            # Преобразуем веса из HF формата в TorchTune формат
+            converted_state_dict = hf_to_tune(
+                hf_state_dict,
+                num_heads=num_heads,
+                num_kv_heads=num_kv_heads,
+                dim=dim,
+                head_dim=head_dim,
+            )
+
+            # Загружаем преобразованные веса в TorchTune модель
+            torchtune_state_dict = torchtune_model.state_dict()
+
+            # Применяем преобразованные веса к модели
+            copied_count = 0
+            for key, value in converted_state_dict.items():
+                if key in torchtune_state_dict:
+                    if value.shape == torchtune_state_dict[key].shape:
+                        torchtune_state_dict[key].copy_(value)
+                        copied_count += 1
+                    else:
+                        print(
+                            f"Shape mismatch for {key}: converted {value.shape} vs TorchTune {torchtune_state_dict[key].shape}"
+                        )
+                else:
+                    print(f"Parameter {key} not found in TorchTune model")
+
+            print(f"Copied {copied_count} parameters from HF model to TorchTune model")
+
+            # Загружаем обновленный state_dict в модель
+            torchtune_model.load_state_dict(torchtune_state_dict)
+
+            # Очищаем память
+            del hf_model
+            torch.cuda.empty_cache()
+            import gc
+
+            gc.collect()
+
+            # Инициализируем модель в bfloat16
+            torchtune_model = torchtune_model.to(dtype=torch.bfloat16)
+
+            # Применяем float8 оптимизацию как в opt_21-23
+            first_linear = None
+            last_linear = None
+            for name, module in torchtune_model.named_modules():
+                if isinstance(module, torch.nn.Linear):
+                    if first_linear is None:
+                        first_linear = name
+                    last_linear = name
+
+            func = partial(
+                filter_linear_layers,
+                first_layer_name=first_linear,
+                last_layer_name=last_linear,
+            )
+            config = Float8LinearConfig.from_recipe_name("tensorwise")
+            convert_to_float8_training(
+                torchtune_model,
+                config=config,
+                module_filter_fn=func,
+            )
+
+            # Создаем обертку для совместимости с Transformers
+            class TorchTuneWrapper(torch.nn.Module):
+                def __init__(self, model):
+                    super().__init__()
+                    self.model = model
+
+                def forward(
+                    self, input_ids=None, attention_mask=None, labels=None, **kwargs
+                ):
+                    # TorchTune модель ожидает input_ids и mask
+                    # Для простоты используем None - TorchTune автоматически создаст causal mask
+                    # Это должно работать с torch.compile
+                    outputs = self.model(input_ids, mask=None)
+
+                    # Если есть labels, вычисляем loss как в Transformers
+                    if labels is not None:
+                        # Shift logits and labels для causal LM
+                        shift_logits = outputs[..., :-1, :].contiguous()
+                        shift_labels = labels[..., 1:].contiguous()
+
+                        # Используем cut-cross-entropy loss
+                        loss = liger_cross_entropy(
+                            shift_logits.view(-1, shift_logits.size(-1)),
+                            shift_labels.view(-1),
+                            ignore_index=-100,
+                        )
+
+                        return CausalLMOutputWithLoss(loss=loss, logits=outputs)
+
+                    return outputs
+
+            model = TorchTuneWrapper(torchtune_model)
+
+            # Применяем torch.compile к отдельным декодер блокам
+            for m in reversed(list(model.model.modules())):
+                if (
+                    isinstance(m, torch.nn.Module)
+                    and hasattr(m, "attn")
+                    and hasattr(m, "mlp")
+                ):
+                    # Это TransformerSelfAttentionLayer
+                    m.compile(
+                        backend="inductor",
+                        # mode="max-autotune",
+                    )
+
+            # Настройка accelerator для TorchTune модели
+            accelerator = Accelerator(
+                mixed_precision="bf16",
+                **accelerator_log_kwargs,
+            )
 
     print("model_args.attn_implementation", model_args.attn_implementation)
 
@@ -416,15 +580,7 @@ def main():
         shuffle=True,
         collate_fn=default_data_collator,
         batch_size=training_args.per_device_train_batch_size,
-        # sampler=RandomSampler(train_dataset),
-        # worker_init_fn=partial(
-        #     seed_worker,
-        #     num_workers=training_args.dataloader_pin_memory,
-        #     rank=training_args.process_index,
-        # ),
-        # num_workers=0,
-        # pin_memory=True,
-        # persistent_workers=training_args.dataloader_persistent_workers,
+        drop_last=True,
     )
     eval_dataloader = DataLoader(
         eval_dataset,
