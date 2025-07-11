@@ -118,26 +118,13 @@ from transformers.trainer_utils import (
 from accelerate.utils import DataLoaderConfiguration
 from accelerate.utils.transformer_engine import convert_model
 from transformer_engine.common.recipe import DelayedScaling
-
-# torch.backends.cudnn.allow_tf32 = True
-# torch.backends.cuda.matmul.allow_tf32 = True
+from lang_mod_transformers.llama3_2_hf import LlamaForCausalLMHF
 
 logger = logging.getLogger(__name__)
 
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_CAUSAL_LM_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
-
-
-def filter_linear_layers(module, fqn, first_layer_name=None, last_layer_name=None):
-    if isinstance(module, torch.nn.Linear):
-        if module.in_features % 16 != 0 or module.out_features % 16 != 0:
-            return False
-    # For stability reasons, we skip the first and last linear layers
-    # Otherwise can lead to the model not training or converging properly
-    if fqn in (first_layer_name, last_layer_name):
-        return False
-    return True
 
 
 def main():
@@ -228,261 +215,6 @@ def main():
                 gradient_accumulation_steps=training_args.gradient_accumulation_steps,
                 **accelerator_log_kwargs,
             )
-        case "opt_25":
-            model = AutoModelForCausalLM.from_pretrained(
-                model_name_or_path,
-                torch_dtype=torch_dtype,
-                attn_implementation=model_args.attn_implementation,
-            )
-            # model = AutoModelForCausalLM.from_config(
-            #     config,
-            #     torch_dtype=torch_dtype,
-            #     attn_implementation=model_args.attn_implementation,
-            # )
-            # unsloth
-            cross_entropy_impl = "cce"
-            model = cce_patch(
-                model,
-                cross_entropy_impl,
-            )
-            FP8_RECIPE_KWARGS = {
-                "fp8_format": "HYBRID",
-                # "fp8_format": "E4M3",
-                "amax_history_len": 32,
-                # "amax_history_len": None,
-                # "amax_compute_algo": "most_recent",
-                "amax_compute_algo": "max",
-                "backend": "TE",
-            }
-            # FP8_RECIPE_KWARGS = {
-            #     "opt_level": "O2",
-            #     "backend": "msamp",
-            # }
-            kwargs_handlers = [
-                FP8RecipeKwargs(
-                    **FP8_RECIPE_KWARGS,
-                )
-            ]
-            # AcceleratorState()._reset_state(True)
-            accelerator = Accelerator(
-                mixed_precision="fp8",
-                kwargs_handlers=kwargs_handlers,
-                **accelerator_log_kwargs,
-            )
-            # accelerator = Accelerator(
-            #     **accelerator_log_kwargs,
-            # )
-        case "opt_26":
-            model = AutoModelForCausalLM.from_pretrained(
-                model_name_or_path,
-                torch_dtype=torch_dtype,
-                attn_implementation=model_args.attn_implementation,
-            )
-            # model = AutoModelForCausalLM.from_config(
-            #     config,
-            #     torch_dtype=torch_dtype,
-            #     attn_implementation=model_args.attn_implementation,
-            # )
-            # unsloth
-            cross_entropy_impl = "cce"
-            model = cce_patch(
-                model,
-                cross_entropy_impl,
-            )
-            FP8_RECIPE_KWARGS = {
-                "fp8_format": "HYBRID",
-                # "fp8_format": "E4M3",
-                "amax_history_len": 32,
-                # "amax_history_len": None,
-                # "amax_compute_algo": "most_recent",
-                "amax_compute_algo": "max",
-                "backend": "TE",
-            }
-            # FP8_RECIPE_KWARGS = {
-            #     "opt_level": "O2",
-            #     "backend": "msamp",
-            # }
-            kwargs_handlers = [
-                FP8RecipeKwargs(
-                    **FP8_RECIPE_KWARGS,
-                )
-            ]
-            # AcceleratorState()._reset_state(True)
-            accelerator = Accelerator(
-                mixed_precision="fp8",
-                kwargs_handlers=kwargs_handlers,
-                **accelerator_log_kwargs,
-            )
-            # accelerator = Accelerator(
-            #     **accelerator_log_kwargs,
-            # )
-            for m in reversed(list(model.modules())):
-                if isinstance(m, LlamaDecoderLayer):
-                    m.compile(
-                        backend="inductor",
-                        # mode="max-autotune",
-                    )
-        case "opt_27":
-            # Возвращаем объект с loss как в Transformers
-            from dataclasses import dataclass
-            from typing import Optional, Tuple
-
-            @dataclass
-            class CausalLMOutputWithLoss:
-                loss: Optional[torch.FloatTensor] = None
-                logits: torch.FloatTensor = None
-                hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
-                attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
-
-            print("opt_27: Using Llama 3.2 from TorchTune with torch.compile")
-            # Загружаем модель Llama 3.2 из TorchTune
-            # Доступна только llama3_2_1b с предустановленными параметрами
-            torchtune_model = llama3_2_1b(
-                tie_word_embeddings=True,
-            )
-
-            # Загружаем веса из оригинальной HuggingFace модели
-            print(f"Loading weights from {model_name_or_path} into TorchTune model")
-            hf_model = AutoModelForCausalLM.from_pretrained(
-                model_name_or_path,
-                torch_dtype=torch.bfloat16,
-                device_map="cpu",  # Загружаем на CPU для копирования весов
-            )
-
-            # Используем готовую функцию hf_to_tune для преобразования весов
-            from torchtune.models.convert_weights import hf_to_tune
-
-            # Получаем state_dict из HF модели
-            hf_state_dict = hf_model.state_dict()
-
-            # Параметры для Llama 3.2 1B
-            # Получаем параметры из конфигурации HF модели
-            hf_config = hf_model.config
-            num_heads = hf_config.num_attention_heads
-            num_kv_heads = getattr(
-                hf_config, "num_key_value_heads", num_heads
-            )  # GQA может не быть
-            dim = hf_config.hidden_size
-            head_dim = hf_config.hidden_size // hf_config.num_attention_heads
-
-            print(
-                f"Model config: num_heads={num_heads}, num_kv_heads={num_kv_heads}, dim={dim}, head_dim={head_dim}"
-            )
-
-            # Преобразуем веса из HF формата в TorchTune формат
-            converted_state_dict = hf_to_tune(
-                hf_state_dict,
-                num_heads=num_heads,
-                num_kv_heads=num_kv_heads,
-                dim=dim,
-                head_dim=head_dim,
-            )
-
-            # Загружаем преобразованные веса в TorchTune модель
-            torchtune_state_dict = torchtune_model.state_dict()
-
-            # Применяем преобразованные веса к модели
-            copied_count = 0
-            for key, value in converted_state_dict.items():
-                if key in torchtune_state_dict:
-                    if value.shape == torchtune_state_dict[key].shape:
-                        torchtune_state_dict[key].copy_(value)
-                        copied_count += 1
-                    else:
-                        print(
-                            f"Shape mismatch for {key}: converted {value.shape} vs TorchTune {torchtune_state_dict[key].shape}"
-                        )
-                else:
-                    print(f"Parameter {key} not found in TorchTune model")
-
-            print(f"Copied {copied_count} parameters from HF model to TorchTune model")
-
-            # Загружаем обновленный state_dict в модель
-            torchtune_model.load_state_dict(torchtune_state_dict)
-
-            # Очищаем память
-            del hf_model
-            torch.cuda.empty_cache()
-            import gc
-
-            gc.collect()
-
-            # Инициализируем модель в bfloat16
-            torchtune_model = torchtune_model.to(dtype=torch.bfloat16)
-
-            # Применяем float8 оптимизацию как в opt_21-23
-            first_linear = None
-            last_linear = None
-            for name, module in torchtune_model.named_modules():
-                if isinstance(module, torch.nn.Linear):
-                    if first_linear is None:
-                        first_linear = name
-                    last_linear = name
-
-            func = partial(
-                filter_linear_layers,
-                first_layer_name=first_linear,
-                last_layer_name=last_linear,
-            )
-            config = Float8LinearConfig.from_recipe_name("tensorwise")
-            convert_to_float8_training(
-                torchtune_model,
-                config=config,
-                module_filter_fn=func,
-            )
-
-            # Создаем обертку для совместимости с Transformers
-            class TorchTuneWrapper(torch.nn.Module):
-                def __init__(self, model):
-                    super().__init__()
-                    self.model = model
-
-                def forward(
-                    self, input_ids=None, attention_mask=None, labels=None, **kwargs
-                ):
-                    # TorchTune модель ожидает input_ids и mask
-                    # Для простоты используем None - TorchTune автоматически создаст causal mask
-                    # Это должно работать с torch.compile
-                    outputs = self.model(input_ids, mask=None)
-
-                    # Если есть labels, вычисляем loss как в Transformers
-                    if labels is not None:
-                        # Shift logits and labels для causal LM
-                        shift_logits = outputs[..., :-1, :].contiguous()
-                        shift_labels = labels[..., 1:].contiguous()
-
-                        # Используем cut-cross-entropy loss
-                        loss = liger_cross_entropy(
-                            shift_logits.view(-1, shift_logits.size(-1)),
-                            shift_labels.view(-1),
-                            ignore_index=-100,
-                        )
-
-                        return CausalLMOutputWithLoss(loss=loss, logits=outputs)
-
-                    return outputs
-
-            model = TorchTuneWrapper(torchtune_model)
-
-            # Применяем torch.compile к отдельным декодер блокам
-            for m in reversed(list(model.model.modules())):
-                if (
-                    isinstance(m, torch.nn.Module)
-                    and hasattr(m, "attn")
-                    and hasattr(m, "mlp")
-                ):
-                    # Это TransformerSelfAttentionLayer
-                    m.compile(
-                        backend="inductor",
-                        mode="max-autotune",
-                    )
-
-            # Настройка accelerator для TorchTune модели
-            accelerator = Accelerator(
-                mixed_precision="bf16",
-                **accelerator_log_kwargs,
-            )
-        case "opt_28":
 
     print("model_args.attn_implementation", model_args.attn_implementation)
 
@@ -545,8 +277,7 @@ def main():
     lm_datasets = tokenized_datasets.map(
         group_texts,
         batched=True,
-        num_proc=data_args.preprocessing_num_workers,
-        load_from_cache_file=not data_args.overwrite_cache,
+        num_proc=1,
         desc=f"Grouping texts in chunks of {block_size}",
     )
 
@@ -655,9 +386,9 @@ def main():
     # The trackers initializes automatically on the main process.
 
     accelerator.init_trackers(
-        "llm_pretraining_optimization",
+        "llama_3.2",
         training_args,
-        init_kwargs={"wandb": {"name": f"{optimization_level}_acc"}},
+        init_kwargs={"wandb": {"name": f"{optimization_level}"}},
     )
 
     # Train!
@@ -697,7 +428,7 @@ def main():
     global_step = 0
     total_loss = 0
     print(model)
-    for epoch in range(starting_epoch, training_args.num_train_epochs):
+    for epoch in range(starting_epoch, 1):
         model.train()
         active_dataloader = train_dataloader
         active_dataloader_len = len(active_dataloader)
@@ -724,19 +455,17 @@ def main():
                 progress_bar.update(1)
                 completed_steps += 1
 
-            if (global_step + 1) % training_args.logging_steps == 0:
-                accelerator.log(
-                    {
-                        "train/loss": total_loss / training_args.logging_steps,
-                        "train/learning_rate": lr_scheduler.get_last_lr()[0],
-                        "train/grad_norm": _grad_norm,
-                    },
-                    step=log_steps,
-                )
-                log_steps += 1
-                total_loss -= total_loss
-
+            accelerator.log(
+                {
+                    "train/loss": loss.detach().float(),
+                    "train/learning_rate": lr_scheduler.get_last_lr()[0],
+                    "train/grad_norm": _grad_norm,
+                },
+                step=global_step,
+            )
             global_step += 1
+            if global_step > 30:
+                break
 
     model.eval()
     torch.compiler.cudagraph_mark_step_begin()
@@ -759,7 +488,7 @@ def main():
     except OverflowError:
         perplexity = float("inf")
 
-    logger.info(f"epoch {epoch}: perplexity: {perplexity} eval_loss: {eval_loss}")
+    logger.info(f"epoch {0}: perplexity: {perplexity} eval_loss: {eval_loss}")
 
     accelerator.log(
         {
@@ -768,11 +497,6 @@ def main():
         },
         step=completed_steps,
     )
-
-    output_dir = f"step_{completed_steps}"
-    if training_args.output_dir is not None:
-        output_dir = os.path.join(training_args.output_dir, output_dir)
-    accelerator.save_state(output_dir)
 
     accelerator.wait_for_everyone()
     accelerator.end_training()

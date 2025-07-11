@@ -160,6 +160,7 @@
 - [SmolLM3: smol, multilingual, long-context reasoner](https://huggingface.co/blog/smollm3)
 - [Everything about the SmolLM and SmolVLM family of models](https://github.com/huggingface/smollm)
 - [Muon is Scalable for LLM Training](https://github.com/MoonshotAI/Moonlight)
+- [Supercharge Your LLM with the Fastest KV Cache Layer](https://github.com/LMCache/LMCache)
 
 
 ### courses 
