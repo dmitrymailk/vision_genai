@@ -4811,10 +4811,13 @@ class Trainer:
         os.makedirs(output_dir, exist_ok=True)
         logger.info(f"Saving model checkpoint to {output_dir}")
 
+        # supported_classes = (
+        #     (PreTrainedModel,)
+        #     if not is_peft_available()
+        #     else (PreTrainedModel, PeftModel)
+        # )
         supported_classes = (
-            (PreTrainedModel,)
-            if not is_peft_available()
-            else (PreTrainedModel, PeftModel)
+            (PreTrainedModel,) if not is_peft_available() else (PreTrainedModel)
         )
         # Save a trained model and configuration using `save_pretrained()`.
         # They can then be reloaded using `from_pretrained()`
@@ -6564,7 +6567,7 @@ def main():
     accelerator_log_kwargs = {
         "log_with": "wandb",
         "project_dir": "train_output",
-        "mixed_precision": "fp8",
+        "mixed_precision": "bf16",
     }
     match optimization_level:
         case "opt_1":

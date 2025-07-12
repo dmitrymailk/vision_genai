@@ -62,7 +62,7 @@
             "name": "lang_mod_accelerate",
             "type": "debugpy",
             "request": "launch",
-            "module": "lang_mod_transformers.lang_mod_accelerate",
+            "module": "lang_mod_transformers.lang_mod_accelerate_simple",
             "cwd": "${workspaceFolder}/train_gym/lm",
             "args": [
                 "--model_name_or_path=unsloth/Llama-3.2-1B-Instruct",
