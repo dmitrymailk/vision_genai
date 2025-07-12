@@ -44,71 +44,47 @@ class SimpleTrainer:
         train_dataset: Optional[Dataset] = None,
         data_collator=None,
     ):
-        self.model = model
-        self.args = args
-        self.train_dataset = train_dataset
-        self.data_collator = data_collator
+        # self.model = model
+        # self.args = args
+        # self.train_dataset = train_dataset
+        # self.data_collator = data_collator
 
         # Перемещаем модель на устройство
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(self.device)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = model.to(device)
 
         # Создаем оптимизатор
-        self.optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=self.args.learning_rate,
-            weight_decay=self.args.weight_decay,
+        optimizer = torch.optim.AdamW(
+            model.parameters(),
+            lr=args.learning_rate,
+            weight_decay=args.weight_decay,
         )
 
         # Создаем dataloader
-        self.train_dataloader = DataLoader(
-            self.train_dataset,
-            batch_size=self.args.per_device_train_batch_size,
+        train_dataloader = DataLoader(
+            train_dataset,
+            batch_size=args.per_device_train_batch_size,
             shuffle=True,
-            collate_fn=self.data_collator,
+            collate_fn=data_collator,
         )
 
-    def compute_loss(self, model, inputs):
-        """Вычисляет loss для батча"""
-        outputs = model(**inputs)
-        return outputs.loss
-
-    def training_step(self, model, inputs):
-        """Один шаг обучения"""
-        model.train()
-
-        # Перемещаем inputs на устройство
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
-
-        # Forward pass
-        loss = self.compute_loss(model, inputs)
-
-        # Backward pass
-        loss.backward()
-
-        # Обновляем веса
-        self.optimizer.step()
-        self.optimizer.zero_grad()
-
-        return loss
-
-    def train(self):
         """Основной метод обучения с двумя циклами"""
-        print(f"Начинаем обучение на {self.device}")
-        print(f"Количество эпох: {self.args.num_train_epochs}")
-        print(f"Размер батча: {self.args.per_device_train_batch_size}")
-        print(f"Размер датасета: {len(self.train_dataset)}")
+        print(f"Начинаем обучение на {device}")
+        print(f"Количество эпох: {args.num_train_epochs}")
+        print(f"Размер батча: {args.per_device_train_batch_size}")
+        print(f"Размер датасета: {len(train_dataset)}")
 
         # Первый цикл - по эпохам
-        for epoch in range(int(self.args.num_train_epochs)):
-            print(f"\nЭпоха {epoch + 1}/{int(self.args.num_train_epochs)}")
+        model.train()
+        for epoch in range(int(args.num_train_epochs)):
+            print(f"\nЭпоха {epoch + 1}/{int(args.num_train_epochs)}")
 
             total_loss = 0.0
             num_batches = 0
 
             # Второй цикл - по даталоадеру с tqdm
             progress_bar = tqdm(
-                self.train_dataloader,
+                train_dataloader,
                 desc=f"Обучение - Эпоха {epoch + 1}",
                 position=0,
                 leave=True,
@@ -116,7 +92,19 @@ class SimpleTrainer:
 
             for batch_idx, batch in enumerate(progress_bar):
                 # Обучение на одном батче
-                loss = self.training_step(self.model, batch)
+
+                # Перемещаем inputs на устройство
+                inputs = {k: v.to(device) for k, v in batch.items()}
+
+                # Forward pass
+                loss = model(**inputs).loss
+
+                # Backward pass
+                loss.backward()
+
+                # Обновляем веса
+                optimizer.step()
+                optimizer.zero_grad()
 
                 # Логируем loss
                 total_loss += loss.item()
@@ -229,7 +217,7 @@ def main():
         data_collator=default_data_collator,
     )
 
-    trainer.train()
+    # trainer.train()
 
 
 if __name__ == "__main__":
