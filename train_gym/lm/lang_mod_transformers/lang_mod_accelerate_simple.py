@@ -23,8 +23,23 @@ from lang_mod_transformers.utils import (
 from tqdm.auto import tqdm
 from accelerate import Accelerator
 from accelerate.utils import DataLoaderConfiguration
+from transformers import (
+    CONFIG_MAPPING,
+    MODEL_FOR_CAUSAL_LM_MAPPING,
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    HfArgumentParser,
+    Trainer,
+    TrainingArguments,
+    default_data_collator,
+    is_torch_xla_available,
+    set_seed,
+    get_scheduler,
+)
 
 logger = default_logging.getLogger(__name__)
+import math
 
 
 def main():
@@ -116,21 +131,33 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
 
+    no_decay = ["bias", "layer_norm.weight"]
+
+    optimizer_grouped_parameters = [
+        {
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if not any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": 0.0,
+        },
+        {
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": 0.0,
+        },
+    ]
+
     # Создаем оптимизатор
     optimizer = torch.optim.AdamW(
-        model.parameters(),
+        optimizer_grouped_parameters,
         lr=training_args.learning_rate,
         weight_decay=training_args.weight_decay,
     )
-
-    # Создаем dataloader
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=training_args.per_device_train_batch_size,
-        shuffle=True,
-        collate_fn=default_data_collator,
-    )
-
     dataloader_params = [
         "split_batches",
         "dispatch_batches",
@@ -149,8 +176,28 @@ def main():
         dataloader_config=dataloader_config,
         gradient_accumulation_steps=training_args.gradient_accumulation_steps,
     )
-    model, optimizer, train_dataloader = accelerator.prepare(
-        model, optimizer, train_dataloader
+
+    # Создаем dataloader
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=training_args.per_device_train_batch_size,
+        shuffle=True,
+        collate_fn=default_data_collator,
+    )
+    num_update_steps_per_epoch = math.ceil(
+        len(train_dataloader) / training_args.gradient_accumulation_steps
+    )
+    # if training_args.max_train_steps is None:
+    max_train_steps = int(training_args.num_train_epochs) * num_update_steps_per_epoch
+    lr_scheduler = get_scheduler(
+        name=training_args.lr_scheduler_type,
+        optimizer=optimizer,
+        num_warmup_steps=0,
+        num_training_steps=max_train_steps * accelerator.num_processes,
+    )
+
+    model, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+        model, optimizer, train_dataloader, lr_scheduler
     )
 
     """Основной метод обучения с двумя циклами"""
@@ -164,8 +211,8 @@ def main():
     for epoch in range(int(training_args.num_train_epochs)):
         print(f"\nЭпоха {epoch + 1}/{int(training_args.num_train_epochs)}")
 
-        total_loss = 0.0
         num_batches = 0
+        total_loss = 0.0
 
         # Второй цикл - по даталоадеру с tqdm
         progress_bar = tqdm(
@@ -176,23 +223,11 @@ def main():
         )
 
         for batch_idx, batch in enumerate(progress_bar):
-            # Обучение на одном батче
-
-            # Перемещаем inputs на устройство
-            inputs = {k: v.to(device) for k, v in batch.items()}
-
-            # Forward pass
-            loss = model(**inputs).loss
-
-            # Backward pass
-            # loss.backward()
+            loss = model(**batch).loss
             accelerator.backward(loss)
-
-            # Обновляем веса
             optimizer.step()
+            lr_scheduler.step()
             optimizer.zero_grad()
-
-            # Логируем loss
             total_loss += loss.item()
             num_batches += 1
 
@@ -202,7 +237,6 @@ def main():
                 avg_loss=f"{(total_loss / num_batches):.4f}",
             )
 
-        # Выводим средний loss за эпоху
         epoch_avg_loss = total_loss / num_batches
         print(f"Эпоха {epoch + 1} завершена. Средний loss: {epoch_avg_loss:.4f}")
 
