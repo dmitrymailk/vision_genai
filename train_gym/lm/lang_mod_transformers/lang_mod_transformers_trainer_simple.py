@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-"""
-Упрощенная версия Trainer для обучения языковых моделей.
-Содержит только базовую логику обучения без сохранений и проверок.
-"""
-
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
@@ -27,100 +21,10 @@ from lang_mod_transformers.utils import (
     DataTrainingArguments,
 )
 from tqdm.auto import tqdm
+from accelerate import Accelerator
+from accelerate.utils import DataLoaderConfiguration
 
 logger = default_logging.getLogger(__name__)
-
-
-class SimpleTrainer:
-    """
-    Упрощенный класс Trainer с минимальной функциональностью.
-    Содержит только два цикла: по эпохам и по даталоадеру.
-    """
-
-    def __init__(
-        self,
-        model: nn.Module,
-        args: TrainingArguments,
-        train_dataset: Optional[Dataset] = None,
-        data_collator=None,
-    ):
-        # self.model = model
-        # self.args = args
-        # self.train_dataset = train_dataset
-        # self.data_collator = data_collator
-
-        # Перемещаем модель на устройство
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = model.to(device)
-
-        # Создаем оптимизатор
-        optimizer = torch.optim.AdamW(
-            model.parameters(),
-            lr=args.learning_rate,
-            weight_decay=args.weight_decay,
-        )
-
-        # Создаем dataloader
-        train_dataloader = DataLoader(
-            train_dataset,
-            batch_size=args.per_device_train_batch_size,
-            shuffle=True,
-            collate_fn=data_collator,
-        )
-
-        """Основной метод обучения с двумя циклами"""
-        print(f"Начинаем обучение на {device}")
-        print(f"Количество эпох: {args.num_train_epochs}")
-        print(f"Размер батча: {args.per_device_train_batch_size}")
-        print(f"Размер датасета: {len(train_dataset)}")
-
-        # Первый цикл - по эпохам
-        model.train()
-        for epoch in range(int(args.num_train_epochs)):
-            print(f"\nЭпоха {epoch + 1}/{int(args.num_train_epochs)}")
-
-            total_loss = 0.0
-            num_batches = 0
-
-            # Второй цикл - по даталоадеру с tqdm
-            progress_bar = tqdm(
-                train_dataloader,
-                desc=f"Обучение - Эпоха {epoch + 1}",
-                position=0,
-                leave=True,
-            )
-
-            for batch_idx, batch in enumerate(progress_bar):
-                # Обучение на одном батче
-
-                # Перемещаем inputs на устройство
-                inputs = {k: v.to(device) for k, v in batch.items()}
-
-                # Forward pass
-                loss = model(**inputs).loss
-
-                # Backward pass
-                loss.backward()
-
-                # Обновляем веса
-                optimizer.step()
-                optimizer.zero_grad()
-
-                # Логируем loss
-                total_loss += loss.item()
-                num_batches += 1
-
-                # Обновляем progress bar
-                progress_bar.set_postfix(
-                    loss=f"{loss.item():.4f}",
-                    avg_loss=f"{(total_loss / num_batches):.4f}",
-                )
-
-            # Выводим средний loss за эпоху
-            epoch_avg_loss = total_loss / num_batches
-            print(f"Эпоха {epoch + 1} завершена. Средний loss: {epoch_avg_loss:.4f}")
-
-        print("\nОбучение завершено!")
 
 
 def main():
@@ -209,15 +113,100 @@ def main():
 
     train_dataset = lm_datasets["train"]
 
-    # Создаем и запускаем SimpleTrainer
-    trainer = SimpleTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        data_collator=default_data_collator,
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+
+    # Создаем оптимизатор
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=training_args.learning_rate,
+        weight_decay=training_args.weight_decay,
     )
 
-    # trainer.train()
+    # Создаем dataloader
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=training_args.per_device_train_batch_size,
+        shuffle=True,
+        collate_fn=default_data_collator,
+    )
+
+    dataloader_params = [
+        "split_batches",
+        "dispatch_batches",
+        "even_batches",
+        "use_seedable_sampler",
+    ]
+
+    dataloader_config = DataLoaderConfiguration(
+        **{
+            param: training_args.accelerator_config.pop(param)
+            for param in dataloader_params
+        }
+    )
+    accelerator = Accelerator(
+        mixed_precision="bf16",
+        dataloader_config=dataloader_config,
+        gradient_accumulation_steps=training_args.gradient_accumulation_steps,
+    )
+    model, optimizer, train_dataloader = accelerator.prepare(
+        model, optimizer, train_dataloader
+    )
+
+    """Основной метод обучения с двумя циклами"""
+    print(f"Начинаем обучение на {device}")
+    print(f"Количество эпох: {training_args.num_train_epochs}")
+    print(f"Размер батча: {training_args.per_device_train_batch_size}")
+    print(f"Размер датасета: {len(train_dataset)}")
+
+    # Первый цикл - по эпохам
+    model.train()
+    for epoch in range(int(training_args.num_train_epochs)):
+        print(f"\nЭпоха {epoch + 1}/{int(training_args.num_train_epochs)}")
+
+        total_loss = 0.0
+        num_batches = 0
+
+        # Второй цикл - по даталоадеру с tqdm
+        progress_bar = tqdm(
+            train_dataloader,
+            desc=f"Обучение - Эпоха {epoch + 1}",
+            position=0,
+            leave=True,
+        )
+
+        for batch_idx, batch in enumerate(progress_bar):
+            # Обучение на одном батче
+
+            # Перемещаем inputs на устройство
+            inputs = {k: v.to(device) for k, v in batch.items()}
+
+            # Forward pass
+            loss = model(**inputs).loss
+
+            # Backward pass
+            # loss.backward()
+            accelerator.backward(loss)
+
+            # Обновляем веса
+            optimizer.step()
+            optimizer.zero_grad()
+
+            # Логируем loss
+            total_loss += loss.item()
+            num_batches += 1
+
+            # Обновляем progress bar
+            progress_bar.set_postfix(
+                loss=f"{loss.item():.4f}",
+                avg_loss=f"{(total_loss / num_batches):.4f}",
+            )
+
+        # Выводим средний loss за эпоху
+        epoch_avg_loss = total_loss / num_batches
+        print(f"Эпоха {epoch + 1} завершена. Средний loss: {epoch_avg_loss:.4f}")
+
+    print("\nОбучение завершено!")
 
 
 if __name__ == "__main__":
