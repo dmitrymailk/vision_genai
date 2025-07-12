@@ -209,6 +209,12 @@ def main():
     # Первый цикл - по эпохам
     model.train()
     model.zero_grad()
+
+    def calculate_loss(model, batch):
+        outputs = model(**batch)
+        loss = outputs.loss
+        return loss
+
     for epoch in range(int(training_args.num_train_epochs)):
         print(f"\nЭпоха {epoch + 1}/{int(training_args.num_train_epochs)}")
 
@@ -222,18 +228,22 @@ def main():
             position=0,
             leave=True,
         )
-        import contextlib
-
+        # model.use_cache = False
         for batch_idx, batch in enumerate(progress_bar):
             # variant 1
             outputs = model(
+                use_cache=False,
                 **batch,
             )
             loss = outputs.loss
             # если это не сделать, потребление памяти возрастает на 2 GB
             outputs = None
+            # или так
+            # del outputs
             # variant 2
             # loss = model(**batch).loss
+            # или так
+            # loss = calculate_loss(model, batch)
 
             accelerator.backward(loss)
             _grad_norm = accelerator.clip_grad_norm_(
