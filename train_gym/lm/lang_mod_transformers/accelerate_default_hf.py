@@ -752,7 +752,7 @@ def main():
                 outputs = model(**batch)
 
             loss = outputs.loss
-            # outputs = None
+            outputs = None
             # del outputs
             losses.append(
                 accelerator.gather_for_metrics(
