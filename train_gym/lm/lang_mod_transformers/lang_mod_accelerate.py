@@ -459,6 +459,7 @@ def main():
                         shift_labels = labels[..., 1:].contiguous()
 
                         # Используем cut-cross-entropy loss
+                        # loss = torch.nn.functional.cross_entropy(
                         loss = liger_cross_entropy(
                             shift_logits.view(-1, shift_logits.size(-1)),
                             shift_labels.view(-1),
@@ -481,8 +482,16 @@ def main():
                     # Это TransformerSelfAttentionLayer
                     m.compile(
                         backend="inductor",
-                        mode="max-autotune",
+                        # работает только на torch 2.8.0 и выше, меньше выдает ошибку
+                        # прирост минимален, сотые доли, но есть
+                        # mode="max-autotune",
                     )
+            # работает слегка хуже, чем копиляция каждого блока отдельно
+            # model.model = torch.compile(
+            #     model.model,
+            #     backend="inductor",
+            #     # mode="max-autotune",
+            # )
 
             # Настройка accelerator для TorchTune модели
             accelerator = Accelerator(
@@ -711,11 +720,10 @@ def main():
         for local_step, batch in enumerate(active_dataloader):
             # with accelerator.no_sync(model):
             outputs = model(**batch)
-            # batch["input_ids"] = batch["input_ids"].to("cpu")
-            # batch["attention_mask"] = batch["attention_mask"].to("cpu")
-            del batch
-            # gc.collect()  # сборка мусора после удаления
             loss = outputs.loss
+
+            outputs = None
+            batch = None
             # We keep track of the loss at each epoch
             accelerator.backward(loss)
             total_loss += loss.detach().float()
@@ -746,8 +754,8 @@ def main():
                 total_loss -= total_loss
 
             global_step += 1
-            if global_step > 30:
-                break
+            # if global_step > 30:
+            #     break
 
     model = model.eval()
     # torch.compiler.cudagraph_mark_step_begin()
@@ -757,6 +765,8 @@ def main():
             outputs = model(**batch)
 
         loss = outputs.loss.detach().float()
+        outputs = None
+        batch = None
         losses.append(
             accelerator.gather_for_metrics(
                 loss.repeat(training_args.per_device_eval_batch_size)

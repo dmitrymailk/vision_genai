@@ -1,4 +1,5 @@
-FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-devel
+# FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-devel
+FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-devel
 ARG DEBIAN_FRONTEND=noninteractive
 # https://github.com/docker/build-push-action/issues/933#issuecomment-1687372123
 RUN rm /etc/apt/sources.list.d/cuda*.list

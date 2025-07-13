@@ -443,6 +443,7 @@ def main():
             with accelerator.accumulate(model):
                 outputs = model(**batch)
                 loss = outputs.loss
+                outputs = None
                 # We keep track of the loss at each epoch
                 total_loss += loss.detach().float()
                 accelerator.backward(loss)
@@ -469,7 +470,7 @@ def main():
                 step=global_step,
             )
             global_step += 1
-            if global_step > 30:
+            if global_step > 40:
                 break
 
     model.eval()
@@ -480,6 +481,7 @@ def main():
             outputs = model(**batch)
 
         loss = outputs.loss
+        outputs = None
         losses.append(
             accelerator.gather_for_metrics(
                 loss.repeat(training_args.per_device_eval_batch_size)

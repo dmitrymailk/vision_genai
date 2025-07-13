@@ -745,13 +745,13 @@ python -m lang_mod_transformers.lang_mod_accelerate \
 ```
 - в 1.6658 быстрее при per_device_train_batch_size 8
 
-#### accelerate+torchtune+float8+torch.compile max autotune
+#### accelerate+torchtune+float8+torch.compile
 ```bash
 python -m lang_mod_transformers.lang_mod_accelerate \
     --model_name_or_path unsloth/Llama-3.2-1B-Instruct \
     --dataset_name wikitext \
     --dataset_config_name wikitext-2-raw-v1 \
-    --per_device_train_batch_size 8 \
+    --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \
     --do_train \
     --do_eval \
@@ -768,9 +768,41 @@ python -m lang_mod_transformers.lang_mod_accelerate \
     --save_steps 5000000
 ```
 ```console
-3.69it/s
+4.12it/s
 ```
-- 3.69/2.86=1.290
+- 4.12/2.86=1.440
 
-- при per_device_train_batch_size 4 - 3.69it/s
+- при per_device_train_batch_size 4 - 4.12it/s
 - при per_device_train_batch_size 8 - 2.40it/s
+- при per_device_train_batch_size 10 - 1.97it/s
+
+#### accelerate+torchtune+float8+torch.compile max autotune
+```bash
+python -m lang_mod_transformers.lang_mod_accelerate \
+    --model_name_or_path unsloth/Llama-3.2-1B-Instruct \
+    --dataset_name wikitext \
+    --dataset_config_name wikitext-2-raw-v1 \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 4 \
+    --do_train \
+    --do_eval \
+    --output_dir ./train_output \
+    --report_to wandb \
+    --block_size 1024 \
+    --logging_steps 8 \
+    --attn_implementation flash_attention_2 \
+    --optimization_level opt_27 \
+    --bf16 \
+    --remove_unused_columns False \
+    --gradient_checkpointing False \
+    --num_train_epochs=3 \
+    --save_steps 5000000
+```
+```console
+4.12it/s
+```
+- 4.12/2.86=1.440
+
+- при per_device_train_batch_size 4 - 4.17it/s
+- при per_device_train_batch_size 8 - 2.42it/s (06:25)
+- при per_device_train_batch_size 10 - 1.99it/s
