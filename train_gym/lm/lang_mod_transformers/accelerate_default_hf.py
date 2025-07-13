@@ -744,6 +744,7 @@ def main():
                     accelerator.save_state(output_dir)
             if completed_steps >= args.max_train_steps:
                 break
+            
 
         model.eval()
         losses = []

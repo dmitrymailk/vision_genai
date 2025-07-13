@@ -673,11 +673,49 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
     _pp_plan = {"lm_head": (["hidden_states"], ["logits"])}
 
     def __init__(self, config):
-        print("LlamaForCausalLM_v1(default)")
+        print("LlamaForCausalLM_v2")
         super().__init__(config)
         self.model = LlamaModel(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        #
+        #  config = LlamaConfig {
+        # "architectures": [
+        #     "LlamaForCausalLM"
+        # ],
+        # "attention_bias": false,
+        # "attention_dropout": 0.0,
+        # "bos_token_id": 128000,
+        # "eos_token_id": 128009,
+        # "head_dim": 64,
+        # "hidden_act": "silu",
+        # "hidden_size": 2048,
+        # "initializer_range": 0.02,
+        # "intermediate_size": 8192,
+        # "max_position_embeddings": 131072,
+        # "mlp_bias": false,
+        # "model_type": "llama",
+        # "num_attention_heads": 32,
+        # "num_hidden_layers": 16,
+        # "num_key_value_heads": 8,
+        # "pad_token_id": 128004,
+        # "pretraining_tp": 1,
+        # "rms_norm_eps": 1e-05,
+        # "rope_scaling": {
+        #     "factor": 32.0,
+        #     "high_freq_factor": 4.0,
+        #     "low_freq_factor": 1.0,
+        #     "original_max_position_embeddings": 8192,
+        #     "rope_type": "llama3"
+        # },
+        # "rope_theta": 500000.0,
+        # "tie_word_embeddings": true,
+        # "torch_dtype": "bfloat16",
+        # "transformers_version": "4.53.2",
+        # "unsloth_fixed": true,
+        # "use_cache": true,
+        # "vocab_size": 128256
+        # }
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -720,6 +758,19 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
             else self.config.output_hidden_states
         )
 
+        # input_ids=torch.Size([4, 1024])
+        # attention_mask=attention_mask.shape
+        # position_ids=None
+        # past_key_values=None
+        # inputs_embeds=None
+        # labels=torch.Size([4, 1024])
+        # use_cache=None
+        # output_attentions=False
+        # output_hidden_states=False
+        # cache_position=None
+        # logits_to_keep=0
+        # kwargs={}
+
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs: BaseModelOutputWithPast = self.model(
             input_ids=input_ids,
@@ -735,6 +786,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
         )
 
         hidden_states = outputs.last_hidden_state
+        # hidden_states=torch.Size([4, 1024, 2048])
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
         slice_indices = (
             slice(-logits_to_keep, None)
@@ -742,6 +794,8 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
             else logits_to_keep
         )
         logits = self.lm_head(hidden_states[:, slice_indices, :])
+        # hidden_states[:, slice_indices, :].shape=torch.Size([4, 1024, 2048])
+        # logits=torch.Size([4, 1024, 128256])
 
         loss = None
         if labels is not None:

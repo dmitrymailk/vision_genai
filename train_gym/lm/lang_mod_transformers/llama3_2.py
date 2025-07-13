@@ -120,10 +120,14 @@ from accelerate.utils import DataLoaderConfiguration
 from accelerate.utils.transformer_engine import convert_model
 
 # from transformer_engine.common.recipe import DelayedScaling
-# from lang_mod_transformers.llama3_2_hf import LlamaForCausalLM as LlamaForCausalLMHF
-from transformers.models.llama.modeling_llama import (
-    LlamaForCausalLM as LlamaForCausalLMHF,
+from lang_mod_transformers.llama3_2_hf import LlamaForCausalLM as LlamaForCausalLMHF
+from lang_mod_transformers.llama3_2_hf_v2 import (
+    LlamaForCausalLM as LlamaForCausalLMHF_V2,
 )
+
+# from transformers.models.llama.modeling_llama import (
+#     LlamaForCausalLM as LlamaForCausalLMHF,
+# )
 
 logger = logging.getLogger(__name__)
 
@@ -203,26 +207,38 @@ def main():
             #     torch_dtype=torch_dtype,
             #     attn_implementation=model_args.attn_implementation,
             # )
-            dataloader_params = [
-                "split_batches",
-                "dispatch_batches",
-                "even_batches",
-                "use_seedable_sampler",
-            ]
-
-            dataloader_config = DataLoaderConfiguration(
-                **{
-                    param: training_args.accelerator_config.pop(param)
-                    for param in dataloader_params
-                }
+        case "opt_2":
+            print("opt_2")
+            # https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.from_pretrained.attn_implementation
+            # model = AutoModelForCausalLM.from_pretrained(
+            model = LlamaForCausalLMHF_V2.from_pretrained(
+                model_name_or_path,
+                torch_dtype=torch_dtype,
+                attn_implementation=model_args.attn_implementation,
             )
-            accelerator = Accelerator(
-                dataloader_config=dataloader_config,
-                gradient_accumulation_steps=training_args.gradient_accumulation_steps,
-                **accelerator_log_kwargs,
-            )
+            # model = AutoModelForCausalLM.from_config(
+            #     config,
+            #     torch_dtype=torch_dtype,
+            #     attn_implementation=model_args.attn_implementation,
+            # )
+    dataloader_params = [
+        "split_batches",
+        "dispatch_batches",
+        "even_batches",
+        "use_seedable_sampler",
+    ]
 
-    print("model_args.attn_implementation", model_args.attn_implementation)
+    dataloader_config = DataLoaderConfiguration(
+        **{
+            param: training_args.accelerator_config.pop(param)
+            for param in dataloader_params
+        }
+    )
+    accelerator = Accelerator(
+        dataloader_config=dataloader_config,
+        gradient_accumulation_steps=training_args.gradient_accumulation_steps,
+        **accelerator_log_kwargs,
+    )
 
     # Preprocessing the datasets.
     column_names = list(raw_datasets["train"].features)
@@ -308,7 +324,6 @@ def main():
         preds = preds[:, :-1].reshape(-1)
         return metric.compute(predictions=preds, references=labels)
 
-    print(training_args)
     # Initialize our Trainer
     training_args.gradient_checkpointing = False
     training_args.run_name = optimization_level
@@ -403,7 +418,6 @@ def main():
         * accelerator.num_processes
         * training_args.gradient_accumulation_steps
     )
-    print("total_batch_size", total_batch_size)
 
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(train_dataset)}")
@@ -433,7 +447,7 @@ def main():
     # exit()
     global_step = 0
     total_loss = 0
-    print(model)
+    # print(model)
     for epoch in range(starting_epoch, 1):
         model.train()
         active_dataloader = train_dataloader

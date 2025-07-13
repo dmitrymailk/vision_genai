@@ -11,10 +11,14 @@ python -m lang_mod_transformers.llama3_2 \
     --block_size 1024 \
     --logging_steps 8 \
     --attn_implementation flash_attention_2 \
-    --optimization_level opt_1 \
+    --optimization_level opt_2 \
     --bf16 \
     --remove_unused_columns False \
     --gradient_checkpointing False \
     --num_train_epochs=1 \
     --save_steps 5000000 \
     --dataloader_drop_last True
+
+
+# LlamaForCausalLM_v1(default) - opt_1
+# LlamaForCausalLM_v2 - opt_2

@@ -6,3 +6,5 @@ python -m lang_mod_transformers.accelerate_default_hf \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 8 \
     --block_size 1024 \
+    --num_train_epochs 1 \
+    --max_train_steps 40 \
