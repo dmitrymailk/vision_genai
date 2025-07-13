@@ -347,3 +347,4 @@
 - [Text-to-Speech (TTS) Fine-tuning](https://docs.unsloth.ai/basics/text-to-speech-tts-fine-tuning)
 - [OuteTTS(llama) really good](https://github.com/edwko/OuteTTS)
 - [Spark-TTS Inference Code](https://github.com/SparkAudio/Spark-TTS)
+- [Kimi-Audio, an open-source audio foundation model excelling in audio understanding, generation, and conversation](https://github.com/MoonshotAI/Kimi-Audio)

@@ -1,5 +1,4 @@
-# python -m lang_mod_transformers.lang_mod_transformers_trainer \
-python -m lang_mod_transformers.lang_mod_transformers_trainer_simple \
+python -m lang_mod_transformers.llama3_2 \
     --model_name_or_path unsloth/Llama-3.2-1B-Instruct \
     --dataset_name wikitext \
     --dataset_config_name wikitext-2-raw-v1 \
@@ -19,12 +18,3 @@ python -m lang_mod_transformers.lang_mod_transformers_trainer_simple \
     --num_train_epochs=1 \
     --save_steps 5000000 \
     --dataloader_drop_last True
-
-# python -m lang_mod_transformers.lang_mod_accelerate_simple \
-#     --dataset_name wikitext \
-#     --dataset_config_name wikitext-2-raw-v1 \
-#     --model_name_or_path unsloth/Llama-3.2-1B-Instruct  \
-#     --output_dir ./train_output \
-#     --per_device_train_batch_size 4 \
-#     --per_device_eval_batch_size 8 \
-#     --block_size 1024 \

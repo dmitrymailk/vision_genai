@@ -192,6 +192,7 @@ def main():
         case "opt_1":
             print("opt_1")
             # https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.from_pretrained.attn_implementation
+            # model = AutoModelForCausalLM.from_pretrained(
             model = LlamaForCausalLMHF.from_pretrained(
                 model_name_or_path,
                 torch_dtype=torch_dtype,
@@ -470,7 +471,7 @@ def main():
                 step=global_step,
             )
             global_step += 1
-            if global_step > 40:
+            if global_step > 100:
                 break
 
     model.eval()
