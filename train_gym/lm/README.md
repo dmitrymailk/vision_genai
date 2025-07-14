@@ -638,6 +638,12 @@ python -m lang_mod_transformers.lang_mod_transformers \
 - в 1.725 быстрее при per_device_train_batch_size=12 (1.70it/s)
 - в 1.762 быстрее при per_device_train_batch_size=14 (1.55it/s)
 
+при использовании образа nvcr.io/nvidia/pytorch:25.06-py3
+- default runtime 10m 40s
+- при per_device_train_batch_size=14 (4.43it/s)
+- в 1.8768 быстрее при per_device_train_batch_size=14 (1.60it/s)(5m 41s)
+
+
 #### accelerate.compile_regions+torch.ao.float8+LlamaDecoderLayer+unsloth cut-cross-entropy
 ```bash
 python -m lang_mod_transformers.lang_mod_transformers \
@@ -806,3 +812,11 @@ python -m lang_mod_transformers.lang_mod_accelerate \
 - при per_device_train_batch_size 4 - 4.17it/s
 - при per_device_train_batch_size 8 - 2.42it/s (06:25)
 - при per_device_train_batch_size 10 - 1.99it/s
+
+
+
+
+- 3.67it/
+- 4.38it/s
+- 4.43it/s
+- 

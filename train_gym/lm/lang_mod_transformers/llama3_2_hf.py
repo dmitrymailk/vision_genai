@@ -56,7 +56,7 @@ from transformers.integrations import use_kernel_forward_from_hub
 logger = logging.get_logger(__name__)
 
 
-# @use_kernel_forward_from_hub("RMSNorm")
+@use_kernel_forward_from_hub("RMSNorm")
 class LlamaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         """

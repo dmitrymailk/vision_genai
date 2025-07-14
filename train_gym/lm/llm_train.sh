@@ -4,7 +4,7 @@ python -m lang_mod_transformers.lang_mod_transformers \
     --dataset_name wikitext \
     --dataset_config_name wikitext-2-raw-v1 \
     --per_device_train_batch_size 4 \
-    --per_device_eval_batch_size 8 \
+    --per_device_eval_batch_size 4 \
     --do_train \
     --do_eval \
     --output_dir ./train_output \
@@ -16,6 +16,6 @@ python -m lang_mod_transformers.lang_mod_transformers \
     --bf16 \
     --remove_unused_columns False \
     --gradient_checkpointing False \
-    --num_train_epochs=1 \
+    --num_train_epochs=3 \
     --save_steps 5000000 \
     --dataloader_drop_last True

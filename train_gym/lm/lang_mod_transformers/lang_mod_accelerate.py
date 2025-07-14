@@ -117,6 +117,12 @@ from transformers.trainer_utils import (
 )
 from accelerate.utils import DataLoaderConfiguration
 from accelerate.utils.transformer_engine import convert_model
+from lang_mod_transformers.llama3_2_hf_v2 import (
+    LlamaForCausalLM as LlamaForCausalLMHF_V2,
+)
+from lang_mod_transformers import llama3_2_hf_v2
+from cut_cross_entropy.transformers.llama import cce_forward
+from cut_cross_entropy.transformers.utils import PatchOptions
 
 # from transformer_engine.common.recipe import DelayedScaling
 
@@ -221,14 +227,10 @@ def main():
             ]
 
             dataloader_config = DataLoaderConfiguration(
-                # **{
-                #     param: training_args.accelerator_config.pop(param)
-                #     for param in dataloader_params
-                # }
-                split_batches=True,  # Включаем для лучшего распределения памяти
-                dispatch_batches=True,  # Включаем для оптимизации
-                even_batches=True,
-                use_seedable_sampler=True,  # Добавляем для воспроизводимости
+                **{
+                    param: training_args.accelerator_config.pop(param)
+                    for param in dataloader_params
+                }
             )
             accelerator = Accelerator(
                 mixed_precision="bf16",
@@ -496,6 +498,79 @@ def main():
             # Настройка accelerator для TorchTune модели
             accelerator = Accelerator(
                 mixed_precision="bf16",
+                **accelerator_log_kwargs,
+            )
+        case "opt_28":
+            print("opt_28")
+            model = LlamaForCausalLMHF_V2.from_pretrained(
+                model_name_or_path,
+                trust_remote_code=True,
+                use_cache=False,
+                torch_dtype=torch_dtype,
+            )
+            # model = LlamaForCausalLM.from_pretrained(
+            #     model_name_or_path,
+            #     trust_remote_code=True,
+            #     use_cache=False,
+            #     torch_dtype=torch_dtype,
+            # )
+            # unsloth
+            cross_entropy_impl = "cce"
+            # model = cce_patch(
+            #     model,
+            #     cross_entropy_impl,
+            # )
+            model.forward = MethodType(cce_forward, model)
+            first_linear = None
+            last_linear = None
+            for name, module in model.named_modules():
+                if isinstance(module, torch.nn.Linear):
+                    if first_linear is None:
+                        first_linear = name
+                    last_linear = name
+
+            func = partial(
+                filter_linear_layers,
+                first_layer_name=first_linear,
+                last_layer_name=last_linear,
+            )
+            config = Float8LinearConfig.from_recipe_name("tensorwise")
+            convert_to_float8_training(
+                model,
+                config=config,
+                module_filter_fn=func,
+            )
+            # model = torch.compile(model)
+            for m in reversed(list(model.modules())):
+                if isinstance(m, llama3_2_hf_v2.LlamaDecoderLayer):
+                    m.compile(
+                        backend="inductor",
+                        # mode="max-autotune",
+                    )
+            # for m in reversed(list(model.modules())):
+            #     if isinstance(m, LlamaDecoderLayer):
+            #         m.compile(
+            #             backend="inductor",
+            #             mode="max-autotune",
+            #         )
+
+            dataloader_params = [
+                "split_batches",
+                "dispatch_batches",
+                "even_batches",
+                "use_seedable_sampler",
+            ]
+
+            dataloader_config = DataLoaderConfiguration(
+                **{
+                    param: training_args.accelerator_config.pop(param)
+                    for param in dataloader_params
+                }
+            )
+            accelerator = Accelerator(
+                mixed_precision="bf16",
+                dataloader_config=dataloader_config,
+                gradient_accumulation_steps=training_args.gradient_accumulation_steps,
                 **accelerator_log_kwargs,
             )
 
