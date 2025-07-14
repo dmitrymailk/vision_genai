@@ -813,10 +813,3 @@ python -m lang_mod_transformers.lang_mod_accelerate \
 - при per_device_train_batch_size 8 - 2.42it/s (06:25)
 - при per_device_train_batch_size 10 - 1.99it/s
 
-
-
-
-- 3.67it/
-- 4.38it/s
-- 4.43it/s
-- 

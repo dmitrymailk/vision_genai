@@ -204,6 +204,7 @@ class LlamaRMSNorm(nn.Module):
         self.variance_epsilon = eps
 
     def forward(self, hidden_states):
+        # hidden_states=torch.Size([4, 1024, 2048])
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(torch.float32)
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
@@ -247,26 +248,35 @@ class LlamaRotaryEmbedding(nn.Module):
     # @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)
     @torch.no_grad()
     def forward(self, x, position_ids):
+        # x=torch.Size([4, 1024, 2048])
+        # position_ids=torch.Size([1, 1024])
         inv_freq_expanded = (
             self.inv_freq[None, :, None]
             .float()
             .expand(position_ids.shape[0], -1, 1)
             .to(x.device)
         )
+        # inv_freq_expanded=torch.Size([1, 32, 1])
         position_ids_expanded = position_ids[:, None, :].float()
+        # position_ids_expanded=torch.Size([1, 1, 1024])
 
         device_type = (
             x.device.type
             if isinstance(x.device.type, str) and x.device.type != "mps"
             else "cpu"
         )
+        # device_type='cuda'
         with torch.autocast(device_type=device_type, enabled=False):  # Force float32
             freqs = (
                 inv_freq_expanded.float() @ position_ids_expanded.float()
             ).transpose(1, 2)
+            # freqs=torch.Size([1, 1024, 32])
             emb = torch.cat((freqs, freqs), dim=-1)
+            # emb=torch.Size([1, 1024, 64])
             cos = emb.cos() * self.attention_scaling
+            # cos=torch.Size([1, 1024, 64])
             sin = emb.sin() * self.attention_scaling
+            # sin=torch.Size([1, 1024, 64])
 
         return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
 
@@ -323,6 +333,7 @@ class LlamaMLP(nn.Module):
         self.act_fn = ACT2FN[config.hidden_act]
 
     def forward(self, x):
+        # x=torch.Size([4, 1024, 2048])
         down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
         return down_proj
 
@@ -397,16 +408,24 @@ class LlamaAttention(nn.Module):
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         input_shape = hidden_states.shape[:-1]
         hidden_shape = (*input_shape, -1, self.head_dim)
-
+        # hidden_states=torch.Size([4, 1024, 2048])
         query_states = self.q_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+        # query_states=torch.Size([4, 32, 1024, 64])
         key_states = self.k_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+        # key_states=torch.Size([4, 8, 1024, 64])
         value_states = self.v_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+        # value_states=torch.Size([4, 8, 1024, 64])
 
         cos, sin = position_embeddings
+        # cos=torch.Size([1, 1024, 64])
+        # sin=torch.Size([1, 1024, 64])
         query_states, key_states = apply_rotary_pos_emb(
             query_states, key_states, cos, sin
         )
+        # query_states=torch.Size([4, 32, 1024, 64])
+        # key_states=torch.Size([4, 8, 1024, 64])
 
+        # useless while training
         # if past_key_value is not None:
         #     # sin and cos are specific to RoPE models; cache_position needed for the static cache
         #     cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
@@ -424,9 +443,13 @@ class LlamaAttention(nn.Module):
             scaling=self.scaling,
             **kwargs,
         )
-
+        # attn_output=torch.Size([4, 1024, 32, 64])
+        # attn_weights=None
+        # kwargs={'position_ids': tensor([[   0,    1,    2,  ..., 1021, 1022, 1023]], device='cuda:0'), 'output_attentions': False, 'use_cache': False}
         attn_output = attn_output.reshape(*input_shape, -1).contiguous()
+        # attn_output=torch.Size([4, 1024, 2048])
         attn_output = self.o_proj(attn_output)
+        # attn_output=torch.Size([4, 1024, 2048])
         return attn_output, attn_weights
 
 
@@ -460,7 +483,10 @@ class LlamaDecoderLayer(GradientCheckpointingLayer):
         torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]
     ]:
         residual = hidden_states
+        # residual=torch.Size([4, 1024, 2048])
+        # hidden_states=torch.Size([4, 1024, 2048])
         hidden_states = self.input_layernorm(hidden_states)
+        # hidden_states=torch.Size([4, 1024, 2048])
 
         # Self Attention
         hidden_states, self_attn_weights = self.self_attn(
@@ -474,17 +500,23 @@ class LlamaDecoderLayer(GradientCheckpointingLayer):
             position_embeddings=position_embeddings,
             **kwargs,
         )
+        # hidden_states=torch.Size([4, 1024, 2048])
+        # self_attn_weights=None
         hidden_states = residual + hidden_states
 
         # Fully Connected
         residual = hidden_states
+        # residual=torch.Size([4, 1024, 2048])
         hidden_states = self.post_attention_layernorm(hidden_states)
+        # hidden_states=torch.Size([4, 1024, 2048])
         hidden_states = self.mlp(hidden_states)
+        # hidden_states=torch.Size([4, 1024, 2048])
         hidden_states = residual + hidden_states
+        # hidden_states=torch.Size([4, 1024, 2048])
 
         outputs = (hidden_states,)
-        if output_attentions:
-            outputs += (self_attn_weights,)
+        # if output_attentions:
+        #     outputs += (self_attn_weights,)
 
         return outputs
 
