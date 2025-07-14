@@ -48,12 +48,149 @@ from transformers.utils import (
     logging,
 )
 from transformers.models.llama.configuration_llama import LlamaConfig
-
+import math
 
 from transformers.integrations import use_kernel_forward_from_hub
 
 
 logger = logging.get_logger(__name__)
+
+from transformers.configuration_utils import PretrainedConfig
+
+
+def _compute_default_rope_parameters(
+    config: Optional[PretrainedConfig] = None,
+    device: Optional["torch.device"] = None,
+    seq_len: Optional[int] = None,
+    **rope_kwargs,
+) -> tuple["torch.Tensor", float]:
+    """
+    Computes the inverse frequencies according to the original RoPE implementation
+    Args:
+        config ([`~transformers.PretrainedConfig`]):
+            The model configuration.
+        device (`torch.device`):
+            The device to use for initialization of the inverse frequencies.
+        seq_len (`int`, *optional*):
+            The current sequence length. Unused for this type of RoPE.
+        rope_kwargs (`Dict`, *optional*):
+            BC compatibility with the previous RoPE class instantiation, will be removed in v4.45.
+    Returns:
+        Tuple of (`torch.Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the
+        post-processing scaling factor applied to the computed cos/sin (unused in this type of RoPE).
+    """
+    if config is not None and len(rope_kwargs) > 0:  # False
+        raise ValueError(
+            "Unexpected arguments: `**rope_kwargs` and `config` are mutually exclusive in "
+            f"`_compute_default_rope_parameters`, got `rope_kwargs`={rope_kwargs} and `config`={config}"
+        )
+    if len(rope_kwargs) > 0:  # False
+        base = rope_kwargs["base"]
+        dim = rope_kwargs["dim"]
+    elif config is not None:
+        base = config.rope_theta  # 500000.0
+        partial_rotary_factor = (
+            config.partial_rotary_factor
+            if hasattr(config, "partial_rotary_factor")  # False
+            else 1.0
+        )  # partial_rotary_factor=1.0
+        head_dim = (
+            getattr(config, "head_dim", None)
+            or config.hidden_size // config.num_attention_heads
+        )  # head_dim=64
+        dim = int(head_dim * partial_rotary_factor)  # dim=64
+
+    attention_factor = 1.0  # Unused in this type of RoPE
+
+    # Compute the inverse frequencies
+    inv_freq = 1.0 / (
+        base
+        ** (
+            torch.arange(0, dim, 2, dtype=torch.int64).to(
+                device=device, dtype=torch.float
+            )
+            / dim
+        )
+    )
+    # torch.arange(0, dim, 2, dtype=torch.int64)=tensor([ 0,  2,  4,  6,  8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62])
+    # tensor([0.0000, 0.0312, 0.0625, 0.0938, 0.1250, 0.1562, 0.1875, 0.2188, 0.2500,0.2812, 0.3125, 0.3438, 0.3750, 0.4062, 0.4375, 0.4688, 0.5000, 0.5312,0.5625, 0.5938, 0.6250, 0.6562, 0.6875, 0.7188, 0.7500, 0.7812, 0.8125,0.8438, 0.8750, 0.9062, 0.9375, 0.9688], dtype=torch.float32)
+    # tensor([1.0000e+00, 1.5069e+00, 2.2708e+00, 3.4220e+00, 5.1567e+00, 7.7708e+00, 1.1710e+01, 1.7646e+01, 2.6591e+01, 4.0071e+01, 6.0385e+01, 9.0996e+01, 1.3712e+02, 2.0664e+02, 3.1139e+02, 4.6924e+02, 7.0711e+02, 1.0656e+03, 1.6057e+03, 2.4197e+03, 3.6463e+03, 5.4948e+03, 8.2802e+03, 1.2478e+04, 1.8803e+04, 2.8335e+04, 4.2699e+04, 6.4344e+04, 9.6961e+04, 1.4611e+05, 2.2018e+05, 3.3180e+05], dtype=torch.float32)
+    # tensor([1.0000e+00, 6.6360e-01, 4.4037e-01, 2.9223e-01, 1.9392e-01, 1.2869e-01, 8.5397e-02, 5.6670e-02, 3.7606e-02, 2.4955e-02, 1.6560e-02, 1.0990e-02, 7.2927e-03, 4.8394e-03, 3.2114e-03, 2.1311e-03, 1.4142e-03, 9.3847e-04, 6.2277e-04, 4.1327e-04, 2.7425e-04, 1.8199e-04, 1.2077e-04, 8.0143e-05, 5.3183e-05, 3.5292e-05, 2.3420e-05, 1.5542e-05, 1.0313e-05, 6.8440e-06, 4.5417e-06, 3.0139e-06], dtype=torch.float32)
+    return inv_freq, attention_factor
+
+
+def _compute_llama3_parameters(
+    config: PretrainedConfig,
+    device: "torch.device",
+    seq_len: Optional[int] = None,
+    **rope_kwargs,
+) -> tuple["torch.Tensor", float]:
+    """
+    Computes the inverse frequencies for llama 3.1.
+
+    Args:
+        config ([`~transformers.PretrainedConfig`]):
+            The model configuration.
+        device (`torch.device`):
+            The device to use for initialization of the inverse frequencies.
+        seq_len (`int`, *optional*):
+            The current sequence length. Unused for this type of RoPE.
+        rope_kwargs (`Dict`, *optional*):
+            BC compatibility with the previous RoPE class instantiation, will be removed in v4.45.
+    Returns:
+        Tuple of (`torch.Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the
+        post-processing scaling factor applied to the computed cos/sin.
+    """
+    # Gets the default RoPE parameters
+    inv_freq, attention_factor = _compute_default_rope_parameters(
+        config, device, seq_len, **rope_kwargs
+    )
+    # inv_freq=tensor([1.0000e+00, 6.6360e-01, 4.4037e-01, 2.9223e-01, 1.9392e-01, 1.2869e-01, 8.5397e-02, 5.6670e-02, 3.7606e-02, 2.4955e-02, 1.6560e-02, 1.0990e-02, 7.2927e-03, 4.8394e-03, 3.2114e-03, 2.1311e-03, 1.4142e-03, 9.3847e-04, 6.2277e-04, 4.1327e-04, 2.7425e-04, 1.8199e-04, 1.2077e-04, 8.0143e-05, 5.3183e-05, 3.5292e-05, 2.3420e-05, 1.5542e-05, 1.0313e-05, 6.8440e-06, 4.5417e-06, 3.0139e-06], dtype=torch.float32)
+    # inv_freq.shape=32
+    # attention_factor=1.0
+    factor = config.rope_scaling["factor"]  # `8` in the original implementation
+    # factor=32.0
+    low_freq_factor = config.rope_scaling[
+        "low_freq_factor"
+    ]  # `1` in the original implementation
+    # low_freq_factor=1.0
+    high_freq_factor = config.rope_scaling[
+        "high_freq_factor"
+    ]  # `4` in the original implementation
+    # high_freq_factor=4.0
+    old_context_len = config.rope_scaling[
+        "original_max_position_embeddings"
+    ]  # `8192` in the original implementation
+    # old_context_len=8192
+
+    low_freq_wavelen = old_context_len / low_freq_factor
+    # low_freq_wavelen=8192.0/1.0=8192.0
+    high_freq_wavelen = old_context_len / high_freq_factor
+    # high_freq_wavelen=8192.0/4.0=2048.0
+
+    wavelen = 2 * math.pi / inv_freq
+    # wavelen=torch.Size([32])
+    # wavelen < high_freq_wavelen: do nothing
+    # wavelen > low_freq_wavelen: divide by factor
+    inv_freq_llama = torch.where(
+        wavelen > low_freq_wavelen, inv_freq / factor, inv_freq
+    )
+    # inv_freq_llama=torch.Size([32])
+    # otherwise: interpolate between the two, using a smooth factor
+    smooth_factor = (old_context_len / wavelen - low_freq_factor) / (
+        high_freq_factor - low_freq_factor
+    )
+    # smooth_factor=torch.Size([32])
+    smoothed_inv_freq = (
+        1 - smooth_factor
+    ) * inv_freq_llama / factor + smooth_factor * inv_freq_llama
+    # smoothed_inv_freq=torch.Size([32])
+    is_medium_freq = ~(wavelen < high_freq_wavelen) * ~(wavelen > low_freq_wavelen)
+    # is_medium_freq=torch.Size([32])
+    inv_freq_llama = torch.where(is_medium_freq, smoothed_inv_freq, inv_freq_llama)
+    # inv_freq_llama=torch.Size([32])
+    # inv_freq_llama=tensor([1.0000e+00, 6.6360e-01, 4.4037e-01, 2.9223e-01, 1.9392e-01, 1.2869e-01, 8.5397e-02, 5.6670e-02, 3.7606e-02, 2.4955e-02, 1.6560e-02, 1.0990e-02, 7.2927e-03, 4.8394e-03, 3.2114e-03, 1.2905e-03, 4.2956e-04, 9.7083e-05, 1.9462e-05, 1.2915e-05, 8.5703e-06, 5.6872e-06, 3.7741e-06, 2.5045e-06, 1.6620e-06, 1.1029e-06, 7.3187e-07, 4.8567e-07, 3.2229e-07, 2.1387e-07, 1.4193e-07, 9.4183e-08], dtype=torch.float32)
+    return inv_freq_llama, attention_factor
 
 
 # @use_kernel_forward_from_hub("RMSNorm")
@@ -84,24 +221,31 @@ class LlamaRotaryEmbedding(nn.Module):
     def __init__(self, config: LlamaConfig, device=None):
         super().__init__()
         # BC: "rope_type" was originally "type"
+        # True for llama3_2
+        # config.rope_scaling={'factor': 32.0, 'high_freq_factor': 4.0, 'low_freq_factor': 1.0, 'original_max_position_embeddings': 8192, 'rope_type': 'llama3'}
         if hasattr(config, "rope_scaling") and config.rope_scaling is not None:
             self.rope_type = config.rope_scaling.get(
                 "rope_type", config.rope_scaling.get("type")
             )
         else:
             self.rope_type = "default"
-        self.max_seq_len_cached = config.max_position_embeddings
-        self.original_max_seq_len = config.max_position_embeddings
+        self.max_seq_len_cached = config.max_position_embeddings  # 131072
+        self.original_max_seq_len = config.max_position_embeddings  # 131072
 
         self.config = config
-        self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
+        # self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
+        rope_init_funcs = {"llama3": _compute_llama3_parameters}
+        self.rope_init_fn = rope_init_funcs[self.rope_type]
 
         inv_freq, self.attention_scaling = self.rope_init_fn(self.config, device)
+        # inv_freq.shape=32
+        # self.attention_scaling=1.0
         self.register_buffer("inv_freq", inv_freq, persistent=False)
         self.original_inv_freq = self.inv_freq
 
+    # бесполезно, не используется в этой модели
+    # @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)
     @torch.no_grad()
-    @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)
     def forward(self, x, position_ids):
         inv_freq_expanded = (
             self.inv_freq[None, :, None]
@@ -235,6 +379,13 @@ class LlamaAttention(nn.Module):
             bias=config.attention_bias,
         )
 
+        self.attention_interface = ALL_ATTENTION_FUNCTIONS[
+            self.config._attn_implementation
+        ]
+        # flash_attention_2
+
+        self.attn_drop = 0.0 if not self.training else self.attention_dropout
+
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -256,35 +407,20 @@ class LlamaAttention(nn.Module):
             query_states, key_states, cos, sin
         )
 
-        if past_key_value is not None:
-            # sin and cos are specific to RoPE models; cache_position needed for the static cache
-            cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
-            key_states, value_states = past_key_value.update(
-                key_states, value_states, self.layer_idx, cache_kwargs
-            )
+        # if past_key_value is not None:
+        #     # sin and cos are specific to RoPE models; cache_position needed for the static cache
+        #     cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
+        #     key_states, value_states = past_key_value.update(
+        #         key_states, value_states, self.layer_idx, cache_kwargs
+        #     )
 
-        attention_interface: Callable = None
-
-        if self.config._attn_implementation != "eager":
-            if self.config._attn_implementation == "sdpa" and kwargs.get(
-                "output_attentions", False
-            ):
-                logger.warning_once(
-                    "`torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to "
-                    'eager attention. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
-                )
-            else:
-                attention_interface = ALL_ATTENTION_FUNCTIONS[
-                    self.config._attn_implementation
-                ]
-
-        attn_output, attn_weights = attention_interface(
+        attn_output, attn_weights = self.attention_interface(
             self,
             query_states,
             key_states,
             value_states,
             attention_mask,
-            dropout=0.0 if not self.training else self.attention_dropout,
+            dropout=self.attn_drop,
             scaling=self.scaling,
             **kwargs,
         )
@@ -385,18 +521,24 @@ class LlamaModel(LlamaPreTrainedModel):
     def __init__(self, config: LlamaConfig):
         super().__init__(config)
         self.padding_idx = config.pad_token_id
+        # self.padding_idx=128004
         self.vocab_size = config.vocab_size
+        # self.vocab_size=128256
 
         self.embed_tokens = nn.Embedding(
             config.vocab_size, config.hidden_size, self.padding_idx
         )
+        # config.hidden_size=2048
         self.layers = nn.ModuleList(
             [
                 LlamaDecoderLayer(config, layer_idx)
                 for layer_idx in range(config.num_hidden_layers)
             ]
         )
+        # config.num_hidden_layers=16
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        # config.hidden_size=2048
+        # config.rms_norm_eps=1e-05
         self.rotary_emb = LlamaRotaryEmbedding(config=config)
         self.gradient_checkpointing = False
 
@@ -434,8 +576,9 @@ class LlamaModel(LlamaPreTrainedModel):
             if output_hidden_states is not None
             else self.config.output_hidden_states
         )
+        # output_hidden_states=False
         use_cache = use_cache if use_cache is not None else self.config.use_cache
-
+        # use_cache=True но на train это бесполезно
         if (input_ids is None) ^ (inputs_embeds is not None):
             raise ValueError(
                 "You must specify exactly one of input_ids or inputs_embeds"
@@ -454,7 +597,10 @@ class LlamaModel(LlamaPreTrainedModel):
             )
 
         if inputs_embeds is None:
+            # inputs_embeds = None
             inputs_embeds = self.embed_tokens(input_ids)
+            # inputs_embeds=torch.Size([4, 1024, 2048])
+            # input_ids=torch.Size([4, 1024])
 
         if use_cache and past_key_values is None:
             past_key_values = DynamicCache()
@@ -463,14 +609,19 @@ class LlamaModel(LlamaPreTrainedModel):
             past_seen_tokens = (
                 past_key_values.get_seq_length() if past_key_values is not None else 0
             )
+            # past_seen_tokens=0
             cache_position = torch.arange(
                 past_seen_tokens,
                 past_seen_tokens + inputs_embeds.shape[1],
                 device=inputs_embeds.device,
             )
+            # cache_position=torch.Size([1024])
+            # cache_position=tensor([   0,    1,    2,  ..., 1021, 1022, 1023], device='cuda:0')
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
+            # position_ids=torch.Size([1, 1024])
+            # position_ids=tensor([[   0,    1,    2,  ..., 1021, 1022, 1023]], device='cuda:0')
 
         causal_mask = self._update_causal_mask(
             attention_mask,
@@ -479,19 +630,26 @@ class LlamaModel(LlamaPreTrainedModel):
             past_key_values,
             output_attentions,
         )
+        # causal_mask=None
 
         hidden_states = inputs_embeds
+        # hidden_states=torch.Size([4, 1024, 2048])
 
         # create position embeddings to be shared across the decoder layers
         position_embeddings = self.rotary_emb(hidden_states, position_ids)
+        # len(position_embeddings)=2
+        # position_embeddings[0].shape=torch.Size([1, 1024, 64])
+        # position_embeddings[1].shape=torch.Size([1, 1024, 64])
 
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
+        # all_hidden_states=None
+        # all_self_attns=None
 
         for decoder_layer in self.layers[: self.config.num_hidden_layers]:
-            if output_hidden_states:
-                all_hidden_states += (hidden_states,)
+            # if output_hidden_states:
+            #     all_hidden_states += (hidden_states,)
 
             layer_outputs = decoder_layer(
                 hidden_states,
@@ -507,14 +665,14 @@ class LlamaModel(LlamaPreTrainedModel):
 
             hidden_states = layer_outputs[0]
 
-            if output_attentions:
-                all_self_attns += (layer_outputs[1],)
+            # if output_attentions:
+            #     all_self_attns += (layer_outputs[1],)
 
         hidden_states = self.norm(hidden_states)
 
         # add hidden states from the last decoder layer
-        if output_hidden_states:
-            all_hidden_states += (hidden_states,)
+        # if output_hidden_states:
+        #     all_hidden_states += (hidden_states,)
 
         return BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
@@ -531,6 +689,7 @@ class LlamaModel(LlamaPreTrainedModel):
         past_key_values: Cache,
         output_attentions: bool = False,
     ):
+        # True
         if self.config._attn_implementation == "flash_attention_2":
             if attention_mask is not None and (attention_mask == 0.0).any():
                 return attention_mask
@@ -543,63 +702,63 @@ class LlamaModel(LlamaPreTrainedModel):
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
-        past_seen_tokens = (
-            past_key_values.get_seq_length() if past_key_values is not None else 0
-        )
-        using_compilable_cache = (
-            past_key_values.is_compileable if past_key_values is not None else False
-        )
+        # past_seen_tokens = (
+        #     past_key_values.get_seq_length() if past_key_values is not None else 0
+        # )
+        # using_compilable_cache = (
+        #     past_key_values.is_compileable if past_key_values is not None else False
+        # )
 
         # When output attentions is True, sdpa implementation's forward method calls the eager implementation's forward
-        if (
-            self.config._attn_implementation == "sdpa"
-            and not using_compilable_cache
-            and not output_attentions
-        ):
-            if AttentionMaskConverter._ignore_causal_mask_sdpa(
-                attention_mask,
-                inputs_embeds=input_tensor,
-                past_key_values_length=past_seen_tokens,
-                is_training=self.training,
-            ):
-                return None
+        # if (
+        #     self.config._attn_implementation == "sdpa"
+        #     and not using_compilable_cache
+        #     and not output_attentions
+        # ):
+        #     if AttentionMaskConverter._ignore_causal_mask_sdpa(
+        #         attention_mask,
+        #         inputs_embeds=input_tensor,
+        #         past_key_values_length=past_seen_tokens,
+        #         is_training=self.training,
+        #     ):
+        #         return None
 
-        dtype = input_tensor.dtype
-        sequence_length = input_tensor.shape[1]
-        if using_compilable_cache:
-            target_length = past_key_values.get_max_cache_shape()
-        else:
-            target_length = (
-                attention_mask.shape[-1]
-                if isinstance(attention_mask, torch.Tensor)
-                else past_seen_tokens + sequence_length + 1
-            )
+        # dtype = input_tensor.dtype
+        # sequence_length = input_tensor.shape[1]
+        # if using_compilable_cache:
+        #     target_length = past_key_values.get_max_cache_shape()
+        # else:
+        #     target_length = (
+        #         attention_mask.shape[-1]
+        #         if isinstance(attention_mask, torch.Tensor)
+        #         else past_seen_tokens + sequence_length + 1
+        #     )
 
-        # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
-        causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
-            attention_mask,
-            sequence_length=sequence_length,
-            target_length=target_length,
-            dtype=dtype,
-            cache_position=cache_position,
-            batch_size=input_tensor.shape[0],
-        )
+        # # In case the provided `attention` mask is 2D, we generate a causal mask here (4D).
+        # causal_mask = self._prepare_4d_causal_attention_mask_with_cache_position(
+        #     attention_mask,
+        #     sequence_length=sequence_length,
+        #     target_length=target_length,
+        #     dtype=dtype,
+        #     cache_position=cache_position,
+        #     batch_size=input_tensor.shape[0],
+        # )
 
-        if (
-            self.config._attn_implementation == "sdpa"
-            and attention_mask is not None
-            and attention_mask.device.type in ["cuda", "xpu", "npu"]
-            and not output_attentions
-        ):
-            # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
-            # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
-            # Details: https://github.com/pytorch/pytorch/issues/110213
-            min_dtype = torch.finfo(dtype).min
-            causal_mask = AttentionMaskConverter._unmask_unattended(
-                causal_mask, min_dtype
-            )
+        # if (
+        #     self.config._attn_implementation == "sdpa"
+        #     and attention_mask is not None
+        #     and attention_mask.device.type in ["cuda", "xpu", "npu"]
+        #     and not output_attentions
+        # ):
+        #     # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
+        #     # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
+        #     # Details: https://github.com/pytorch/pytorch/issues/110213
+        #     min_dtype = torch.finfo(dtype).min
+        #     causal_mask = AttentionMaskConverter._unmask_unattended(
+        #         causal_mask, min_dtype
+        #     )
 
-        return causal_mask
+        # return causal_mask
 
     @staticmethod
     def _prepare_4d_causal_attention_mask_with_cache_position(

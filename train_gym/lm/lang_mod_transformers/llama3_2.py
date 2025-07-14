@@ -455,22 +455,24 @@ def main():
         print("active_dataloader=", active_dataloader_len)
         active_dataloader.set_epoch(epoch)
         for local_step, batch in enumerate(active_dataloader):
-            with accelerator.accumulate(model):
-                outputs = model(**batch)
-                loss = outputs.loss
-                outputs = None
-                # We keep track of the loss at each epoch
-                total_loss += loss.detach().float()
-                accelerator.backward(loss)
-                # так как gradient_accumulation_steps=1 в данном примере, то мы делаем
-                # клиппинг каждый шаг
-                _grad_norm = accelerator.clip_grad_norm_(
-                    model.parameters(),
-                    1.0,
-                )
-                optimizer.step()
-                lr_scheduler.step()
-                optimizer.zero_grad()
+            outputs = model(
+                use_cache=False,
+                **batch,
+            )
+            loss = outputs.loss
+            outputs = None
+            # We keep track of the loss at each epoch
+            total_loss += loss.detach().float()
+            accelerator.backward(loss)
+            # так как gradient_accumulation_steps=1 в данном примере, то мы делаем
+            # клиппинг каждый шаг
+            _grad_norm = accelerator.clip_grad_norm_(
+                model.parameters(),
+                1.0,
+            )
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
 
             if accelerator.sync_gradients:
                 progress_bar.update(1)

@@ -161,7 +161,8 @@
 - [Everything about the SmolLM and SmolVLM family of models](https://github.com/huggingface/smollm)
 - [Muon is Scalable for LLM Training](https://github.com/MoonshotAI/Moonlight)
 - [Supercharge Your LLM with the Fastest KV Cache Layer](https://github.com/LMCache/LMCache)
-
+- [SPEED-RL: Faster Training of Reasoning Models via Online Curriculum Learning](https://github.com/Zanette-Labs/speed-rl)
+- [💥 Flash Linear Attention](https://github.com/fla-org/flash-linear-attention/tree/main)
 
 ### courses 
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
