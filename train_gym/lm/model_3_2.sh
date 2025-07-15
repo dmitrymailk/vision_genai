@@ -11,7 +11,7 @@ python -m lang_mod_transformers.llama3_2 \
     --block_size 1024 \
     --logging_steps 8 \
     --attn_implementation flash_attention_2 \
-    --optimization_level opt_2 \
+    --optimization_level opt_3 \
     --bf16 \
     --remove_unused_columns False \
     --gradient_checkpointing False \
