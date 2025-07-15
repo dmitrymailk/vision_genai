@@ -8,6 +8,11 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import math
+from transformers.integrations.flash_attention import (
+    flash_attention_forward,
+    flash_attn_supports_top_left_mask,
+)
+from transformers.modeling_flash_attention_utils import _flash_attention_forward
 
 logger = logging.getLogger(__name__)
 _MaskType = torch.Tensor
@@ -102,6 +107,9 @@ def hf_to_tune(
     return converted_state_dict
 
 
+_use_top_left_mask = flash_attn_supports_top_left_mask()
+
+
 def _sdpa_or_flex_attention() -> Callable:
     """
     Helper function to decide when to call flex attention or SDPA. It will use
@@ -125,10 +133,48 @@ def _sdpa_or_flex_attention() -> Callable:
         if mask is not None:
             mask = mask[:, None, :, :]
 
+        if mask is not None and mask.ndim == 4:
+            mask = mask[:, :, :, : k.shape[-2]]
+
         # Flash attention from https://pytorch.org/blog/accelerating-large-language-models/
-        return nn.functional.scaled_dot_product_attention(
-            q, k, v, attn_mask=mask, dropout_p=dropout_p, is_causal=is_causal
+        # flash_attention_forward
+        result = nn.functional.scaled_dot_product_attention(
+            q,
+            k,
+            v,
+            attn_mask=mask,
+            dropout_p=dropout_p,
+            is_causal=is_causal,
         )
+        # seq_len = q.shape[2]
+        # # q = q.transpose(1, 2)
+        # # k = k.transpose(1, 2)
+        # # v = v.transpose(1, 2)
+        # # position_ids = torch.arange(
+        # #     0,
+        # #     1024,
+        # #     device="cuda",
+        # # ).unsqueeze(0)
+        # result = _flash_attention_forward(
+        #     q,
+        #     k,
+        #     v,
+        #     None,
+        #     query_length=seq_len,
+        #     is_causal=True,
+        #     dropout=dropout_p,
+        #     softmax_scale=0.125,
+        #     sliding_window=None,
+        #     softcap=None,
+        #     use_top_left_mask=_use_top_left_mask,
+        #     target_dtype=torch.bfloat16,
+        #     # position_ids=position_ids,
+        #     attn_implementation="flash_attention_2",
+        #     output_attentions=False,
+        #     use_cache=False,
+        #     # **kwargs,
+        # )
+        return result
 
     return _sdpa_call
 
@@ -778,8 +824,8 @@ class MultiHeadAttention(nn.Module):
             - d: embed dim
             - h_d: head dim
         """
-        # x has shape [b, s_x, d]
-        # y has shape [b, s_y, d]
+        # x has shape [b, s_x, d], torch.Size([4, 1024, 2048])
+        # y has shape [b, s_y, d], torch.Size([4, 1024, 2048])
         b, s_x, _ = x.shape
         s_y = y.shape[1] if y is not None else 0
 
