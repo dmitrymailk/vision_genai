@@ -134,6 +134,7 @@ from lang_mod_transformers.llama3_2_torchtune_v3 import (
     TransformerDecoder,
     TransformerSelfAttentionLayer,
 )
+from torchtune.modules.optim import OptimizerInBackward
 
 # from
 # from transformer_engine.common.recipe import DelayedScaling
@@ -1058,6 +1059,7 @@ def main():
         optimizer_grouped_parameters,
         lr=training_args.learning_rate,
     )
+    # optimizer = OptimizerInBackward(model.parameters(), torch.optim.AdamW, lr=training_args.learning_rate)
 
     num_update_steps_per_epoch = math.ceil(
         len(train_dataloader) / training_args.gradient_accumulation_steps

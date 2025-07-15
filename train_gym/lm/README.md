@@ -837,7 +837,10 @@ python -m lang_mod_transformers.lang_mod_accelerate \
 - при per_device_train_batch_size 10 - 2.10it/s (05:56)
 - при per_device_train_batch_size 14 - 1.58it/s (05:45)
 - при per_device_train_batch_size 10 - 2.13it/s max-autotune,  
+- при per_device_train_batch_size 14 - 1.63it/s при OptimizerInBackward
 
 - в 1.8550 быстрее при per_device_train_batch_size 14. соответственно нет смысла использовать эту модель
-
+- при per_device_train_batch_size 14 - 1.63it/s при OptimizerInBackward (05:34)
+- в 1.9161 быстрее при per_device_train_batch_size 14 с [OptimizerInBackward](https://docs.pytorch.org/torchtune/main/tutorials/memory_optimizations.html#fusing-optimizer-step-into-backward-pass)
+- 
 
