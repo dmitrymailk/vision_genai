@@ -1237,15 +1237,15 @@ def main():
             "weight_decay": 0.0,
         },
     ]
-    # optimizer = torch.optim.AdamW(
-    #     optimizer_grouped_parameters,
-    #     lr=training_args.learning_rate,
-    #     fused=True,
-    # )
-    optimizer = bnb.optim.Adam8bit(
+    optimizer = torch.optim.AdamW(
         optimizer_grouped_parameters,
         lr=training_args.learning_rate,
+        fused=True,
     )
+    # optimizer = bnb.optim.Adam8bit(
+    #     optimizer_grouped_parameters,
+    #     lr=training_args.learning_rate,
+    # )
     # optimizer = OptimizerInBackward(model.parameters(), torch.optim.AdamW, lr=training_args.learning_rate)
     # optimizer = OptimizerInBackward(model.parameters(), bnb.optim.Adam8bit, lr=training_args.learning_rate)
 

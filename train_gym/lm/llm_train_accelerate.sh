@@ -16,7 +16,8 @@ python -m lang_mod_transformers.lang_mod_accelerate \
     --bf16 \
     --remove_unused_columns False \
     --gradient_checkpointing False \
-    --num_train_epochs=3 \
-    --save_steps 5000000
+    --num_train_epochs=5 \
+    --save_steps 5000000 \
+    --optim adamw_8bit
 
 

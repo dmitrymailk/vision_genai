@@ -642,7 +642,10 @@ python -m lang_mod_transformers.lang_mod_transformers \
 - default runtime 10m 40s
 - при per_device_train_batch_size=14 (4.43it/s)
 - в 1.8768 быстрее при per_device_train_batch_size=14 (1.60it/s)(5m 41s)
-
+- в 1.9335 быстрее при per_device_train_batch_size=14 1.64it/s и bnb.optim.Adam8bit (5m 31s)
+---
+- 6 epochs, при per_device_train_batch_size=14 - 10m 42s, bnb.optim.Adam8bit
+- 6 epochs, при per_device_train_batch_size=14 - 11m 06s torch.AdamW
 
 #### accelerate.compile_regions+torch.ao.float8+LlamaDecoderLayer+unsloth cut-cross-entropy
 ```bash
