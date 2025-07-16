@@ -842,7 +842,11 @@ python -m lang_mod_transformers.lang_mod_accelerate \
 - в 1.8550 быстрее при per_device_train_batch_size 14. соответственно нет смысла использовать эту модель
 - при per_device_train_batch_size 14 - 1.63it/s при OptimizerInBackward (05:34)
 - в 1.9161 быстрее при per_device_train_batch_size 14 с [OptimizerInBackward](https://docs.pytorch.org/torchtune/main/tutorials/memory_optimizations.html#fusing-optimizer-step-into-backward-pass)
-- 
+- при per_device_train_batch_size 14 - 1.64it/s при bnb.optim.Adam8bit (05:30)
+- при per_device_train_batch_size 16 - 1.42it/s при bnb.optim.Adam8bit (05:40)
+- при per_device_train_batch_size 17 - 1.33it/s  при bnb.optim.Adam8bit (05:38)
+- при per_device_train_batch_size 14 - 1.64it/s при bnb.optim.Adam8bit+OptimizerInBackward
+- при per_device_train_batch_size 14 - 1.57it/s при torch.optim.AdamW fused
 
 #### accelerate+torchtune+torch.compile+int8+int4++unsloth cut-cross-entropy
 - activation_config = FakeQuantizeConfig(torch.int8, "per_token", is_symmetric=False)

@@ -135,6 +135,7 @@ from lang_mod_transformers.llama3_2_torchtune_v3 import (
     TransformerSelfAttentionLayer,
 )
 from torchtune.modules.optim import OptimizerInBackward
+import bitsandbytes as bnb
 
 # from
 # from transformer_engine.common.recipe import DelayedScaling
@@ -1236,11 +1237,17 @@ def main():
             "weight_decay": 0.0,
         },
     ]
-    optimizer = torch.optim.AdamW(
+    # optimizer = torch.optim.AdamW(
+    #     optimizer_grouped_parameters,
+    #     lr=training_args.learning_rate,
+    #     fused=True,
+    # )
+    optimizer = bnb.optim.Adam8bit(
         optimizer_grouped_parameters,
         lr=training_args.learning_rate,
     )
     # optimizer = OptimizerInBackward(model.parameters(), torch.optim.AdamW, lr=training_args.learning_rate)
+    # optimizer = OptimizerInBackward(model.parameters(), bnb.optim.Adam8bit, lr=training_args.learning_rate)
 
     num_update_steps_per_epoch = math.ceil(
         len(train_dataloader) / training_args.gradient_accumulation_steps
