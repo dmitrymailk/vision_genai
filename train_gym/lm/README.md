@@ -844,3 +844,34 @@ python -m lang_mod_transformers.lang_mod_accelerate \
 - в 1.9161 быстрее при per_device_train_batch_size 14 с [OptimizerInBackward](https://docs.pytorch.org/torchtune/main/tutorials/memory_optimizations.html#fusing-optimizer-step-into-backward-pass)
 - 
 
+#### accelerate+torchtune+torch.compile+int8+int4++unsloth cut-cross-entropy
+- activation_config = FakeQuantizeConfig(torch.int8, "per_token", is_symmetric=False)
+- weight_config = FakeQuantizeConfig(torch.int4, group_size=32)
+```bash
+python -m lang_mod_transformers.lang_mod_accelerate \
+    --model_name_or_path unsloth/Llama-3.2-1B-Instruct \
+    --dataset_name wikitext \
+    --dataset_config_name wikitext-2-raw-v1 \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 4 \
+    --do_train \
+    --do_eval \
+    --output_dir ./train_output \
+    --report_to wandb \
+    --block_size 1024 \
+    --logging_steps 8 \
+    --attn_implementation flash_attention_2 \
+    --optimization_level opt_31 \
+    --bf16 \
+    --remove_unused_columns False \
+    --gradient_checkpointing False \
+    --num_train_epochs=3 \
+    --save_steps 5000000
+```
+```console
+3.16it/s
+```
+- при per_device_train_batch_size 4 - 3.16it/s
+- при per_device_train_batch_size 8 - OOM
+
+
