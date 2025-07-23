@@ -164,6 +164,7 @@
 - [SPEED-RL: Faster Training of Reasoning Models via Online Curriculum Learning](https://github.com/Zanette-Labs/speed-rl)
 - [💥 Flash Linear Attention](https://github.com/fla-org/flash-linear-attention/tree/main)
 - [torch.compile and Diffusers: A Hands-On Guide to Peak Performance](https://pytorch.org/blog/torch-compile-and-diffusers-a-hands-on-guide-to-peak-performance/)
+- [Parallel Scaling Law for Language Model](https://github.com/QwenLM/ParScale)
 
 
 ### courses 
@@ -353,3 +354,9 @@
 - [Kimi-Audio, an open-source audio foundation model excelling in audio understanding, generation, and conversation](https://github.com/MoonshotAI/Kimi-Audio)
 - [Qwen2.5-Omni is an end-to-end multimodal model by Qwen team at Alibaba Cloud, capable of understanding text, audio, vision, video, and performing real-time speech generation.](https://github.com/QwenLM/Qwen2.5-Omni)
 - [MegaTTS 3](https://github.com/bytedance/MegaTTS3)
+
+### Dynamic systems, Differential equations, Diffusion theory
+- [Neural Differential Equations Video explanation](https://youtu.be/AD3K8j12EIE?si=qjZYCo5okwcQbl90)
+- [Neural ODEs (NODEs) \[Physics Informed Machine Learning\]](https://youtu.be/nJphsM4obOk?si=L4Wi7rEhAS0EzULr)
+- [ODE Transformer: An Ordinary Differential Equation-Inspired Model for Sequence Generation](https://github.com/libeineu/ODE-Transformer)
+- 
