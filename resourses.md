@@ -163,6 +163,8 @@
 - [Supercharge Your LLM with the Fastest KV Cache Layer](https://github.com/LMCache/LMCache)
 - [SPEED-RL: Faster Training of Reasoning Models via Online Curriculum Learning](https://github.com/Zanette-Labs/speed-rl)
 - [💥 Flash Linear Attention](https://github.com/fla-org/flash-linear-attention/tree/main)
+- [torch.compile and Diffusers: A Hands-On Guide to Peak Performance](https://pytorch.org/blog/torch-compile-and-diffusers-a-hands-on-guide-to-peak-performance/)
+
 
 ### courses 
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -350,3 +352,4 @@
 - [Spark-TTS Inference Code](https://github.com/SparkAudio/Spark-TTS)
 - [Kimi-Audio, an open-source audio foundation model excelling in audio understanding, generation, and conversation](https://github.com/MoonshotAI/Kimi-Audio)
 - [Qwen2.5-Omni is an end-to-end multimodal model by Qwen team at Alibaba Cloud, capable of understanding text, audio, vision, video, and performing real-time speech generation.](https://github.com/QwenLM/Qwen2.5-Omni)
+- [MegaTTS 3](https://github.com/bytedance/MegaTTS3)
