@@ -172,7 +172,7 @@
 - [tinyML youtube channel](https://www.youtube.com/@tinyML)
 - [Stanford CS149, Fall 2021 PARALLEL COMPUTING](https://gfxcourses.stanford.edu/cs149/fall23)
 - [pytorch developer syncs](https://www.youtube.com/@edwardzyang/videos)
-- [Efficient Deep Learning Systems(Yandex School of Data Analysis)](https://github.com/mryab/efficient-dl-systems/tree/main)
+- [Efficient Deep Learning Systems course materials (HSE, YSDA)](https://github.com/mryab/efficient-dl-systems/tree/main)
 - [Quantization in Depth (huggingface, deeplearning ai)](https://www.deeplearning.ai/short-courses/quantization-in-depth/)
 - [Intro to GPUs (diffusion inference optimization)](https://www.vrushankdes.ai/diffusion-policy-inference-optimization/part-i---intro-to-gpus)
 - [Custom Pytorch CUDA Kernel (using StyleGAN2 as an example)](https://ppeetteerrsx.com/post/cuda/stylegan_cuda_kernels/)
@@ -354,9 +354,11 @@
 - [Kimi-Audio, an open-source audio foundation model excelling in audio understanding, generation, and conversation](https://github.com/MoonshotAI/Kimi-Audio)
 - [Qwen2.5-Omni is an end-to-end multimodal model by Qwen team at Alibaba Cloud, capable of understanding text, audio, vision, video, and performing real-time speech generation.](https://github.com/QwenLM/Qwen2.5-Omni)
 - [MegaTTS 3](https://github.com/bytedance/MegaTTS3)
+- [Higgs Audio V2: Redefining Expressiveness in Audio Generation](https://github.com/boson-ai/higgs-audio)
 
 ### Dynamic systems, Differential equations, Diffusion theory
 - [Neural Differential Equations Video explanation](https://youtu.be/AD3K8j12EIE?si=qjZYCo5okwcQbl90)
 - [Neural ODEs (NODEs) \[Physics Informed Machine Learning\]](https://youtu.be/nJphsM4obOk?si=L4Wi7rEhAS0EzULr)
 - [ODE Transformer: An Ordinary Differential Equation-Inspired Model for Sequence Generation](https://github.com/libeineu/ODE-Transformer)
-- 
+- [On Neural Differential Equations ](https://arxiv.org/pdf/2202.02435)
+- [Deep Implicit Layers - Neural ODEs, Deep Equilibirum Models, and Beyond](https://implicit-layers-tutorial.org/)
