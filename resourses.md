@@ -359,7 +359,10 @@
 
 ### Dynamic systems, Differential equations, Diffusion theory
 - [Neural Differential Equations Video explanation](https://youtu.be/AD3K8j12EIE?si=qjZYCo5okwcQbl90)
+- [Large Language Models to Diffusion Finetuning(SakanaAI)](https://github.com/SakanaAI/L2D)
 - [Neural ODEs (NODEs) \[Physics Informed Machine Learning\]](https://youtu.be/nJphsM4obOk?si=L4Wi7rEhAS0EzULr)
 - [ODE Transformer: An Ordinary Differential Equation-Inspired Model for Sequence Generation](https://github.com/libeineu/ODE-Transformer)
 - [On Neural Differential Equations ](https://arxiv.org/pdf/2202.02435)
 - [Deep Implicit Layers - Neural ODEs, Deep Equilibirum Models, and Beyond](https://implicit-layers-tutorial.org/)
+- [ODEs and SDEs for machine learning](https://rbcborealis.com/research-blogs/odes-and-sdes-for-machine-learning/)
+
