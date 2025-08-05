@@ -166,6 +166,7 @@
 - [torch.compile and Diffusers: A Hands-On Guide to Peak Performance](https://pytorch.org/blog/torch-compile-and-diffusers-a-hands-on-guide-to-peak-performance/)
 - [Parallel Scaling Law for Language Model](https://github.com/QwenLM/ParScale)
 - [ArcticTraining: Simplifying and Accelerating Post-Training for LLMs](https://github.com/snowflakedb/ArcticTraining)
+- [DFloat11: Lossless LLM Compression for Efficient GPU Inference](https://github.com/LeanModels/DFloat11)
 
 
 ### courses 
