@@ -356,6 +356,7 @@
 - [Qwen2.5-Omni is an end-to-end multimodal model by Qwen team at Alibaba Cloud, capable of understanding text, audio, vision, video, and performing real-time speech generation.](https://github.com/QwenLM/Qwen2.5-Omni)
 - [MegaTTS 3](https://github.com/bytedance/MegaTTS3)
 - [Higgs Audio V2: Redefining Expressiveness in Audio Generation](https://github.com/boson-ai/higgs-audio)
+- [State-of-the-art TTS model under 25MB](https://github.com/KittenML/KittenTTS)
 
 ### Dynamic systems, Differential equations, Diffusion theory
 - [Neural Differential Equations Video explanation](https://youtu.be/AD3K8j12EIE?si=qjZYCo5okwcQbl90)
