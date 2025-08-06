@@ -84,11 +84,6 @@
 - [torch compile whisper](https://github.com/zhxchen17/torchnative/tree/main/whisper_aoti)
 - https://github.com/pytorch-labs/LeanRL
 - [torchchat Run PyTorch LLMs locally on servers, desktop and mobile](https://github.com/pytorch/torchchat)
-- [🚀 Collection of components for development, training, tuning, and inference of foundation models leveraging PyTorch native components.](https://github.com/foundation-model-stack/foundation-model-stack)
-- 🚀 [Efficiently (pre)training foundation models with native PyTorch features, including FSDP for training and SDPA implementation of Flash attention v2.](https://github.com/foundation-model-stack/fms-fsdp)
-- [Modeling, training, eval, and inference code for OLMo](https://github.com/allenai/OLMo)
-- [torchtune PyTorch native post-training library](https://github.com/pytorch/torchtune)
-- [torchtitan A PyTorch native platform for training generative AI models](https://github.com/pytorch/torchtitan)
 - [Native PyTorch library for quantization and sparsity](https://github.com/pytorch/ao)
 - [diffusion-fast Faster generation with text-to-image diffusion models.](https://github.com/huggingface/diffusion-fast)
 - [AITemplate is a Python framework which renders neural network into high performance CUDA/HIP C++ code. Specialized for FP16 TensorCore (NVIDIA GPU) and MatrixCore (AMD GPU) inference.](https://github.com/facebookincubator/AITemplate/tree/main)
@@ -98,20 +93,16 @@
 - [stable-fast is an ultra lightweight inference optimization framework for HuggingFace Diffusers on NVIDIA GPUs](https://github.com/chengzeyi/stable-fast)
 - [\[MLSys 2024 Best Paper Award\] AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration](https://github.com/mit-han-lab/llm-awq)
 - [🏎️ Enhance Your Models in 5 Minutes with the Hugging Face Kernel Hub](https://huggingface.co/blog/hello-hf-kernels)
-- https://github.com/huggingface/smollm
 - https://github.com/huggingface/open-r1
 - https://github.com/hkust-nlp/simpleRL-reason
 - https://github.com/Jiayi-Pan/TinyZero
 - https://github.com/pytorch/torchft
 - https://github.com/GeeeekExplorer/nano-vllm
 - https://github.com/BlinkDL/modded-nanogpt-rwkv
-- [Efficient LLM Pretraining: Packed Sequences and Masked Attention](https://huggingface.co/blog/sirluk/llm-sequence-packing)
 - [A multi-GPU training framework that combines Unsloth with multi-GPU support and sequence packing optimizations.](https://github.com/anhvth/opensloth)
-
 - [unslothai Cut Your Losses in Large-Vocabulary Language Models](https://github.com/unslothai/cut-cross-entropy)
 - [original Cut Your Losses in Large-Vocabulary Language Models](https://github.com/apple/ml-cross-entropy) 
 - https://github.com/JonasGeiping/linear_cross_entropy_loss
-- https://github.com/allenai/OLMo-core
 - https://github.com/facebookresearch/xformers/tree/main/examples/llama_inference
 - https://github.com/showlab/Show-o/tree/main/show-o2
 - [FlashInfer: Kernel Library for LLM Serving](https://github.com/flashinfer-ai/flashinfer)
@@ -121,8 +112,6 @@
 - https://github.com/facebookresearch/xformers/tree/main/examples
 - https://github.com/facebookresearch/fairseq2
 - https://github.com/apple/ml-dataset-decomposition
-
-- https://github.com/zyushun/Adam-mini
 - https://github.com/llm-efficiency-challenge/neurips_llm_efficiency_challenge
 - https://huggingface.co/docs/bitsandbytes/en/explanations/optimizers#8-bit-optimizers
 - [BitNet b1.58 training](https://github.com/pytorch/ao/pull/930)
@@ -141,11 +130,7 @@
 - [Welcome to the Llama Cookbook! This is your go to guide for Building with Llama: Getting started with Inference, Fine-Tuning, RAG. We also show you how to solve end to end problems using Llama model family and using them on various provider services](https://github.com/meta-llama/llama-cookbook)
 - [Look Ma, No Bubbles! Designing a Low-Latency Megakernel for Llama-1B](https://github.com/HazyResearch/Megakernels)
 - [GaLore: Memory-Efficient LLM Training by Gradient Low-Rank Projection](https://github.com/jiaweizzhao/GaLore)
-- [Code for Adam-mini: Use Fewer Learning Rates To Gain More](https://github.com/zyushun/Adam-mini)
 - [Scaling RL on advanced reasoning models](https://github.com/ChenxinAn-fdu/POLARIS)
-- [Reducing Model Checkpointing Times by Over 10x with PyTorch Distributed Asynchronous Checkpointing](https://pytorch.org/blog/reducing-checkpointing-times/)
-- [Supercharging Training using float8 and FSDP2](https://pytorch.org/blog/training-using-float8-fsdp2/)
-- [Efficient Pre-training of Llama 3-like model architectures using torchtitan on Amazon SageMaker](https://aws.amazon.com/blogs/machine-learning/efficient-pre-training-of-llama-3-like-model-architectures-using-torchtitan-on-amazon-sagemaker/)
 - [Basic Example for Using PyTorch Fully Sharded Data Parallel mode with Transformer Engine, float8](https://github.com/NVIDIA/TransformerEngine/blob/main/examples/pytorch/fsdp/fsdp.py)
 - [How We Trained Stable Diffusion for Less than $50k (Part 3)](https://www.databricks.com/blog/diffusion)
 - [Benchmarking Large Language Models on NVIDIA H100 GPUs with CoreWeave (Part 1) float8 Transformer Engine](https://www.databricks.com/blog/coreweave-nvidia-h100-part-1)
@@ -157,9 +142,6 @@
 - [A Scalable Inference Engine for Diffusion Transformers (DiTs) on Multiple Computing Devices](https://github.com/xdit-project/xDiT)
 - [Thunder makes optimizing PyTorch models easy, augmenting them with custom kernels, fusions, quantization, distributed strategies, and more.](https://github.com/Lightning-AI/lightning-thunder/tree/main)
 - [PiPPy: Pipeline Parallelism for PyTorch](https://github.com/PyTorch/PiPPy?tab=readme-ov-file)
-- [SmolLM3: smol, multilingual, long-context reasoner](https://huggingface.co/blog/smollm3)
-- [Everything about the SmolLM and SmolVLM family of models](https://github.com/huggingface/smollm)
-- [Muon is Scalable for LLM Training](https://github.com/MoonshotAI/Moonlight)
 - [Supercharge Your LLM with the Fastest KV Cache Layer](https://github.com/LMCache/LMCache)
 - [SPEED-RL: Faster Training of Reasoning Models via Online Curriculum Learning](https://github.com/Zanette-Labs/speed-rl)
 - [💥 Flash Linear Attention](https://github.com/fla-org/flash-linear-attention/tree/main)
@@ -167,7 +149,40 @@
 - [Parallel Scaling Law for Language Model](https://github.com/QwenLM/ParScale)
 - [ArcticTraining: Simplifying and Accelerating Post-Training for LLMs](https://github.com/snowflakedb/ArcticTraining)
 - [DFloat11: Lossless LLM Compression for Efficient GPU Inference](https://github.com/LeanModels/DFloat11)
+- [llmcompressor is an easy-to-use library for optimizing models for deployment with vllm](https://github.com/vllm-project/llm-compressor)
 
+
+### Massive train
+- [🚀 Collection of components for development, training, tuning, and inference of foundation models leveraging PyTorch native components.](https://github.com/foundation-model-stack/foundation-model-stack)
+- [Efficiently (pre)training foundation models with native PyTorch features, including FSDP for training and SDPA implementation of Flash attention v2.](https://github.com/foundation-model-stack/fms-fsdp)
+- [torchtune PyTorch native post-training library](https://github.com/pytorch/torchtune)
+- [torchtitan A PyTorch native platform for training generative AI models](https://github.com/pytorch/torchtitan)
+- [Efficient LLM Pretraining: Packed Sequences and Masked Attention](https://huggingface.co/blog/sirluk/llm-sequence-packing)
+- [Code for Adam-mini: Use Fewer Learning Rates To Gain More](https://github.com/zyushun/Adam-mini)
+- [Reducing Model Checkpointing Times by Over 10x with PyTorch Distributed Asynchronous Checkpointing](https://pytorch.org/blog/reducing-checkpointing-times/)
+- [SmolLM3: smol, multilingual, long-context reasoner](https://huggingface.co/blog/smollm3)
+- [Everything about the SmolLM and SmolVLM family of models](https://github.com/huggingface/smollm)
+- [Muon is Scalable for LLM Training](https://github.com/MoonshotAI/Moonlight)
+- [Efficient Pre-training of Llama 3-like model architectures using torchtitan on Amazon SageMaker](https://aws.amazon.com/blogs/machine-learning/efficient-pre-training-of-llama-3-like-model-architectures-using-torchtitan-on-amazon-sagemaker/)
+- [Supercharging Training using float8 and FSDP2](https://pytorch.org/blog/training-using-float8-fsdp2/)
+- [Building blocks for OLMo modeling and training](https://github.com/allenai/OLMo-core)
+- [Modeling, training, eval, and inference code for OLMo](https://github.com/allenai/OLMo)
+- [OLMo 2: The best fully open language model to date](https://allenai.org/blog/olmo2)
+- [OLMoE: An open, small, and state-of-the-art mixture-of-experts model](https://allenai.org/blog/olmoe-an-open-small-and-state-of-the-art-mixture-of-experts-model-c258432d0514)
+- [DataComp-LM (DCLM) is a comprehensive framework designed for building and training large language models (LLMs) with diverse datasets.](https://github.com/mlfoundations/dclm)
+- [Open Language Model Evaluation System (OLMES)](https://github.com/allenai/olmes)
+- [Training Open Instruction-Following Language Models olmo](https://github.com/allenai/open-instruct)
+- [Grouped Relative Policy Optimization (GRPO) grpo fast](https://allenai.github.io/open-instruct/algorithms/grpo/)
+- [Official Repo for Open-Reasoner-Zero](https://github.com/Open-Reasoner-Zero/Open-Reasoner-Zero)
+- [decontamination Scripts for computing overlap between train and test sets](https://github.com/allenai/open-instruct/tree/main/decontamination)
+- [Demystifying NCCL: An In-depth Analysis of GPU Communication Protocols and Algorithms](https://arxiv.org/pdf/2507.04786v2)
+- [OLMo 2 32B: First fully open model to outperform GPT 3.5 and GPT 4o mini](https://allenai.org/blog/olmo2-32b)
+- [Dolma is an open dataset of 3 trillion tokens from a diverse mix of web content, academic publications, code, books, and encyclopedic materials.](https://github.com/allenai/dolma)
+- [SMOLLM3 Pretraining](https://github.com/huggingface/smollm/tree/main/text/pretraining)
+- [Everything about the SmolLM and SmolVLM family of models](https://github.com/huggingface/smollm/tree/main)
+- [Nanotron is a library for pretraining transformer models.](https://github.com/huggingface/nanotron/)
+- [DoReMi: Optimizing Data Mixtures Speeds Up Language Model Pretraining](https://arxiv.org/pdf/2305.10429)
+- [SmolLM3: smol, multilingual, long-context reasoner](https://huggingface.co/blog/smollm3)
 
 ### courses 
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -367,4 +382,5 @@
 - [On Neural Differential Equations ](https://arxiv.org/pdf/2202.02435)
 - [Deep Implicit Layers - Neural ODEs, Deep Equilibirum Models, and Beyond](https://implicit-layers-tutorial.org/)
 - [ODEs and SDEs for machine learning](https://rbcborealis.com/research-blogs/odes-and-sdes-for-machine-learning/)
-
+- [Why Can GPT Learn In-Context? Language Models Implicitly Perform Gradient Descent as Meta-Optimizers](https://aclanthology.org/2023.findings-acl.247.pdf)
+- [NEURAL ODE TRANSFORMERS: ANALYZING INTER-NAL DYNAMICS AND ADAPTIVE FINE-TUNING](https://openreview.net/pdf?id=XnDyddPcBT)
