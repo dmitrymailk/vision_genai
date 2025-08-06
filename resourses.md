@@ -183,6 +183,9 @@
 - [Nanotron is a library for pretraining transformer models.](https://github.com/huggingface/nanotron/)
 - [DoReMi: Optimizing Data Mixtures Speeds Up Language Model Pretraining](https://arxiv.org/pdf/2305.10429)
 - [SmolLM3: smol, multilingual, long-context reasoner](https://huggingface.co/blog/smollm3)
+- [2 OLMo 2 Furious](https://arxiv.org/pdf/2501.00656)
+- [MAP-NEO: A fully open-sourced Large Language Model](https://github.com/multimodal-art-projection/MAP-NEO)
+- 
 
 ### courses 
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
