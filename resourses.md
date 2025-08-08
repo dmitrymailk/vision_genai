@@ -150,7 +150,10 @@
 - [ArcticTraining: Simplifying and Accelerating Post-Training for LLMs](https://github.com/snowflakedb/ArcticTraining)
 - [DFloat11: Lossless LLM Compression for Efficient GPU Inference](https://github.com/LeanModels/DFloat11)
 - [llmcompressor is an easy-to-use library for optimizing models for deployment with vllm](https://github.com/vllm-project/llm-compressor)
-
+- [BFD (best-fit decreasing) packing](https://github.com/huggingface/trl/pull/3521)
+- [How to Predict Best Pretraining Data with Small Experiments](https://arxiv.org/pdf/2504.11393)
+- [olmOCR: Unlocking Trillions of Tokens in PDFs with Vision Language Models](https://olmocr.allenai.org/papers/olmocr.pdf)
+- [flex-nano-vllm FlexAttention based, minimal vllm-style inference engine for fast Gemma 2 inference.](https://github.com/changjonathanc/flex-nano-vllm)
 
 ### Massive train
 - [🚀 Collection of components for development, training, tuning, and inference of foundation models leveraging PyTorch native components.](https://github.com/foundation-model-stack/foundation-model-stack)
@@ -185,7 +188,15 @@
 - [SmolLM3: smol, multilingual, long-context reasoner](https://huggingface.co/blog/smollm3)
 - [2 OLMo 2 Furious](https://arxiv.org/pdf/2501.00656)
 - [MAP-NEO: A fully open-sourced Large Language Model](https://github.com/multimodal-art-projection/MAP-NEO)
-- 
+- [LLM360: Towards Fully Transparent Open-Source LLMs](https://www.llm360.ai/reports/LLM360-Towards-Fully-Transparent-Open-Source-LLMs.pdf)
+- [savanna Pretraining infrastructure for research and application of convolutional multi-hybrid models (StripedHyena 2)](https://github.com/Zymrael/savanna)
+- [Introducing the First AMD 1B Language Models: AMD OLMo](https://www.amd.com/en/developer/resources/technical-articles/introducing-the-first-amd-1b-language-model.html)
+- [Introducing Instella: New State-of-the-art Fully Open 3B Language Models](https://rocm.blogs.amd.com/artificial-intelligence/introducing-instella-3B/README.html)
+- [Stanford’s Marin foundation model: The first fully open model developed using JAX](https://developers.googleblog.com/en/stanfords-marin-foundation-model-first-fully-open-model-developed-using-jax/)
+- [ModernBERT, our experiments to bring BERT into modernity via both architecture changes and scaling.](https://github.com/AnswerDotAI/ModernBERT)
+- [example configurations for training models using ND Parallelism in Axolotl](https://github.com/axolotl-ai-cloud/axolotl/tree/main/examples/distributed-parallel)
+- [COAT (Compressing Optimizer states and Activation for Memory-Efficient FP8 Training)](https://github.com/NVlabs/COAT)
+- [This folder contains examples of using FSDP2 with Accelerate, fp8](https://github.com/huggingface/accelerate/tree/main/examples/fsdp2)
 
 ### courses 
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -356,6 +367,7 @@
 - [SANA: Efficient High-Resolution Image Synthesis with Linear Diffusion Transformer](https://github.com/NVlabs/Sana)
 - [🏃SANA-Sprint: One-Step Diffusion with Continuous-Time Consistency Distillation](https://github.com/NVlabs/Sana/blob/main/asset/docs/sana_sprint.md)
 - [Tackling the Generative Learning Trilemma with Denoising Diffusion GANs](https://github.com/NVlabs/denoising-diffusion-gan)
+- [FastVideo is a unified post-training and inference framework for accelerated video generation.](https://github.com/hao-ai-lab/FastVideo)
 
 ### Torch compile benchmarks
 - https://github.com/pytorch/torchtitan/blob/main/benchmarks/llama3_h100_202412_torchtitan.md#user-content-fn-2-cae6e35c41ee7ec0bdbbad5503a98dd1
