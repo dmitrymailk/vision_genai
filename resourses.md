@@ -154,8 +154,11 @@
 - [How to Predict Best Pretraining Data with Small Experiments](https://arxiv.org/pdf/2504.11393)
 - [olmOCR: Unlocking Trillions of Tokens in PDFs with Vision Language Models](https://olmocr.allenai.org/papers/olmocr.pdf)
 - [flex-nano-vllm FlexAttention based, minimal vllm-style inference engine for fast Gemma 2 inference.](https://github.com/changjonathanc/flex-nano-vllm)
+- [nGPT (normalized GPT) - Pytorch](https://github.com/lucidrains/nGPT-pytorch)
+- [SimbaV2 Hyperspherical Normalization for Scalable Deep Reinforcement Learning](https://dojeon-ai.github.io/SimbaV2/)
 
-### Massive train
+
+### How to train models
 - [🚀 Collection of components for development, training, tuning, and inference of foundation models leveraging PyTorch native components.](https://github.com/foundation-model-stack/foundation-model-stack)
 - [Efficiently (pre)training foundation models with native PyTorch features, including FSDP for training and SDPA implementation of Flash attention v2.](https://github.com/foundation-model-stack/fms-fsdp)
 - [torchtune PyTorch native post-training library](https://github.com/pytorch/torchtune)
@@ -181,22 +184,28 @@
 - [Demystifying NCCL: An In-depth Analysis of GPU Communication Protocols and Algorithms](https://arxiv.org/pdf/2507.04786v2)
 - [OLMo 2 32B: First fully open model to outperform GPT 3.5 and GPT 4o mini](https://allenai.org/blog/olmo2-32b)
 - [Dolma is an open dataset of 3 trillion tokens from a diverse mix of web content, academic publications, code, books, and encyclopedic materials.](https://github.com/allenai/dolma)
-- [SMOLLM3 Pretraining](https://github.com/huggingface/smollm/tree/main/text/pretraining)
-- [Everything about the SmolLM and SmolVLM family of models](https://github.com/huggingface/smollm/tree/main)
-- [Nanotron is a library for pretraining transformer models.](https://github.com/huggingface/nanotron/)
 - [DoReMi: Optimizing Data Mixtures Speeds Up Language Model Pretraining](https://arxiv.org/pdf/2305.10429)
 - [SmolLM3: smol, multilingual, long-context reasoner](https://huggingface.co/blog/smollm3)
 - [2 OLMo 2 Furious](https://arxiv.org/pdf/2501.00656)
-- [MAP-NEO: A fully open-sourced Large Language Model](https://github.com/multimodal-art-projection/MAP-NEO)
 - [LLM360: Towards Fully Transparent Open-Source LLMs](https://www.llm360.ai/reports/LLM360-Towards-Fully-Transparent-Open-Source-LLMs.pdf)
-- [savanna Pretraining infrastructure for research and application of convolutional multi-hybrid models (StripedHyena 2)](https://github.com/Zymrael/savanna)
 - [Introducing the First AMD 1B Language Models: AMD OLMo](https://www.amd.com/en/developer/resources/technical-articles/introducing-the-first-amd-1b-language-model.html)
 - [Introducing Instella: New State-of-the-art Fully Open 3B Language Models](https://rocm.blogs.amd.com/artificial-intelligence/introducing-instella-3B/README.html)
 - [Stanford’s Marin foundation model: The first fully open model developed using JAX](https://developers.googleblog.com/en/stanfords-marin-foundation-model-first-fully-open-model-developed-using-jax/)
-- [ModernBERT, our experiments to bring BERT into modernity via both architecture changes and scaling.](https://github.com/AnswerDotAI/ModernBERT)
-- [example configurations for training models using ND Parallelism in Axolotl](https://github.com/axolotl-ai-cloud/axolotl/tree/main/examples/distributed-parallel)
 - [COAT (Compressing Optimizer states and Activation for Memory-Efficient FP8 Training)](https://github.com/NVlabs/COAT)
+- [ByteCheckpoint: A Unified Checkpointing System for Large Foundation Model Development](https://github.com/ByteDance-Seed/ByteCheckpoint)
+- [prime is a framework for efficient, globally distributed training of AI models over the internet](https://github.com/PrimeIntellect-ai/prime)
+
+### Trainer repos
+- [VeOmni: Scaling Any Modality Model Training with Model-Centric Distributed Recipe Zoo](https://github.com/ByteDance-Seed/VeOmni)
 - [This folder contains examples of using FSDP2 with Accelerate, fp8](https://github.com/huggingface/accelerate/tree/main/examples/fsdp2)
+- [example configurations for training models using ND Parallelism in Axolotl](https://github.com/axolotl-ai-cloud/axolotl/tree/main/examples/distributed-parallel)
+- [ModernBERT, our experiments to bring BERT into modernity via both architecture changes and scaling.](https://github.com/AnswerDotAI/ModernBERT)
+- [The TinyLlama project aims to pretrain a 1.1B Llama model on 3 trillion tokens](https://github.com/jzhang38/TinyLlama)
+- [SMOLLM3 Pretraining](https://github.com/huggingface/smollm/tree/main/text/pretraining)
+- [Everything about the SmolLM and SmolVLM family of models](https://github.com/huggingface/smollm/tree/main)
+- [Nanotron is a library for pretraining transformer models.](https://github.com/huggingface/nanotron/)
+- [MAP-NEO: A fully open-sourced Large Language Model](https://github.com/multimodal-art-projection/MAP-NEO)
+- [savanna Pretraining infrastructure for research and application of convolutional multi-hybrid models (StripedHyena 2)](https://github.com/Zymrael/savanna)
 
 ### courses 
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -260,8 +269,7 @@
 - [Nvidia Compute Capabilities](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#compute-capabilities)
 - [NVIDIA Deep Learning TensorRT Documentation Sample Support Guide](https://docs.nvidia.com/deeplearning/tensorrt/sample-support-guide/index.html#samples)
 
-### T5 modeling
-- https://github.com/huggingface/transformers/blob/main/src/transformers/models/t5/modeling_t5.py
+
 
 ### Cuda programming
 - Programming Massively Parallel Processors: A Hands-on Approach 4nd Edition
