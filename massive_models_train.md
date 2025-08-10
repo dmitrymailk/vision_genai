@@ -121,9 +121,21 @@ The Pythia number comes from their [paper](https://arxiv.org/abs/2304.01373). T
 
 - 3_895_023_632_384/512/5600/60/60/24=15.723 days, я не знаю, не может быть чтобы с такими вводными модель натренилась за 17 часов. но в wandb в сумме 17.
 
-- global_train_batch_size:1024, device_train_batch_size:2,device_train_grad_accum:1 => 512 GPU H100
+- global_train_batch_size:1024, device_train_batch_size:2,device_train_grad_accum:1 => 512 GPU H100 (исходя из их конфига претрен был на 512 gpu)
 - 512*5600=2867200 tokens/sec/total
 - 512*5600*61978=177_703_321_600 ~ 178B tokens
+
+Имея всего 1 такой кластер на 8 H100, мы пройдем
+- 1 days => 86_400*1*5_600*8=3_870_720_000 ~ 3.870B tokens
+- 2 days => 3.87*2 ~ 7.74B tokens
+- 7 days => 3.87*7 ~ 27.09B tokens
+- 14 days => 3.87*7 ~ 54.18B tokens
+
+Анализ динамики обучения 7B модели(https://wandb.ai/ai2-llm/OLMo-2-1124-7B/runs/awwjyi5w)
+- (7 days) 27_447_525_376 (6544 steps), **winogrande_acc**=0.534(6000 step),**hellaswag_len_norm**=0.506,**mmlu_other_var_len_norm**=0.381 
+- (14 days) 54_777_610_240 (13060 steps), **winogrande_acc**=0.586(13_000 step),**hellaswag_len_norm**=0.605,**mmlu_other_var_len_norm**=0.44, (0.586+0.605+0.44)/3=0.5436
+
+Если судить только по метрикам, за 7 дней претрен с 7B моделью получается хуже чем с 1B. за 14 дней лучше 7B модель но не сильно 0.5436 против 0.533.
 
 #### 1B model
 - скорее всего тренировка была на кластере Augusta, у которого максимум 160 node, 8 H100 per node=1280 GPUS
@@ -148,9 +160,10 @@ The Pythia number comes from their [paper](https://arxiv.org/abs/2304.01373). T
 - 30 days => 86_400*30*35_000*8=725_760_000_000 ~ 725B tokens
 
 Анализ динамики обучения 1B модели
-- 24_383_586_304 tokens (11_627 step),**winogrande_acc**=0.524(12_000 step),**hellaswag_len_norm**=0.446,**mmlu_other_var_len_norm**=0.365
-- 48_020_586_496 tokens (22_898 step),**winogrande_acc**=0.550(23_000 step),**hellaswag_len_norm**=0.497,**mmlu_other_var_len_norm**=0.390
-- 169_869_312_000 tokens (81_000 step),**winogrande_acc**=0.585(80_000 step),**hellaswag_len_norm**=0.576,**mmlu_other_var_len_norm**=0.407
+- (1 day) 24_383_586_304 tokens (11_627 step),**winogrande_acc**=0.524(12_000 step),**hellaswag_len_norm**=0.446,**mmlu_other_var_len_norm**=0.365
+- (2 day) 48_020_586_496 tokens (22_898 step),**winogrande_acc**=0.550(23_000 step),**hellaswag_len_norm**=0.497,**mmlu_other_var_len_norm**=0.390
+- (7 day) 169_869_312_000 tokens (81_000 step),**winogrande_acc**=0.585(80_000 step),**hellaswag_len_norm**=0.576,**mmlu_other_var_len_norm**=0.407
+- (14 day) 341_542_174_720 tokens (162860 step),**winogrande_acc**=0.60 (160_000 step),**hellaswag_len_norm**=0.59 ,**mmlu_other_var_len_norm**=0.409, (0.60+0.59+0.409)/3=0.533
 
 Однако в их статье tokens per second намного выше, ~55k(доказательств кроме статьи не нашел, возможно это когда нет никаких эвалюаций)
 

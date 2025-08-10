@@ -397,6 +397,10 @@
 - [Higgs Audio V2: Redefining Expressiveness in Audio Generation](https://github.com/boson-ai/higgs-audio)
 - [State-of-the-art TTS model under 25MB](https://github.com/KittenML/KittenTTS)
 
+### Diffusion language modeling
+- https://github.com/ML-GSAI/LLaDA
+- https://github.com/DreamLM/Dream
+
 ### Dynamic systems, Differential equations, Diffusion theory
 - [Neural Differential Equations Video explanation](https://youtu.be/AD3K8j12EIE?si=qjZYCo5okwcQbl90)
 - [Large Language Models to Diffusion Finetuning(SakanaAI)](https://github.com/SakanaAI/L2D)
