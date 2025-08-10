@@ -19,6 +19,10 @@
 - 4k to 64k with RoPE in Mid-training 
 - https://github.com/huggingface/smollm
 
+- сначала делали претрен на 4096 токенах, затем растягивали 50B tokens на 32к, потом еще 50B на 64к, yarn добили до 128к.
+- нет выложенных графиков, нельзя предсказать динамику обучения.
+- нет информации о экспериментах на 1B моделях(странно)
+
 ## [Introducing the First AMD 1B Language Models: AMD OLMo](https://www.amd.com/en/developer/resources/technical-articles/introducing-the-first-amd-1b-language-model.html)
 - 1.2B params
 - Context length 2048, vocab 50280
