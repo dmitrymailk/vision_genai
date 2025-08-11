@@ -61,7 +61,7 @@
 - 5*10**11/24_000/16/60/60/24=15.07 days
 - 1*10**12/24_000/16/60/60/24=30.14 days
 - 3*10**12/24_000/16/60/60/24=90.42 days
-- 14 days => 24_000*16*86_400*14=464_486_400_000 ~ 464B tokens
+- 14 days => 24_000 * 16 * 86_400 * 14=464_486_400_000 ~ 464B tokens
 
 Согласно их таблице эвалюации, улучшения в зависимости от токенов были следующие
 - 105B	50k	46.11
@@ -126,14 +126,14 @@ The Pythia number comes from their [paper](https://arxiv.org/abs/2304.01373). T
 - 3_895_023_632_384/512/5600/60/60/24=15.723 days, я не знаю, не может быть чтобы с такими вводными модель натренилась за 17 часов. но в wandb в сумме 17.
 
 - global_train_batch_size:1024, device_train_batch_size:2,device_train_grad_accum:1 => 512 GPU H100 (исходя из их конфига претрен был на 512 gpu)
-- 512*5600=2867200 tokens/sec/total
-- 512*5600*61978=177_703_321_600 ~ 178B tokens
+- 512 * 5600=2867200 tokens/sec/total
+- 512 * 5600 * 61978=177_703_321_600 ~ 178B tokens
 
 Имея всего 1 такой кластер на 8 H100, мы пройдем
-- 1 days => 86_400*1*5_600*8=3_870_720_000 ~ 3.870B tokens
-- 2 days => 3.87*2 ~ 7.74B tokens
-- 7 days => 3.87*7 ~ 27.09B tokens
-- 14 days => 3.87*7 ~ 54.18B tokens
+- 1 days => 86_400 * 1 * 5_600 * 8=3_870_720_000 ~ 3.870B tokens
+- 2 days => 3.87 * 2 ~ 7.74B tokens
+- 7 days => 3.87 * 7 ~ 27.09B tokens
+- 14 days => 3.87 * 7 ~ 54.18B tokens
 
 Анализ динамики обучения 7B модели(https://wandb.ai/ai2-llm/OLMo-2-1124-7B/runs/awwjyi5w)
 - (7 days) 27_447_525_376 (6544 steps), **winogrande_acc**=0.534(6000 step),**hellaswag_len_norm**=0.506,**mmlu_other_var_len_norm**=0.381 
@@ -151,17 +151,17 @@ The Pythia number comes from their [paper](https://arxiv.org/abs/2304.01373). T
 - 4 batches/per/second/gpu
 - max_sequence_length: 4096
 - vocab_size: 100278
-- We trained the 1B model on 128 H100 GPUs, across 16 nodes. The training time itself took just less than 9 days (8 days, ~17 hours) https://github.com/allenai/OLMo/issues/861#issuecomment-3084658291 => 8*24=192h => 192+17=209h => 209*60*60=752_400 sec
-- 128*35_000=4_480_000 toks/sec => 752_400*4_480_000=3_370_752_000_000
+- We trained the 1B model on 128 H100 GPUs, across 16 nodes. The training time itself took just less than 9 days (8 days, ~17 hours) https://github.com/allenai/OLMo/issues/861#issuecomment-3084658291 => 8 * 24=192h => 192+17=209h => 209 * 60 * 60=752_400 sec
+- 128 * 35_000=4_480_000 toks/sec => 752_400 * 4_480_000=3_370_752_000_000
 - числа немного не сходятся с wandb и тем что они говорят на 4*10**12/35_000/128/60/60/24=10.33, если брать скорость их wandb то им бы потребовалось чуть больше 10 дней
 
 Имея всего 1 такой кластер на 8 H100, мы пройдем
-- 1 day => 86_400*1*35_000*8=24_192_000_000 ~ 24.192B tokens
-- 2 day => 24.192*2 ~ 48.384B tokens
-- 7 day => 24.192*7 ~ 169.344B tokens
-- 8 days, ~17 hours => 752_400*35_000*8=210_672_000_000  ~ 211B tokens
-- 14 days => 86_400*14*35_000*8=338_688_000_000 ~ 340B
-- 30 days => 86_400*30*35_000*8=725_760_000_000 ~ 725B tokens
+- 1 day => 86_400 * 1 * 35_000 * 8=24_192_000_000 ~ 24.192B tokens
+- 2 day => 24.192 * 2 ~ 48.384B tokens
+- 7 day => 24.192 * 7 ~ 169.344B tokens
+- 8 days, ~17 hours => 752_400 * 35_000 * 8=210_672_000_000  ~ 211B tokens
+- 14 days => 86_400 * 14 * 35_000 * 8=338_688_000_000 ~ 340B
+- 30 days => 86_400 * 30 * 35_000 * 8=725_760_000_000 ~ 725B tokens
 
 Анализ динамики обучения 1B модели
 - (1 day) 24_383_586_304 tokens (11_627 step),**winogrande_acc**=0.524(12_000 step),**hellaswag_len_norm**=0.446,**mmlu_other_var_len_norm**=0.365
