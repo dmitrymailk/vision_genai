@@ -145,7 +145,7 @@ The Pythia number comes from their [paper](https://arxiv.org/abs/2304.01373). T
 - скорее всего тренировка была на кластере Augusta, у которого максимум 160 node, 8 H100 per node=1280 GPUS
 - model train config https://github.com/allenai/OLMo/blob/main/configs/official-0425/OLMo2-1B-stage1.yaml
 - wandb logs https://api.wandb.ai/links/ai2-llm/izdtrtu0
-- 1B params
+- 1.4B params (больше чем у https://huggingface.co/unsloth/Llama-3.2-1B-Instruct)
 - 4T for pretraining 
 - ~35k tokens/per/second/gpu
 - 4 batches/per/second/gpu
@@ -170,6 +170,10 @@ The Pythia number comes from their [paper](https://arxiv.org/abs/2304.01373). T
 - (14 day) 341_542_174_720 tokens (162860 step),**winogrande_acc**=0.60 (160_000 step),**hellaswag_len_norm**=0.59 ,**mmlu_other_var_len_norm**=0.409, (0.60+0.59+0.409)/3=0.533
 
 Однако в их статье tokens per second намного выше, ~55k(доказательств кроме статьи не нашел, возможно это когда нет никаких эвалюаций)
+#### Дебаг репы для обучения
+
+##### b690ffcb1b998af7437c740d41419eecd081b406
+После попыток запусков изначальной [ссылка на конфиг](https://github.com/dmitrymailk/OLMo/blob/04820704616af5d25cdba4df23aa7b4d9ce86cad/configs/official-0425/OLMo2-1B-stage1.yaml), не получилось запустить обучение 1B модели с контекстом 1024 на batch_size=1 именно для 1B модели, пришлось сократить количество декодер блоков до с n_layers: 16 до 8. И даже так на трейне получается что 23GB памяти задействовано. Это слишком много памяти, надо фиксить. Также есть проблемы с обычным трейно из-за wandb для обычного юзера. [Версия со всеми фиксами](https://github.com/dmitrymailk/OLMo/blob/b690ffcb1b998af7437c740d41419eecd081b406/configs/official-0425/OLMo2-1B-stage1.yaml). 
 
 
 ## 1B-4B text models
