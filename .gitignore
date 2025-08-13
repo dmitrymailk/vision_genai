@@ -169,3 +169,4 @@ train_output
 *.deb
 vpn
 qwen2-1.5b-instruct-english-only
+qwen2-1.5b-instruct-english-only-optimized
