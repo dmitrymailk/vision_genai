@@ -183,9 +183,9 @@ The Pythia number comes from their [paper](https://arxiv.org/abs/2304.01373). T
 2. Затем данное число передают в лосс чтобы на него поделить, если reduction sum https://github.com/huggingface/transformers/blob/v4.55.2/src/transformers/loss/loss_utils.py#L31
 
 В OLMO репозитории 
-1. Выполняют .numel() от тензора батча, что возвращает просто количество элементов, без учета тех что мы игнорим. https://github.com/dmitrymailk/OLMo/blob/main/olmo/train.py#L785
-2. Вычисляет cross entropy с учетом игнорирования индекса https://github.com/dmitrymailk/OLMo/blob/main/olmo/train.py#L749
-3. Но затем делит на полную сумму https://github.com/dmitrymailk/OLMo/blob/main/olmo/train.py#L765
+1. Выполняют .numel() от тензора батча, что возвращает просто количество элементов, без учета тех что мы игнорим. https://github.com/allenai/OLMo/blob/main/olmo/train.py#L785
+2. Вычисляет cross entropy с учетом игнорирования индекса https://github.com/allenai/OLMo/blob/main/olmo/train.py#L749
+3. Но затем делит на полную сумму https://github.com/allenai/OLMo/blob/main/olmo/train.py#L765
 
 Забавный факт что gemini 2.5 pro нашел эту же ошибку. Я скопировал туда весь файл с трейнером и сказал найди критические ошибки. Сначала он сказал что главная ошибка это вычисление глобального лосса только когда мы логгируем в wandb, типа это создает расхождения. Но затем когда я явно написал найди ошибки в лоссе, он написал ровно то что я дебажил пару часов(но он это нашел за 30 сек мда).
 
