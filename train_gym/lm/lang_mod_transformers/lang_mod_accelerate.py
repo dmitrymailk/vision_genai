@@ -1348,7 +1348,7 @@ def main():
     # print(model)
     model.train()
     model.zero_grad()
-    last_log_time = time.time()
+    last_log_time = time.monotonic()
     last_log_total_tokens = 0
     for epoch in range(starting_epoch, training_args.num_train_epochs):
         active_dataloader = train_dataloader
@@ -1358,10 +1358,11 @@ def main():
         for local_step, batch in enumerate(active_dataloader):
             # with accelerator.no_sync(model):
             batch_tokens = batch["input_ids"].shape
+            print(batch_tokens)
             batch_toks = 1
             for item in batch_tokens:
                 batch_toks *= item
-
+            print(batch_toks)
             total_tokens += batch_toks
             outputs = model(**batch)
             loss = outputs.loss
@@ -1387,10 +1388,10 @@ def main():
 
             if (global_step + 1) % training_args.logging_steps == 0:
                 # Вместо этого считаем среднюю скорость с последнего лога
-                current_time = time.time()
+                current_time = time.monotonic()
                 elapsed_time = current_time - last_log_time
                 tokens_processed = total_tokens - last_log_total_tokens
-
+                print(tokens_processed, tokens_processed / training_args.logging_steps)
                 # Вот это и есть ваша реальная средняя пропускная способность
                 effective_tokens_per_second = tokens_processed / elapsed_time
                 accelerator.log(

@@ -911,6 +911,7 @@ python -m lang_mod_transformers.lang_mod_accelerate \
 
 - batch 14 adam8bit [04:23<04:26,  1.44it/s] - ~23263 tok/sec
 - batch 14 adamw 02:15<06:48,  1.59it/s - ~22932 tok/sec
+- batch 5 no optimizations(opt_1) - ~12707 tok/sec
 
 - 100_000_000_000/23263/60/60/24=49.75  дней, если тренить на одной 4090 1B модель
 
