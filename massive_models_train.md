@@ -172,8 +172,20 @@ The Pythia number comes from their [paper](https://arxiv.org/abs/2304.01373). T
 Однако в их статье tokens per second намного выше, ~55k(доказательств кроме статьи не нашел, возможно это когда нет никаких эвалюаций)
 #### Дебаг репы для обучения
 
-##### b690ffcb1b998af7437c740d41419eecd081b406
-После попыток запусков изначальной [ссылка на конфиг](https://github.com/dmitrymailk/OLMo/blob/04820704616af5d25cdba4df23aa7b4d9ce86cad/configs/official-0425/OLMo2-1B-stage1.yaml), не получилось запустить обучение 1B модели с контекстом 1024 на batch_size=1 именно для 1B модели, пришлось сократить количество декодер блоков до с n_layers: 16 до 8. И даже так на трейне получается что 23GB памяти задействовано. Это слишком много памяти, надо фиксить. Также есть проблемы с обычным трейно из-за wandb для обычного юзера. [Версия со всеми фиксами](https://github.com/dmitrymailk/OLMo/blob/b690ffcb1b998af7437c740d41419eecd081b406/configs/official-0425/OLMo2-1B-stage1.yaml). 
+После попыток запусков изначальной [ссылка на конфиг](https://github.com/dmitrymailk/OLMo/blob/04820704616af5d25cdba4df23aa7b4d9ce86cad/configs/official-0425/OLMo2-1B-stage1.yaml), не получилось запустить обучение 1B модели с контекстом 1024 на batch_size=1 именно для 1B модели, пришлось сократить количество декодер блоков до с n_layers: 16 до 8. И даже так на трейне получается что 23GB памяти задействовано. Это слишком много памяти, надо фиксить. Также есть проблемы с обычным трейно из-за wandb для обычного юзера. [Версия со всеми фиксами](https://github.com/dmitrymailk/OLMo/blob/b690ffcb1b998af7437c740d41419eecd081b406/configs/official-0425/OLMo2-1B-stage1.yaml).
+
+Оказалось что их модель вовсе не 1B параметров, а 1.4B(1_484_916_736), как раз столько дают 16 слоёв. После того как поменял n_layers: 16 до 12, получилось (1_216_448_512) это немного меньше чем у unsloth/Llama-3.2-1B-Instruct (1_235_814_400). C таким конфигом обучается с max_sequence_length: 1024
+
+Обучение с FSPD на одной карте RTX4090 дает ~1500 tokens/sec, DDP вызывает OOM с 2 и 4 батчем, память скачет с 17GB до 22GB. Однако обычное обучение с accelerate(там используется ни DDP, ни FSDP по умолчанию. Просто autocast to_fp32 https://github.com/huggingface/accelerate/blob/v1.10.0/src/accelerate/accelerator.py#L1755) дает 12700 tok/sec (со всеми оптимизациями ~23400 tok/sec) я дебажу на компьютере с 1 картой.  Но мне кажется это очень медленным. Хотя я сократил длину до 1024 и батча 4. 
+
+Также я не понял почему лосс вычисляется следующим образом(наверное это ошибка в усреднении).
+1. В hf была такая ошибка, но они ее исправили. Сейчас там сначала считают количество элементов которые не равны -100 https://github.com/huggingface/transformers/blob/v4.55.2/src/transformers/trainer.py#L5377
+2. Затем данное число передают в лосс чтобы на него поделить, если reduction sum https://github.com/huggingface/transformers/blob/v4.55.2/src/transformers/loss/loss_utils.py#L31
+
+В OLMO репозитории 
+1. Выполняют .numel() от тензора батча, что возвращает просто количество элементов, без учета тех что мы игнорим. https://github.com/dmitrymailk/OLMo/blob/main/olmo/train.py#L785
+2. Вычисляет cross entropy с учетом игнорирования индекса https://github.com/dmitrymailk/OLMo/blob/main/olmo/train.py#L749
+3. Но затем делит на полную сумму https://github.com/dmitrymailk/OLMo/blob/main/olmo/train.py#L765
 
 
 ## 1B-4B text models

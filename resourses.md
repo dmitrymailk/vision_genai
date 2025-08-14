@@ -156,6 +156,7 @@
 - [flex-nano-vllm FlexAttention based, minimal vllm-style inference engine for fast Gemma 2 inference.](https://github.com/changjonathanc/flex-nano-vllm)
 - [nGPT (normalized GPT) - Pytorch](https://github.com/lucidrains/nGPT-pytorch)
 - [SimbaV2 Hyperspherical Normalization for Scalable Deep Reinforcement Learning](https://dojeon-ai.github.io/SimbaV2/)
+- [Fast, Modern, and Low Precision PyTorch Optimizers](https://github.com/warner-benjamin/optimi)
 
 
 ### How to train models
@@ -164,7 +165,7 @@
 - [torchtune PyTorch native post-training library](https://github.com/pytorch/torchtune)
 - [torchtitan A PyTorch native platform for training generative AI models](https://github.com/pytorch/torchtitan)
 - [Efficient LLM Pretraining: Packed Sequences and Masked Attention](https://huggingface.co/blog/sirluk/llm-sequence-packing)
-- [Code for Adam-mini: Use Fewer Learning Rates To Gain More](https://github.com/zyushun/Adam-mini)
+- [Code for Adam-mini: Use Fewer Learning Rates To Gain More](https://github.com/zyushun/Adam-mini) (в моём сетапе модель расходится)
 - [Reducing Model Checkpointing Times by Over 10x with PyTorch Distributed Asynchronous Checkpointing](https://pytorch.org/blog/reducing-checkpointing-times/)
 - [SmolLM3: smol, multilingual, long-context reasoner](https://huggingface.co/blog/smollm3)
 - [Everything about the SmolLM and SmolVLM family of models](https://github.com/huggingface/smollm)
@@ -411,3 +412,10 @@
 - [ODEs and SDEs for machine learning](https://rbcborealis.com/research-blogs/odes-and-sdes-for-machine-learning/)
 - [Why Can GPT Learn In-Context? Language Models Implicitly Perform Gradient Descent as Meta-Optimizers](https://aclanthology.org/2023.findings-acl.247.pdf)
 - [NEURAL ODE TRANSFORMERS: ANALYZING INTER-NAL DYNAMICS AND ADAPTIVE FINE-TUNING](https://openreview.net/pdf?id=XnDyddPcBT)
+
+### Robotics Environments
+- https://ai2thor.allenai.org/ithor/
+- https://aihabitat.org/
+- https://ai2thor.allenai.org/robothor/
+- https://github.com/Farama-Foundation/Minigrid
+- 
