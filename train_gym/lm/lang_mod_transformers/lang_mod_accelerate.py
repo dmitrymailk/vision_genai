@@ -89,6 +89,7 @@ from torch.utils.data import (
     RandomSampler,
     SequentialSampler,
 )
+import time
 
 
 from transformers.trainer_utils import (
@@ -134,7 +135,8 @@ from lang_mod_transformers.llama3_2_torchtune_v3 import (
     TransformerDecoder,
     TransformerSelfAttentionLayer,
 )
-from torchtune.modules.optim import OptimizerInBackward
+
+# from torchtune.modules.optim import OptimizerInBackward
 import bitsandbytes as bnb
 
 # from
@@ -214,6 +216,7 @@ def main():
     )
     accelerator_log_kwargs = {
         "log_with": "wandb",
+        # "log_with": "trackio",
         "project_dir": "train_output",
         # Убираем "mixed_precision": "fp8" чтобы избежать конфликта с bf16
     }
@@ -1142,8 +1145,8 @@ def main():
             desc="Running tokenizer on dataset",
         )
 
-    # block_size = data_args.block_size
-    block_size = 1024
+    block_size = data_args.block_size
+    # block_size = 1024
 
     # Main data processing function that will concatenate all texts from our dataset and generate chunks of block_size.
     def group_texts(examples):
@@ -1237,15 +1240,29 @@ def main():
             "weight_decay": 0.0,
         },
     ]
-    optimizer = torch.optim.AdamW(
-        optimizer_grouped_parameters,
-        lr=training_args.learning_rate,
-        fused=True,
-    )
-    # optimizer = bnb.optim.Adam8bit(
+    # optimizer = torch.optim.AdamW(
     #     optimizer_grouped_parameters,
     #     lr=training_args.learning_rate,
+    #     fused=True,
     # )
+    optimizer = bnb.optim.Adam8bit(
+        optimizer_grouped_parameters,
+        lr=training_args.learning_rate,
+    )
+    # Adam mini расходится в отличии от других оптимайзеров
+    # без float8 не пробовал, так как это экономит кучу памяти
+    # from adam_mini import Adam_mini
+
+    # optimizer = Adam_mini(
+    #     named_parameters=model.named_parameters(),
+    #     lr=1e-3,
+    #     betas=(0.9, 0.95),
+    #     weight_decay=0.1,
+    #     dim=model.config.hidden_size,
+    #     n_heads=model.config.num_attention_heads,
+    #     n_kv_heads=model.config.num_key_value_heads,
+    # )
+    # optimizer.output_names.add("lm_head")
     # optimizer = OptimizerInBackward(model.parameters(), torch.optim.AdamW, lr=training_args.learning_rate)
     # optimizer = OptimizerInBackward(model.parameters(), bnb.optim.Adam8bit, lr=training_args.learning_rate)
 
@@ -1327,9 +1344,12 @@ def main():
     # exit()
     global_step = 0
     total_loss = 0
+    total_tokens = 0
     # print(model)
     model.train()
     model.zero_grad()
+    last_log_time = time.time()
+    last_log_total_tokens = 0
     for epoch in range(starting_epoch, training_args.num_train_epochs):
         active_dataloader = train_dataloader
         active_dataloader_len = len(active_dataloader)
@@ -1337,6 +1357,12 @@ def main():
         active_dataloader.set_epoch(epoch)
         for local_step, batch in enumerate(active_dataloader):
             # with accelerator.no_sync(model):
+            batch_tokens = batch["input_ids"].shape
+            batch_toks = 1
+            for item in batch_tokens:
+                batch_toks *= item
+
+            total_tokens += batch_toks
             outputs = model(**batch)
             loss = outputs.loss
 
@@ -1354,22 +1380,33 @@ def main():
             optimizer.step()
             lr_scheduler.step()
             optimizer.zero_grad()
-
+            accelerator.gradient_state._set_sync_gradients(True)
             if accelerator.sync_gradients:
                 progress_bar.update(1)
                 completed_steps += 1
 
             if (global_step + 1) % training_args.logging_steps == 0:
+                # Вместо этого считаем среднюю скорость с последнего лога
+                current_time = time.time()
+                elapsed_time = current_time - last_log_time
+                tokens_processed = total_tokens - last_log_total_tokens
+
+                # Вот это и есть ваша реальная средняя пропускная способность
+                effective_tokens_per_second = tokens_processed / elapsed_time
                 accelerator.log(
                     {
                         "train/loss": total_loss / training_args.logging_steps,
                         "train/learning_rate": lr_scheduler.get_last_lr()[0],
                         "train/grad_norm": _grad_norm,
+                        "throughput/device/tokens_per_second": effective_tokens_per_second,
+                        "throughput/total_tokens": total_tokens,
                     },
                     step=log_steps,
                 )
                 log_steps += 1
                 total_loss -= total_loss
+                last_log_time = current_time
+                last_log_total_tokens = total_tokens
 
             global_step += 1
             # if global_step > 30:

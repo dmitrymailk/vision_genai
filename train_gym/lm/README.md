@@ -882,3 +882,35 @@ python -m lang_mod_transformers.lang_mod_accelerate \
 - при per_device_train_batch_size 8 - OOM
 
 
+#### accelerate+float8+torch.compile+unsloth cut cross entropy
+```bash
+export http_proxy="127.0.0.1:2334"
+export https_proxy="127.0.0.1:2334"
+# python -m lang_mod_transformers.lang_mod_accelerate_simple \
+python -m lang_mod_transformers.lang_mod_accelerate \
+    --model_name_or_path unsloth/Llama-3.2-1B-Instruct \
+    --dataset_name wikitext \
+    --dataset_config_name wikitext-2-raw-v1 \
+    --per_device_train_batch_size 16 \
+    --per_device_eval_batch_size 16 \
+    --do_train \
+    --do_eval \
+    --output_dir ./train_output \
+    --report_to wandb \
+    --block_size 1024 \
+    --logging_steps 8 \
+    --attn_implementation flash_attention_2 \
+    --optimization_level opt_28 \
+    --bf16 \
+    --remove_unused_columns False \
+    --gradient_checkpointing False \
+    --num_train_epochs=5 \
+    --save_steps 5000000 \
+    --optim adamw_8bit
+```
+
+- batch 14 adam8bit [04:23<04:26,  1.44it/s] - ~23263 tok/sec
+- batch 14 adamw 02:15<06:48,  1.59it/s - ~22932 tok/sec
+
+- 100_000_000_000/23263/60/60/24=49.75  дней, если тренить на одной 4090 1B модель
+
