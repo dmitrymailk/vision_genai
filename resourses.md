@@ -418,4 +418,4 @@
 - https://aihabitat.org/
 - https://ai2thor.allenai.org/robothor/
 - https://github.com/Farama-Foundation/Minigrid
-- 
+- https://simpler-env.github.io/
