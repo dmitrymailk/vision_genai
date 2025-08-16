@@ -377,6 +377,9 @@
 - [🏃SANA-Sprint: One-Step Diffusion with Continuous-Time Consistency Distillation](https://github.com/NVlabs/Sana/blob/main/asset/docs/sana_sprint.md)
 - [Tackling the Generative Learning Trilemma with Denoising Diffusion GANs](https://github.com/NVlabs/denoising-diffusion-gan)
 - [FastVideo is a unified post-training and inference framework for accelerated video generation.](https://github.com/hao-ai-lab/FastVideo)
+- [\[CVPR 2025\] "DiC: Rethinking Conv3x3 Designs in Diffusion Models", a performant & speedy Conv3x3 diffusion model.](https://github.com/YuchuanTian/DiC)
+- [This directory contains 2 scripts that showcase how to fine-tune any model supported by the AutoModelForImageClassification API (such as ViT, ConvNeXT, ResNet, Swin Transformer](https://github.com/huggingface/transformers/tree/main/examples/pytorch/image-classification)
+- 
 
 ### Torch compile benchmarks
 - https://github.com/pytorch/torchtitan/blob/main/benchmarks/llama3_h100_202412_torchtitan.md#user-content-fn-2-cae6e35c41ee7ec0bdbbad5503a98dd1
