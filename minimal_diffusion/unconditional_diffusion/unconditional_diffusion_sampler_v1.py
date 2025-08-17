@@ -77,7 +77,7 @@ class Args:
     mixed_precision: str = "bf16"
     logger: str = "wandb"
     ddpm_num_inference_steps: int = 1000
-    project_name: str = "train_unconditional"
+    project_name: str = "unconditional_diffusion_sampler"
     model_config_name_or_path = None
 
 
@@ -233,7 +233,7 @@ def main(args: Args):
     # We need to initialize the trackers we use, and also store our configuration.
     # The trackers initializes automatically on the main process.
     if accelerator.is_main_process:
-        run = os.path.split(__file__)[-1].split(".")[0]
+        run = args.project_name
         accelerator.init_trackers(run)
 
     total_batch_size = (
