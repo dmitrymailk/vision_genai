@@ -240,6 +240,9 @@
 - [ML Performance Reading Group Session 2: Flash Attention](https://youtu.be/Lys0TpsLIEc?si=wNoLKsKi8Kib_PXb)
 - [nanoMoE: Mixture-of-Experts (MoE) LLMs from Scratch in PyTorch](https://cameronrwolfe.substack.com/p/nano-moe)
 - [GPUs Go Brrr](https://hazyresearch.stanford.edu/blog/2024-05-12-tk)
+- [Step-by-Step Diffusion: An Elementary Tutorial](https://arxiv.org/pdf/2406.08929)
+- [Diffusion models from scratch, from a new theoretical perspective](https://www.chenyang.co/diffusion.html)
+- [An Introduction to Flow Matching and Diffusion Models](https://diffusion.csail.mit.edu/docs/lecture-notes.pdf)
 
 
 ### Triton 
