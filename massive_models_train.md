@@ -1,27 +1,6 @@
 # Massive models train
 
-## [SmolLM3](https://hf.co/blog/smollm3)
-- 3B params
-- 384 H100 GPUs for 24 days
-- MFU 29%
-- 14k tokens/sec/gpu
-- seq len 4096 pretraining
-- batch 2.36 M
-- grad accum 1
-- micro batch size 3
-- precision bf16
-- tensor parallel 2
-- data perallel 192
-- 11.2T tokens total
-- 8T tokens pretrain
-- 2T tokens Mid-training
-- 1.1T - rl finetune
-- 4k to 64k with RoPE in Mid-training 
-- https://github.com/huggingface/smollm
 
-- сначала делали претрен на 4096 токенах, затем растягивали 50B tokens на 32к, потом еще 50B на 64к, yarn добили до 128к.
-- нет выложенных графиков, нельзя предсказать динамику обучения.
-- нет информации о экспериментах на 1B моделях(странно)
 
 ## [Introducing the First AMD 1B Language Models: AMD OLMo](https://www.amd.com/en/developer/resources/technical-articles/introducing-the-first-amd-1b-language-model.html)
 - 1.2B params
@@ -189,6 +168,36 @@ The Pythia number comes from their [paper](https://arxiv.org/abs/2304.01373). T
 
 Забавный факт что gemini 2.5 pro нашел эту же ошибку. Я скопировал туда весь файл с трейнером и сказал найди критические ошибки. Сначала он сказал что главная ошибка это вычисление глобального лосса только когда мы логгируем в wandb, типа это создает расхождения. Но затем когда я явно написал найди ошибки в лоссе, он написал ровно то что я дебажил пару часов(но он это нашел за 30 сек мда, Qwen3-235B-A22B-2507 тоже со второй попытки с размышлением).
 
+## [SmolLM3](https://hf.co/blog/smollm3)
+- https://github.com/huggingface/smollm/tree/main/text
+- wandb train logs https://wandb.ai/huggingface/SmolLM3-training-logs?nw=nwusereliebak
+- 3B params
+- 384 H100 GPUs for 24 days
+- MFU 29%
+- 12-13k tokens/sec/gpu
+- seq len 4096 pretraining
+- batch 2.36 M
+- grad accum 1
+- micro batch size 3
+- precision bf16
+- tensor parallel 2
+- data perallel 192
+- 11.2T tokens total
+- 8T tokens pretrain
+- 2T tokens Mid-training
+- 1.1T - rl finetune
+- 4k to 64k with RoPE in Mid-training 
+
+- сначала делали претрен на 4096 токенах, затем растягивали 50B tokens на 32к, потом еще 50B на 64к, yarn добили до 128к.
+- нет выложенных графиков, нельзя предсказать динамику обучения.
+- нет информации о экспериментах на 1B моделях(странно)
+
+#### Дебаг репы для обучения
+Так как версии либ не зафиксированы, нужно время чтобы угадать какая комбинация библиотек позволит репе заработать.
+
+Конфиги для локального обучения tiny_llama не работают, несколько PR request которые фиксят это лежат с прошлого года. Ничего не фиксится и не работает. Конфиги для обучения smollm3 бесполезны на локальном железе, так как даже датасеты которые они выложили запривачены и к ним доступа. Нужно токенизировать и создавать свои датасеты для обучения. Также они намешали в код работу с s3 бд, но мне не понятно как работать с s3 датасетами и как они туда попадают.
+
+Тоже самое происходит и с конфигами smollm2, данные не открыли, как их готовить тоже не предоставили [issues SmolLM2 Pretrain Dataset #35](https://github.com/huggingface/smollm/issues/35)
 
 ## 1B-4B text models
 - https://github.com/deepseek-ai/Janus
