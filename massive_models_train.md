@@ -1,7 +1,5 @@
 # Massive models train
 
-
-
 ## [Introducing the First AMD 1B Language Models: AMD OLMo](https://www.amd.com/en/developer/resources/technical-articles/introducing-the-first-amd-1b-language-model.html)
 - 1.2B params
 - Context length 2048, vocab 50280
@@ -197,7 +195,13 @@ The Pythia number comes from their [paper](https://arxiv.org/abs/2304.01373). T
 
 Конфиги для локального обучения tiny_llama не работают, несколько PR request которые фиксят это лежат с прошлого года. Ничего не фиксится и не работает. Конфиги для обучения smollm3 бесполезны на локальном железе, так как даже датасеты которые они выложили запривачены и к ним доступа. Нужно токенизировать и создавать свои датасеты для обучения. Также они намешали в код работу с s3 бд, но мне не понятно как работать с s3 датасетами и как они туда попадают.
 
+- Используют свои модели, свои слои для трейна. Нельзя просто импортировать модель из HF и начать юзать ее, всё кастомно.
+
 Тоже самое происходит и с конфигами smollm2, данные не открыли, как их готовить тоже не предоставили [issues SmolLM2 Pretrain Dataset #35](https://github.com/huggingface/smollm/issues/35)
+
+TODO разобрать smollm1, он более открытый
+
+TODO ModernBERT, [Lingua](https://github.com/facebookresearch/lingua)
 
 ## 1B-4B text models
 - https://github.com/deepseek-ai/Janus
