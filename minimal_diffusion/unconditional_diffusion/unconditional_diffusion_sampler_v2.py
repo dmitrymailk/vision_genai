@@ -390,15 +390,6 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         t = timestep  # tensor(999)
 
         prev_t = self.previous_timestep(t)  # prev_t=tensor(998)
-        # self.variance_type='fixed_small'
-        # if model_output.shape[1] == sample.shape[1] * 2 and self.variance_type in [
-        #     "learned",
-        #     "learned_range",
-        # ]:
-        #     model_output, predicted_variance = torch.split(
-        #         model_output, sample.shape[1], dim=1
-        #     )
-        # else:
         predicted_variance = None
 
         # 1. compute alphas, betas

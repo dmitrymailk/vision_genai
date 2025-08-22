@@ -404,6 +404,14 @@
 - [Higgs Audio V2: Redefining Expressiveness in Audio Generation](https://github.com/boson-ai/higgs-audio)
 - [State-of-the-art TTS model under 25MB](https://github.com/KittenML/KittenTTS)
 
+### RL/NLP
+- [ART is an open-source RL framework that improves agent reliability by allowing LLMs to learn from experience.](https://github.com/openpipe/art)
+- [Understanding R1-Zero-Like Training: A Critical Perspective](https://github.com/sail-sg/understand-r1-zero)
+- [🌾 OAT: A research-friendly framework for LLM online alignment, including reinforcement learning, preference learning, etc](https://github.com/sail-sg/oat)
+- [TRL supports the GRPO Trainer for training language models](https://huggingface.co/docs/trl/main/en/grpo_trainer#vision-language-model-vlm-training)
+- [verl: Volcano Engine Reinforcement Learning for LLMs](https://github.com/volcengine/verl)
+- [Multimodal Open R1](https://github.com/EvolvingLMMs-Lab/open-r1-multimodal)
+
 ### Diffusion language modeling
 - https://github.com/ML-GSAI/LLaDA
 - https://github.com/DreamLM/Dream
