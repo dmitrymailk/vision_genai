@@ -1394,6 +1394,7 @@ def main():
                 print(tokens_processed, tokens_processed / training_args.logging_steps)
                 # Вот это и есть ваша реальная средняя пропускная способность
                 effective_tokens_per_second = tokens_processed / elapsed_time
+                print("effective_tokens_per_second", effective_tokens_per_second)
                 accelerator.log(
                     {
                         "train/loss": total_loss / training_args.logging_steps,
