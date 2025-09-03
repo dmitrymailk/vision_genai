@@ -419,6 +419,7 @@
 - [TRL supports the GRPO Trainer for training language models](https://huggingface.co/docs/trl/main/en/grpo_trainer#vision-language-model-vlm-training)
 - [verl: Volcano Engine Reinforcement Learning for LLMs](https://github.com/volcengine/verl)
 - [Multimodal Open R1](https://github.com/EvolvingLMMs-Lab/open-r1-multimodal)
+- [GTPO: Trajectory-Based Policy Optimization in Large Language Models](https://github.com/winstonsmith1897/GTPO)
 
 ### Diffusion language modeling
 - https://github.com/ML-GSAI/LLaDA
