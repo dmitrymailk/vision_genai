@@ -195,6 +195,10 @@
 - [COAT (Compressing Optimizer states and Activation for Memory-Efficient FP8 Training)](https://github.com/NVlabs/COAT)
 - [ByteCheckpoint: A Unified Checkpointing System for Large Foundation Model Development](https://github.com/ByteDance-Seed/ByteCheckpoint)
 - [prime is a framework for efficient, globally distributed training of AI models over the internet](https://github.com/PrimeIntellect-ai/prime)
+- [Ultra-FineWeb is a large-scale, high-quality, and efficiently-filtered dataset](https://huggingface.co/datasets/openbmb/Ultra-FineWeb)
+- [MiniCPM: Unveiling the Potential of End-side Large Language Models](https://openbmb.vercel.app/minicpm-en)
+- [MiniCPM: Unveiling the Potential of Small Language Models with Scalable Training Strategies](https://arxiv.org/pdf/2404.06395)
+
 
 ### Trainer repos
 - [VeOmni: Scaling Any Modality Model Training with Model-Centric Distributed Recipe Zoo](https://github.com/ByteDance-Seed/VeOmni)
@@ -202,11 +206,15 @@
 - [example configurations for training models using ND Parallelism in Axolotl](https://github.com/axolotl-ai-cloud/axolotl/tree/main/examples/distributed-parallel)
 - [ModernBERT, our experiments to bring BERT into modernity via both architecture changes and scaling.](https://github.com/AnswerDotAI/ModernBERT)
 - [The TinyLlama project aims to pretrain a 1.1B Llama model on 3 trillion tokens](https://github.com/jzhang38/TinyLlama)
-- [SMOLLM3 Pretraining](https://github.com/huggingface/smollm/tree/main/text/pretraining)
-- [Everything about the SmolLM and SmolVLM family of models](https://github.com/huggingface/smollm/tree/main)
-- [Nanotron is a library for pretraining transformer models.](https://github.com/huggingface/nanotron/)
+- [(ничего не работает) SMOLLM3 Pretraining](https://github.com/huggingface/smollm/tree/main/text/pretraining)
+- [(ничего не работает) Nanotron is a library for pretraining transformer models.](https://github.com/huggingface/nanotron/)
 - [MAP-NEO: A fully open-sourced Large Language Model](https://github.com/multimodal-art-projection/MAP-NEO)
 - [savanna Pretraining infrastructure for research and application of convolutional multi-hybrid models (StripedHyena 2)](https://github.com/Zymrael/savanna)
+- [A highly capable 2.4B lightweight LLM using only 1T pre-training data with all details](https://github.com/RUC-GSAI/YuLan-Mini)
+- [veScale A PyTorch Native LLM Training Framework](https://github.com/volcengine/veScale)
+- [Slamming: Training a Speech Language Model on One GPU in a Day](https://github.com/slp-rl/slamkit)
+- [Sheared LLaMA: Accelerating Language Model Pre-training via Structured Pruning](https://github.com/princeton-nlp/LLM-Shearing)
+- [MobileLLM Optimizing Sub-billion Parameter Language Models for On-Device Use Cases. In ICML 2024](https://github.com/facebookresearch/MobileLLM)
 
 ### courses 
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
@@ -382,7 +390,7 @@
 - [FastVideo is a unified post-training and inference framework for accelerated video generation.](https://github.com/hao-ai-lab/FastVideo)
 - [\[CVPR 2025\] "DiC: Rethinking Conv3x3 Designs in Diffusion Models", a performant & speedy Conv3x3 diffusion model.](https://github.com/YuchuanTian/DiC)
 - [This directory contains 2 scripts that showcase how to fine-tune any model supported by the AutoModelForImageClassification API (such as ViT, ConvNeXT, ResNet, Swin Transformer](https://github.com/huggingface/transformers/tree/main/examples/pytorch/image-classification)
-- 
+- [RectifiedFlow is a simple, unified PyTorch codebase for diffusion and flow models](https://github.com/lqiang67/rectified-flow)
 
 ### Torch compile benchmarks
 - https://github.com/pytorch/torchtitan/blob/main/benchmarks/llama3_h100_202412_torchtitan.md#user-content-fn-2-cae6e35c41ee7ec0bdbbad5503a98dd1
