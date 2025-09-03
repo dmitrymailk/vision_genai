@@ -1,5 +1,6 @@
 export http_proxy="127.0.0.1:2334"
 export https_proxy="127.0.0.1:2334"
+export CUDA_VISIBLE_DEVICES=0
 # python -m lang_mod_transformers.lang_mod_accelerate_simple \
 python -m lang_mod_transformers.lang_mod_accelerate \
     --model_name_or_path unsloth/Llama-3.2-1B-Instruct \

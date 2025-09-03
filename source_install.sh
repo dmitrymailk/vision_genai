@@ -5,3 +5,5 @@ pip install -r requirements.txt
 # cd torchtune && pip install -e . && cd ..
 
 pip install flash-attn==2.8.0.post2 --no-build-isolation
+
+pip install git+https://github.com/dmitrymailk/cut-cross-entropy.git
