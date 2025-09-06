@@ -176,7 +176,6 @@
 - [Modeling, training, eval, and inference code for OLMo](https://github.com/allenai/OLMo)
 - [OLMo 2: The best fully open language model to date](https://allenai.org/blog/olmo2)
 - [OLMoE: An open, small, and state-of-the-art mixture-of-experts model](https://allenai.org/blog/olmoe-an-open-small-and-state-of-the-art-mixture-of-experts-model-c258432d0514)
-- [DataComp-LM (DCLM) is a comprehensive framework designed for building and training large language models (LLMs) with diverse datasets.](https://github.com/mlfoundations/dclm)
 - [Open Language Model Evaluation System (OLMES)](https://github.com/allenai/olmes)
 - [Training Open Instruction-Following Language Models olmo](https://github.com/allenai/open-instruct)
 - [Grouped Relative Policy Optimization (GRPO) grpo fast](https://allenai.github.io/open-instruct/algorithms/grpo/)
@@ -184,8 +183,6 @@
 - [decontamination Scripts for computing overlap between train and test sets](https://github.com/allenai/open-instruct/tree/main/decontamination)
 - [Demystifying NCCL: An In-depth Analysis of GPU Communication Protocols and Algorithms](https://arxiv.org/pdf/2507.04786v2)
 - [OLMo 2 32B: First fully open model to outperform GPT 3.5 and GPT 4o mini](https://allenai.org/blog/olmo2-32b)
-- [Dolma is an open dataset of 3 trillion tokens from a diverse mix of web content, academic publications, code, books, and encyclopedic materials.](https://github.com/allenai/dolma)
-- [DoReMi: Optimizing Data Mixtures Speeds Up Language Model Pretraining](https://arxiv.org/pdf/2305.10429)
 - [SmolLM3: smol, multilingual, long-context reasoner](https://huggingface.co/blog/smollm3)
 - [2 OLMo 2 Furious](https://arxiv.org/pdf/2501.00656)
 - [LLM360: Towards Fully Transparent Open-Source LLMs](https://www.llm360.ai/reports/LLM360-Towards-Fully-Transparent-Open-Source-LLMs.pdf)
@@ -195,10 +192,19 @@
 - [COAT (Compressing Optimizer states and Activation for Memory-Efficient FP8 Training)](https://github.com/NVlabs/COAT)
 - [ByteCheckpoint: A Unified Checkpointing System for Large Foundation Model Development](https://github.com/ByteDance-Seed/ByteCheckpoint)
 - [prime is a framework for efficient, globally distributed training of AI models over the internet](https://github.com/PrimeIntellect-ai/prime)
-- [Ultra-FineWeb is a large-scale, high-quality, and efficiently-filtered dataset](https://huggingface.co/datasets/openbmb/Ultra-FineWeb)
 - [MiniCPM: Unveiling the Potential of End-side Large Language Models](https://openbmb.vercel.app/minicpm-en)
 - [MiniCPM: Unveiling the Potential of Small Language Models with Scalable Training Strategies](https://arxiv.org/pdf/2404.06395)
 
+### How To Cook Data
+- [DataComp-LM (DCLM) is a comprehensive framework designed for building and training large language models (LLMs) with diverse datasets.](https://github.com/mlfoundations/dclm)
+- [DoReMi: Optimizing Data Mixtures Speeds Up Language Model Pretraining](https://arxiv.org/pdf/2305.10429)
+- [Pretrain TinyLlama data](https://github.com/jzhang38/TinyLlama/blob/main/PRETRAIN.md)
+- [Ultra-FineWeb is a large-scale, high-quality, and efficiently-filtered dataset](https://huggingface.co/datasets/openbmb/Ultra-FineWeb)
+- [mosaicml streaming We built StreamingDataset to make training on large datasets from cloud storage as fast, cheap, and scalable as possible](https://github.com/mosaicml/streaming)
+- [Dolma is an open dataset of 3 trillion tokens from a diverse mix of web content, academic publications, code, books, and encyclopedic materials.](https://github.com/allenai/dolma)
+- [This repository contains the code to prepare the data for the Amber 7B language model](https://github.com/LLM360/amber-data-prep)
+- [YuLan-Mini Pre-Training Resources](https://github.com/RUC-GSAI/YuLan-Mini/tree/main/pretrain)
+- 
 
 ### Trainer repos
 - [VeOmni: Scaling Any Modality Model Training with Model-Centric Distributed Recipe Zoo](https://github.com/ByteDance-Seed/VeOmni)
@@ -210,7 +216,7 @@
 - [(ничего не работает) Nanotron is a library for pretraining transformer models.](https://github.com/huggingface/nanotron/)
 - [MAP-NEO: A fully open-sourced Large Language Model](https://github.com/multimodal-art-projection/MAP-NEO)
 - [savanna Pretraining infrastructure for research and application of convolutional multi-hybrid models (StripedHyena 2)](https://github.com/Zymrael/savanna)
-- [A highly capable 2.4B lightweight LLM using only 1T pre-training data with all details](https://github.com/RUC-GSAI/YuLan-Mini)
+- [YuLan-Mini A highly capable 2.4B lightweight LLM using only 1T pre-training data with all details](https://github.com/RUC-GSAI/YuLan-Mini)
 - [veScale A PyTorch Native LLM Training Framework](https://github.com/volcengine/veScale)
 - [Slamming: Training a Speech Language Model on One GPU in a Day](https://github.com/slp-rl/slamkit)
 - [Sheared LLaMA: Accelerating Language Model Pre-training via Structured Pruning](https://github.com/princeton-nlp/LLM-Shearing)
