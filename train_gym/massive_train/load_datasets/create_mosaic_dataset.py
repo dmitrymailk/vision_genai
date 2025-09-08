@@ -1,6 +1,9 @@
 """
-
+украдено отсюда
+- https://docs.mosaicml.com/projects/streaming/en/latest/preparing_datasets/parallel_dataset_conversion.html
+- https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/pile.py
 """
+
 import os
 import shutil
 import numpy as np
@@ -15,10 +18,12 @@ from more_itertools import chunked
 # --- 1. КОНФИГУРАЦИЯ ---
 
 # Директория с токенизированными .npy файлами
-INPUT_DIR = "fineweb_edu_numpy_parallel"
+# INPUT_DIR = "fineweb_edu_numpy_parallel"
+# 02:15 на моей машине
+INPUT_DIR = "fineweb_edu_10b_numpy"
 # Финальная директория для MDS датасета
 # OUTPUT_DIR = "fineweb_edu_mds_chunked_padded"
-OUTPUT_DIR = os.path.abspath("fineweb_edu_mds_chunked")
+OUTPUT_DIR = os.path.abspath("fineweb_edu_10b_numpy_mds_chunked")
 
 # Модель токенизатора для получения EOS токена
 TOKENIZER_NAME = "unsloth/Llama-3.2-1B-Instruct"
@@ -94,14 +99,6 @@ def process_and_write_part(args):
 if __name__ == "__main__":
     multiprocessing.set_start_method("fork", force=True)
 
-    if not os.path.isdir(INPUT_DIR):
-        raise FileNotFoundError(f"Входная директория не найдена: '{INPUT_DIR}'")
-
-    if os.path.exists(OUTPUT_DIR):
-        print(f"Удаление существующей директории: {OUTPUT_DIR}")
-        shutil.rmtree(OUTPUT_DIR)
-
-    # TEMP_DIR будет создан внутри OUTPUT_DIR
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # Подготовка задач
@@ -119,7 +116,6 @@ if __name__ == "__main__":
 
     tasks = []
     for i, chunk in enumerate(file_chunks):
-        # TEMP_DIR уже абсолютный, поэтому part_dir тоже будет абсолютным
         part_dir = os.path.join(OUTPUT_DIR, f"part_{i}")
         tasks.append((i, chunk, part_dir, TOKENIZER_NAME, CHUNK_SIZE, TOKEN_DTYPE))
 

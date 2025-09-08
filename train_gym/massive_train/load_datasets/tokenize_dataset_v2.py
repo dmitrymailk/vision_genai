@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 # Параметры датасета
 DATASET_NAME = "HuggingFaceFW/fineweb-edu"
+# 11:54 my server 4090
 DATASET_CONFIG = "sample-10BT"
 SPLIT = "train"
 CACHE_DIR = "fineweb_edu_10b"
@@ -17,11 +18,11 @@ CACHE_DIR = "fineweb_edu_10b"
 TOKENIZER_NAME = "unsloth/Llama-3.2-1B-Instruct"
 
 # Параметры обработки
-NUM_PROC = 18  # Количество параллельных процессов
+NUM_PROC = 17  # Количество параллельных процессов
 TOKENIZATION_BATCH = 10_000  # Размер батча для токенизации
 
 # Директория для сохранения результатов
-OUTPUT_DIR = "fineweb_edu_numpy_parallel"
+OUTPUT_DIR = "fineweb_edu_10b_numpy"
 
 
 # --- 2. ФУНКЦИЯ-ВОРКЕР ДЛЯ ПАРАЛЛЕЛЬНОЙ ОБРАБОТКИ ---
@@ -131,7 +132,7 @@ def process_shard(args):
 
 if __name__ == "__main__":
     # Метод 'fork' часто лучше работает с библиотеками типа transformers/tokenizers
-    multiprocessing.set_start_method("fork", force=True)
+    # multiprocessing.set_start_method("fork", force=True)
 
     # --- 3. ПОДГОТОВКА ДАННЫХ ---
     print("Загрузка датасета...")
@@ -142,9 +143,12 @@ if __name__ == "__main__":
         cache_dir=CACHE_DIR,
         num_proc=NUM_PROC,
     )
+    dataset = dataset.remove_columns(
+        column_names=[item for item in dataset.features.keys() if item != "text"]
+    )
 
-    # Используем 1/6 часть датасета, как в вашем примере
-    dataset = dataset.select(range(len(dataset) // 6))
+    # Используем 1/6 часть датасета
+    # dataset = dataset.select(range(len(dataset) // 6))
     print(f"Размер датасета для обработки: {len(dataset)} документов")
 
     # Создаем выходную директорию
