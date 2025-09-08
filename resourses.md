@@ -401,6 +401,7 @@
 - [\[CVPR 2025\] "DiC: Rethinking Conv3x3 Designs in Diffusion Models", a performant & speedy Conv3x3 diffusion model.](https://github.com/YuchuanTian/DiC)
 - [This directory contains 2 scripts that showcase how to fine-tune any model supported by the AutoModelForImageClassification API (such as ViT, ConvNeXT, ResNet, Swin Transformer](https://github.com/huggingface/transformers/tree/main/examples/pytorch/image-classification)
 - [RectifiedFlow is a simple, unified PyTorch codebase for diffusion and flow models](https://github.com/lqiang67/rectified-flow)
+- [Object Detection from 9 FPS to 650 FPS in 6 Steps](https://paulbridger.com/posts/video-analytics-pipeline-tuning/)
 
 ### Torch compile benchmarks
 - https://github.com/pytorch/torchtitan/blob/main/benchmarks/llama3_h100_202412_torchtitan.md#user-content-fn-2-cae6e35c41ee7ec0bdbbad5503a98dd1

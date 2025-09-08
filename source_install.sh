@@ -6,4 +6,5 @@ pip install -r requirements.txt
 
 pip install flash-attn==2.8.0.post2 --no-build-isolation
 
-pip install git+https://github.com/dmitrymailk/cut-cross-entropy.git
+git clone https://github.com/dmitrymailk/cut-cross-entropy.git
+cd cut-cross-entropy && pip install -e .

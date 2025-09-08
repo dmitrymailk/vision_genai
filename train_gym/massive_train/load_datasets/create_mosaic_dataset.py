@@ -21,19 +21,22 @@ from more_itertools import chunked
 # Директория с токенизированными .npy файлами
 # INPUT_DIR = "fineweb_edu_numpy_parallel"
 # 02:15 на моей машине
-# INPUT_DIR = "fineweb_edu_10b_numpy"
-INPUT_DIR = "wikitext_2_raw_v1_numpy"
+INPUT_DIR = "fineweb_edu_10b_numpy"
+# INPUT_DIR = "wikitext_2_raw_v1_numpy"
 # Финальная директория для MDS датасета
 # OUTPUT_DIR = "fineweb_edu_mds_chunked_padded"
 # OUTPUT_DIR = os.path.abspath("fineweb_edu_10b_numpy_mds_chunked")
-OUTPUT_DIR = os.path.abspath("wikitext_2_raw_v1_numpy_mds_chunked")
+OUTPUT_DIR = os.path.abspath("fineweb_edu_10b_numpy_mds_chunked_1024")
+# OUTPUT_DIR = os.path.abspath("wikitext_2_raw_v1_numpy_mds_chunked")
 
 # Модель токенизатора для получения EOS токена
 TOKENIZER_NAME = "unsloth/Llama-3.2-1B-Instruct"
 
 # Параметры обработки
-CHUNK_SIZE = 2048
+# CHUNK_SIZE = 2048
+CHUNK_SIZE = 1024
 TOKEN_DTYPE = np.uint32  # Используйте uint16, если vocab_size < 65535
+# TOKEN_DTYPE = np.int64  # Используйте uint16, если vocab_size < 65535
 NUM_PROC = 18  # Используем все доступные ядра
 
 # --- 2. ФУНКЦИЯ-ВОРКЕР ДЛЯ ПАРАЛЛЕЛЬНОЙ ЗАПИСИ ---
@@ -52,13 +55,17 @@ def process_and_write_part(args):
     pad_token_id = tokenizer.eos_token_id
 
     # Настройки MDSWriter с упором на скорость
-    columns = {"tokens": "ndarray"}
+    columns = {
+        "input_ids": "ndarray",
+        "attention_mask": "ndarray",
+        "labels": "ndarray",
+    }
     compression = "zstd:6"
     hashes = ["xxh64"]
     size_limit = 1 << 28  # 256MB на шард
 
     # Используем предварительно выделенный NumPy массив для буфера
-    buffer = np.empty(chunk_size, dtype=dtype)
+    buffer = np.empty(chunk_size, dtype=np.int64)
     buffer_idx = 0
     samples_written = 0
 
@@ -76,21 +83,34 @@ def process_and_write_part(args):
                 buffer[buffer_idx] = token
                 buffer_idx += 1
                 if buffer_idx == chunk_size:
-                    sample = {"tokens": buffer}
+                    sample = {
+                        "input_ids": buffer,
+                        "attention_mask": np.ones_like(buffer),
+                        "labels": buffer,
+                    }
                     out.write(sample)
                     buffer_idx = 0
                     samples_written += 1
 
         # --- НОВАЯ ЛОГИКА: ОБРАБОТКА ПОСЛЕДНЕГО НЕПОЛНОГО ЧАНКА ---
         if buffer_idx > 0:
-            # print(
-            #     f"Процесс {process_idx}: найден остаток из {buffer_idx} токенов. Дополняем до {chunk_size}..."
-            # )
             # Заполняем оставшуюся часть буфера EOS токенами
-            buffer[buffer_idx:] = pad_token_id
+            # buffer[buffer_idx:] = pad_token_id
+            # left padding
+            buffer[chunk_size - buffer_idx :] = buffer[:buffer_idx]
+            buffer[: buffer_idx - 1] = pad_token_id
+            labels = buffer.copy()
+            mask = labels == pad_token_id
+            labels[mask] = -100
+            attention_mask = np.ones_like(labels)
+            attention_mask[mask] = 0
 
             # Записываем последний, теперь уже полный, сэмпл
-            sample = {"tokens": buffer}
+            sample = {
+                "input_ids": buffer,
+                "attention_mask": attention_mask,
+                "labels": labels,
+            }
             out.write(sample)
             samples_written += 1
 
@@ -100,7 +120,7 @@ def process_and_write_part(args):
 # --- 3. ОСНОВНОЙ СКРИПТ ---
 
 if __name__ == "__main__":
-    multiprocessing.set_start_method("fork", force=True)
+    # multiprocessing.set_start_method("fork", force=True)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -123,6 +143,7 @@ if __name__ == "__main__":
         tasks.append((i, chunk, part_dir, TOKENIZER_NAME, CHUNK_SIZE, TOKEN_DTYPE))
 
     # Параллельная запись
+    # 2 min 40 sec, 10B fineweb_edu
     print(f"Запуск {len(tasks)} параллельных процессов для записи MDS частей...")
     total_samples = 0
     with multiprocessing.Pool(processes=NUM_PROC) as pool:
@@ -156,7 +177,7 @@ if __name__ == "__main__":
         assert len(dataset) == total_samples
 
         first_sample = dataset[0]
-        tokens = first_sample["tokens"]
+        tokens = first_sample["input_ids"]
 
         print(f"Форма первого сэмпла: {tokens.shape}")
         assert tokens.shape == (CHUNK_SIZE,)

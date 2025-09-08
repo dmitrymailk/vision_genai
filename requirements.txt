@@ -23,4 +23,5 @@ torchtune==0.6.1
 matplotlib==3.10.3
 plotly==6.2.0
 ipywidgets
-more_itertools
+more-itertools==10.8.0
+mosaicml-streaming==0.13.0
