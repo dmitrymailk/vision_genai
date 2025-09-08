@@ -163,7 +163,6 @@
 - [🚀 Collection of components for development, training, tuning, and inference of foundation models leveraging PyTorch native components.](https://github.com/foundation-model-stack/foundation-model-stack)
 - [Efficiently (pre)training foundation models with native PyTorch features, including FSDP for training and SDPA implementation of Flash attention v2.](https://github.com/foundation-model-stack/fms-fsdp)
 - [torchtune PyTorch native post-training library](https://github.com/pytorch/torchtune)
-- [torchtitan A PyTorch native platform for training generative AI models](https://github.com/pytorch/torchtitan)
 - [Efficient LLM Pretraining: Packed Sequences and Masked Attention](https://huggingface.co/blog/sirluk/llm-sequence-packing)
 - [Code for Adam-mini: Use Fewer Learning Rates To Gain More](https://github.com/zyushun/Adam-mini) (в моём сетапе модель расходится)
 - [Reducing Model Checkpointing Times by Over 10x with PyTorch Distributed Asynchronous Checkpointing](https://pytorch.org/blog/reducing-checkpointing-times/)
@@ -173,7 +172,6 @@
 - [Efficient Pre-training of Llama 3-like model architectures using torchtitan on Amazon SageMaker](https://aws.amazon.com/blogs/machine-learning/efficient-pre-training-of-llama-3-like-model-architectures-using-torchtitan-on-amazon-sagemaker/)
 - [Supercharging Training using float8 and FSDP2](https://pytorch.org/blog/training-using-float8-fsdp2/)
 - [Building blocks for OLMo modeling and training](https://github.com/allenai/OLMo-core)
-- [Modeling, training, eval, and inference code for OLMo](https://github.com/allenai/OLMo)
 - [OLMo 2: The best fully open language model to date](https://allenai.org/blog/olmo2)
 - [OLMoE: An open, small, and state-of-the-art mixture-of-experts model](https://allenai.org/blog/olmoe-an-open-small-and-state-of-the-art-mixture-of-experts-model-c258432d0514)
 - [Open Language Model Evaluation System (OLMES)](https://github.com/allenai/olmes)
@@ -204,7 +202,11 @@
 - [Dolma is an open dataset of 3 trillion tokens from a diverse mix of web content, academic publications, code, books, and encyclopedic materials.](https://github.com/allenai/dolma)
 - [This repository contains the code to prepare the data for the Amber 7B language model](https://github.com/LLM360/amber-data-prep)
 - [YuLan-Mini Pre-Training Resources](https://github.com/RUC-GSAI/YuLan-Mini/tree/main/pretrain)
-- 
+- [mosaicml streaming Saving and loading state](https://docs.mosaicml.com/projects/streaming/en/stable/distributed_training/fast_resumption.html)
+- [Save a dataset checkpoint and resume iteration](https://huggingface.co/docs/datasets/v3.5.0/en/stream#save-a-dataset-checkpoint-and-resume-iteration)
+- [how to slice data for pretraining amber](https://github.com/LLM360/amber-data-prep/blob/main/convert_dataset_hf_refinedpajama_json.py#L89)
+- [how to slice data for pretraining olmo(абсолютно тоже самое что и amber только более замудрено)](https://github.com/allenai/OLMo/blob/59a53e3f68e546330ca5a99ec626e58f9ab96494/scripts/prepare_memmap_dataset.py#L159)
+- [Managing LLM Pretraining data using Mosaic Data Sharding](https://community.databricks.com/t5/technical-blog/managing-llm-pretraining-data-using-mosaic-data-sharding/ba-p/117158)
 
 ### Trainer repos
 - [VeOmni: Scaling Any Modality Model Training with Model-Centric Distributed Recipe Zoo](https://github.com/ByteDance-Seed/VeOmni)
@@ -221,6 +223,8 @@
 - [Slamming: Training a Speech Language Model on One GPU in a Day](https://github.com/slp-rl/slamkit)
 - [Sheared LLaMA: Accelerating Language Model Pre-training via Structured Pruning](https://github.com/princeton-nlp/LLM-Shearing)
 - [MobileLLM Optimizing Sub-billion Parameter Language Models for On-Device Use Cases. In ICML 2024](https://github.com/facebookresearch/MobileLLM)
+- [Modeling, training, eval, and inference code for OLMo](https://github.com/allenai/OLMo)
+- [torchtitan A PyTorch native platform for training generative AI models](https://github.com/pytorch/torchtitan)
 
 ### courses 
 - [TinyML and Efficient Deep Learning Computing](https://hanlab.mit.edu/courses/2023-fall-65940)
