@@ -2,6 +2,7 @@
 украдено отсюда
 - https://docs.mosaicml.com/projects/streaming/en/latest/preparing_datasets/parallel_dataset_conversion.html
 - https://github.com/mosaicml/streaming/blob/main/streaming/text/convert/pile.py
+- https://community.databricks.com/t5/technical-blog/managing-llm-pretraining-data-using-mosaic-data-sharding/ba-p/117158
 """
 
 import os
@@ -20,10 +21,12 @@ from more_itertools import chunked
 # Директория с токенизированными .npy файлами
 # INPUT_DIR = "fineweb_edu_numpy_parallel"
 # 02:15 на моей машине
-INPUT_DIR = "fineweb_edu_10b_numpy"
+# INPUT_DIR = "fineweb_edu_10b_numpy"
+INPUT_DIR = "wikitext_2_raw_v1_numpy"
 # Финальная директория для MDS датасета
 # OUTPUT_DIR = "fineweb_edu_mds_chunked_padded"
-OUTPUT_DIR = os.path.abspath("fineweb_edu_10b_numpy_mds_chunked")
+# OUTPUT_DIR = os.path.abspath("fineweb_edu_10b_numpy_mds_chunked")
+OUTPUT_DIR = os.path.abspath("wikitext_2_raw_v1_numpy_mds_chunked")
 
 # Модель токенизатора для получения EOS токена
 TOKENIZER_NAME = "unsloth/Llama-3.2-1B-Instruct"
