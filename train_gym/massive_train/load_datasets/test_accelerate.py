@@ -529,11 +529,11 @@ def main():
                 last_layer_name=last_linear,
             )
             config = Float8LinearConfig.from_recipe_name("tensorwise")
-            # convert_to_float8_training(
-            #     model,
-            #     config=config,
-            #     module_filter_fn=func,
-            # )
+            convert_to_float8_training(
+                model,
+                config=config,
+                module_filter_fn=func,
+            )
             # model = torch.compile(model)
 
             for m in reversed(list(model.modules())):
@@ -786,8 +786,29 @@ def main():
                 split=None,
                 shuffle=True,
             )
+
+            total_items = 500_000
+            ram_dataset = []
+            for i in tqdm(range(total_items)):
+                ram_dataset.append(train_dataset[i])
+
+            class SimpleListDataset(Dataset):
+
+                def __init__(self, ram_data):
+                    self.dataset = ram_data
+
+                def __len__(self):
+                    return len(self.dataset)
+
+                def __getitem__(self, idx):
+                    return self.dataset[idx]
+
+            ram_pytorch_dataset = SimpleListDataset(
+                ram_data=ram_dataset,
+            )
+
             train_dataloader = DataLoader(
-                train_dataset,
+                ram_pytorch_dataset,
                 batch_size=training_args.per_device_train_batch_size,
                 pin_memory=True,
                 num_workers=training_args.per_device_train_batch_size,

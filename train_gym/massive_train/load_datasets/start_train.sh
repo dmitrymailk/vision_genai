@@ -1,12 +1,12 @@
 export http_proxy="127.0.0.1:2334"
 export https_proxy="127.0.0.1:2334"
-# export CUDA_VISIBLE_DEVICES=0
-export CUDA_VISIBLE_DEVICES=3
+export CUDA_VISIBLE_DEVICES=0
+# export CUDA_VISIBLE_DEVICES=3
 python test_accelerate.py \
     --model_name_or_path unsloth/Llama-3.2-1B-Instruct \
     --dataset_name wikitext \
     --dataset_config_name wikitext-2-raw-v1 \
-    --per_device_train_batch_size 50 \
+    --per_device_train_batch_size 14 \
     --per_device_eval_batch_size 4 \
     --do_train \
     --do_eval \
@@ -22,7 +22,8 @@ python test_accelerate.py \
     --num_train_epochs=1 \
     --save_steps 5000000 \
     --optim adamw_8bit \
-    --dataloader_type hf_edu
+    --dataloader_type ram_edu
+    # --dataloader_type hf_edu
     # --dataloader_type mosaic_edu
     # --dataloader_type hf
 
@@ -36,6 +37,7 @@ python test_accelerate.py \
 # 23393 - mosaic_edu 15 batch 1024
 # 23758 - mosaic_edu 16 batch 1024
 # 23764 - hf_edu 14 batch 1024 - никакой разницы :(
+# 23901 - ram_edu 14 batch 1024 слегка быстрее
 
 # 22600 - mosaic_edu 14 batch 1024, A100-80GB
 # 24241 - mosaic_edu 32 batch 1024, A100-80GB
