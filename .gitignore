@@ -167,7 +167,7 @@ unsloth_compiled_cache
 outputs
 train_output
 *.deb
-vpn
+vpn*
 qwen2-1.5b-instruct-english-only
 qwen2-1.5b-instruct-english-only-optimized
 fineweb_edu_*

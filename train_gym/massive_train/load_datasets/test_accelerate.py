@@ -529,11 +529,11 @@ def main():
                 last_layer_name=last_linear,
             )
             config = Float8LinearConfig.from_recipe_name("tensorwise")
-            convert_to_float8_training(
-                model,
-                config=config,
-                module_filter_fn=func,
-            )
+            # convert_to_float8_training(
+            #     model,
+            #     config=config,
+            #     module_filter_fn=func,
+            # )
             # model = torch.compile(model)
 
             for m in reversed(list(model.modules())):
@@ -748,9 +748,14 @@ def main():
                 pin_memory=True,
             )
         case "mosaic_edu":
+            from streaming.base.util import clean_stale_shared_memory
+
+            clean_stale_shared_memory()
             # local_dir = "fineweb_edu_10b_numpy_mds_chunked"
             # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked"
-            local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_1024"
+            # run rm -rf /dev/shm/* if stuck
+            # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_1024"
+            local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_2048"
             train_dataset = StreamingDataset(
                 local=local_dir,
                 remote=local_dir,
