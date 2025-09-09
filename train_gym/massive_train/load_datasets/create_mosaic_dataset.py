@@ -26,18 +26,19 @@ INPUT_DIR = "fineweb_edu_10b_numpy"
 # Финальная директория для MDS датасета
 # OUTPUT_DIR = "fineweb_edu_mds_chunked_padded"
 # OUTPUT_DIR = os.path.abspath("fineweb_edu_10b_numpy_mds_chunked")
-OUTPUT_DIR = os.path.abspath("fineweb_edu_10b_numpy_mds_chunked_1024")
+# OUTPUT_DIR = os.path.abspath("fineweb_edu_10b_numpy_mds_chunked_1024")
+OUTPUT_DIR = os.path.abspath("fineweb_edu_10b_numpy_mds_chunked_2048")
 # OUTPUT_DIR = os.path.abspath("wikitext_2_raw_v1_numpy_mds_chunked")
 
 # Модель токенизатора для получения EOS токена
 TOKENIZER_NAME = "unsloth/Llama-3.2-1B-Instruct"
 
 # Параметры обработки
-# CHUNK_SIZE = 2048
-CHUNK_SIZE = 1024
+CHUNK_SIZE = 2048
+# CHUNK_SIZE = 1024
 TOKEN_DTYPE = np.uint32  # Используйте uint16, если vocab_size < 65535
 # TOKEN_DTYPE = np.int64  # Используйте uint16, если vocab_size < 65535
-NUM_PROC = 18  # Используем все доступные ядра
+NUM_PROC = min(os.cpu_count() - 1, 32)  # Используем все доступные ядра
 
 # --- 2. ФУНКЦИЯ-ВОРКЕР ДЛЯ ПАРАЛЛЕЛЬНОЙ ЗАПИСИ ---
 

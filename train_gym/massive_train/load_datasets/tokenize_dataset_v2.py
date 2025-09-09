@@ -18,12 +18,13 @@ CACHE_DIR = "fineweb_edu_10b"
 TOKENIZER_NAME = "unsloth/Llama-3.2-1B-Instruct"
 
 # Параметры обработки
-NUM_PROC = 17  # Количество параллельных процессов
+# NUM_PROC = 17  # Количество параллельных процессов
+NUM_PROC = min(os.cpu_count() - 2, 64)  # Количество параллельных процессов
 TOKENIZATION_BATCH = 10_000  # Размер батча для токенизации
 
 # Директория для сохранения результатов
-# OUTPUT_DIR = "fineweb_edu_10b_numpy"
-OUTPUT_DIR = "wikitext_2_raw_v1_numpy"
+OUTPUT_DIR = "fineweb_edu_10b_numpy"
+# OUTPUT_DIR = "wikitext_2_raw_v1_numpy"
 
 
 # --- 2. ФУНКЦИЯ-ВОРКЕР ДЛЯ ПАРАЛЛЕЛЬНОЙ ОБРАБОТКИ ---
@@ -137,18 +138,18 @@ if __name__ == "__main__":
 
     # --- 3. ПОДГОТОВКА ДАННЫХ ---
     print("Загрузка датасета...")
-    # dataset = load_dataset(
-    #     DATASET_NAME,
-    #     name=DATASET_CONFIG,
-    #     split=SPLIT,
-    #     cache_dir=CACHE_DIR,
-    #     num_proc=NUM_PROC,
-    # )
     dataset = load_dataset(
-        "wikitext",
-        "wikitext-2-raw-v1",
+        DATASET_NAME,
+        name=DATASET_CONFIG,
+        split=SPLIT,
+        cache_dir=CACHE_DIR,
+        num_proc=NUM_PROC,
     )
-    dataset = dataset["train"]
+    # dataset = load_dataset(
+    #     "wikitext",
+    #     "wikitext-2-raw-v1",
+    # )
+    # dataset = dataset["train"]
     dataset = dataset.remove_columns(
         column_names=[item for item in dataset.features.keys() if item != "text"]
     )
