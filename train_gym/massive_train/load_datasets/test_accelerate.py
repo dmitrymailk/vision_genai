@@ -769,6 +769,28 @@ def main():
                 # shuffle=True,
                 persistent_workers=True,
             )
+        case "ram_edu":
+            from torch.utils.data import Dataset
+
+            local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_1024"
+            train_dataset = StreamingDataset(
+                local=local_dir,
+                remote=local_dir,
+                batch_size=training_args.per_device_train_batch_size,
+                # batch_size=64,
+                split=None,
+                shuffle=True,
+            )
+            train_dataloader = DataLoader(
+                train_dataset,
+                batch_size=training_args.per_device_train_batch_size,
+                pin_memory=True,
+                num_workers=training_args.per_device_train_batch_size,
+                collate_fn=default_data_collator,
+                drop_last=True,
+                # shuffle=True,
+                persistent_workers=True,
+            )
     # print(train_dataset[0])
 
     print(training_args)
