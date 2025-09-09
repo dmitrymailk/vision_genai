@@ -46,6 +46,6 @@ python test_accelerate.py \
 # 23242 - mosaic_edu 16 batch 2048, A100-80GB
 # 23219 - mosaic_edu 18 batch 2048, A100-80GB
 
-# 23656 - hf_edu 24 batch 2048 - еще и больше получилось, даже на большом батче
-# 23694 - hf_edu 24 batch 1024
-# 24604 - hf_edu 50 batch 1024
+# 23656 - hf_edu 24 batch 2048, A100-80GB - еще и больше получилось, даже на большом батче
+# 23694 - hf_edu 24 batch 1024, A100-80GB
+# 24604 - hf_edu 50 batch 1024, A100-80GB
