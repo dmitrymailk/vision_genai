@@ -11,7 +11,7 @@ accelerate launch --config_file $config_path accelerate_nlp_example.py \
     --model_name_or_path=unsloth/Llama-3.2-1B-Instruct \
     --dataset_name wikitext \
     --dataset_config_name wikitext-2-raw-v1 \
-    --per_device_train_batch_size 24 \
+    --per_device_train_batch_size 52 \
     --per_device_eval_batch_size 4 \
     --do_train \
     --do_eval \
@@ -35,3 +35,6 @@ accelerate launch --config_file $config_path accelerate_nlp_example.py \
 # 23800 2 gpu, batch 24, 2048, A100-80GB, mosaic_edu
 # 23586 4 gpu, batch 24, 2048, A100-80GB, mosaic_edu
 # 23432 6 gpu, batch 24, 2048, A100-80GB, mosaic_edu
+
+# 23446 6 gpu, batch 24, 1024, A100-80GB, mosaic_edu
+# 24274 6 gpu, batch 52, 1024, A100-80GB, mosaic_edu max

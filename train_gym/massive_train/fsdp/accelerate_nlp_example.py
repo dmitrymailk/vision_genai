@@ -581,8 +581,8 @@ def main():
             # local_dir = "fineweb_edu_10b_numpy_mds_chunked"
             # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked"
             # run rm -rf /dev/shm/* if stuck
-            # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_1024"
-            local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_2048"
+            local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_1024"
+            # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_2048"
             train_dataset = StreamingDataset(
                 local=local_dir,
                 remote=local_dir,
