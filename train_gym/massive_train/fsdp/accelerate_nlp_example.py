@@ -581,8 +581,9 @@ def main():
             # local_dir = "fineweb_edu_10b_numpy_mds_chunked"
             # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked"
             # run rm -rf /dev/shm/* if stuck
-            local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_1024"
+            # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_1024"
             # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_2048"
+            local_dir = "/code/train_gym/massive_train/load_datasets/fineweb_edu_10b_numpy_mds_chunked_1024"
             train_dataset = StreamingDataset(
                 local=local_dir,
                 remote=local_dir,
@@ -601,6 +602,102 @@ def main():
                 # shuffle=True,
                 persistent_workers=True,
             )
+        case "hf_edu":
+            with training_args.main_process_first(
+                desc="load dataset",
+            ):
+                tok_logger = transformers.utils.logging.get_logger(
+                    "transformers.tokenization_utils_base"
+                )
+                print("load hf_edu dataset")
+                raw_datasets = load_dataset(
+                    "HuggingFaceFW/fineweb-edu",
+                    name="sample-10BT",
+                    split="train",
+                    cache_dir="/code/fineweb_edu_10b",
+                    num_proc=16,
+                )
+                raw_datasets = raw_datasets.select(list(range(len(raw_datasets) // 10)))
+
+            with training_args.main_process_first(
+                desc="pre-process dataset",
+            ):
+                # column_names = list(raw_datasets["train"].features)
+                column_names = list(raw_datasets.features)
+                text_column_name = "text" if "text" in column_names else column_names[0]
+                # block_size = 2048
+                block_size = data_args.block_size
+
+                def tokenize_function(examples):
+                    with CaptureLogger(tok_logger) as cl:
+                        output = tokenizer(examples[text_column_name])
+                    # clm input could be much much longer than block_size
+                    if "Token indices sequence length is longer than the" in cl.out:
+                        tok_logger.warning(
+                            "^^^^^^^^^^^^^^^^ Please ignore the warning above - this long input will be chunked into smaller bits"
+                            " before being passed to the model."
+                        )
+                    return output
+
+                tokenized_datasets = raw_datasets.map(
+                    tokenize_function,
+                    batched=True,
+                    num_proc=min(os.cpu_count() - 2, 64),
+                    remove_columns=column_names,
+                    # load_from_cache_file=not data_args.overwrite_cache,
+                    desc="Running tokenizer on dataset",
+                )
+
+                def group_texts(examples):
+                    # Concatenate all texts.
+                    concatenated_examples = {
+                        k: list(chain(*examples[k])) for k in examples.keys()
+                    }
+                    total_length = len(concatenated_examples[list(examples.keys())[0]])
+                    # We drop the small remainder, and if the total_length < block_size  we exclude this batch and return an empty dict.
+                    # We could add padding if the model supported it instead of this drop, you can customize this part to your needs.
+                    total_length = (total_length // block_size) * block_size
+                    # Split by chunks of max_len.
+                    result = {
+                        k: [
+                            t[i : i + block_size]
+                            for i in range(0, total_length, block_size)
+                        ]
+                        for k, t in concatenated_examples.items()
+                    }
+                    result["labels"] = result["input_ids"].copy()
+                    return result
+
+                lm_datasets = tokenized_datasets.map(
+                    group_texts,
+                    batched=True,
+                    num_proc=min(os.cpu_count() - 2, 64),
+                    desc=f"Grouping texts in chunks of {block_size}",
+                )
+
+                lm_datasets = lm_datasets.remove_columns(
+                    column_names=[
+                        item
+                        for item in lm_datasets.features.keys()
+                        if not item
+                        in [
+                            "input_ids",
+                            "labels",
+                            "attention_mask",
+                        ]
+                    ]
+                )
+                train_dataset = lm_datasets
+                train_dataloader = DataLoader(
+                    train_dataset,
+                    batch_size=training_args.per_device_train_batch_size,
+                    pin_memory=True,
+                    num_workers=training_args.per_device_train_batch_size,
+                    collate_fn=default_data_collator,
+                    drop_last=True,
+                    # shuffle=True,
+                    persistent_workers=True,
+                )
 
     # print(train_dataset[0])
 
