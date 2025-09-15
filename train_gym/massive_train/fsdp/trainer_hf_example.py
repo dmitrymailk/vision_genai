@@ -33,7 +33,7 @@ import datasets
 import evaluate
 import torch
 from datasets import load_dataset
-import gc
+
 import transformers
 from transformers import (
     CONFIG_MAPPING,
@@ -47,10 +47,7 @@ from transformers import (
     default_data_collator,
     is_torch_xla_available,
     set_seed,
-    get_scheduler,
 )
-
-# from torchtune.models.llama3_2 import llama3_2_1b
 from transformers.testing_utils import CaptureLogger
 from transformers.utils.versions import require_version
 from liger_kernel.transformers.functional import liger_cross_entropy
@@ -69,107 +66,23 @@ from transformers.loss.loss_utils import nn
 from functools import partial
 from accelerate.utils import compile_regions
 
-# from lang_mod_transformers.utils import (
-#     ModelArguments,
-#     DataTrainingArguments,
-#     cuda_streams_forward,
-# )
 from liger_kernel.transformers import AutoLigerKernelForCausalLM
 from types import MethodType
 from torchao.float8 import convert_to_float8_training, Float8LinearConfig
-from accelerate.utils import FP8RecipeKwargs, TERecipeKwargs
-
-# from transformers.trainer_pt_utils import AcceleratorConfig
-from accelerate import Accelerator, DistributedType
-
-from tqdm import tqdm
-from torch.utils.data import (
-    DataLoader,
-    Dataset,
-    IterableDataset,
-    RandomSampler,
-    SequentialSampler,
-)
-import time
-
-
-from transformers.trainer_utils import (
-    PREFIX_CHECKPOINT_DIR,
-    BestRun,
-    EvalLoopOutput,
-    EvalPrediction,
-    HPSearchBackend,
-    HubStrategy,
-    PredictionOutput,
-    RemoveColumnsCollator,
-    SaveStrategy,
-    TrainerMemoryTracker,
-    TrainOutput,
-    check_target_module_exists,
-    default_compute_objective,
-    denumpify_detensorize,
-    enable_full_determinism,
-    find_executable_batch_size,
-    get_last_checkpoint,
-    has_length,
-    neftune_post_forward_hook,
-    number_of_arguments,
-    seed_worker,
-    set_seed,
-    speed_metrics,
-)
-from accelerate.utils import DataLoaderConfiguration
-from accelerate.utils.transformer_engine import convert_model
-
-# from lang_mod_transformers.llama3_2_hf_v2 import (
-#     LlamaForCausalLM as LlamaForCausalLMHF_V2,
-# )
-# from lang_mod_transformers import llama3_2_hf_v2
+from accelerate.utils import FP8RecipeKwargs
 from cut_cross_entropy.transformers.llama import (
     cce_forward,
     linear_cross_entropy,
     _PATCH_OPTS,
 )
-
-# from cut_cross_entropy.transformers.utils import PatchOptions
-# from lang_mod_transformers.llama3_2_torchtune_v3 import (
-#     llama3_2_1b,
-#     hf_to_tune,
-#     TransformerDecoder,
-#     TransformerSelfAttentionLayer,
-# )
-
-# from torchtune.modules.optim import OptimizerInBackward
-import bitsandbytes as bnb
-
-# from
-# from transformer_engine.common.recipe import DelayedScaling
-
-# torch.backends.cudnn.allow_tf32 = True
-# torch.backends.cuda.matmul.allow_tf32 = True
-
-from transformers.utils.versions import require_version
-from dataclasses import dataclass, field
-from itertools import chain
-from typing import Optional
-import transformers
-from transformers import (
-    CONFIG_MAPPING,
-    MODEL_FOR_CAUSAL_LM_MAPPING,
-    AutoConfig,
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    HfArgumentParser,
-    Trainer,
-    TrainingArguments,
-    default_data_collator,
-    is_torch_xla_available,
-    set_seed,
-)
-import torch
-from transformers.modeling_outputs import BaseModelOutputWithPast
 from streaming import MDSWriter, StreamingDataset
-from accelerate.utils import DistributedDataParallelKwargs
+from torch.utils.data import DataLoader
+
+# from transformers.trainer_pt_utils import AcceleratorConfig
+
+
+logger = logging.getLogger(__name__)
+
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_CAUSAL_LM_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
@@ -393,13 +306,6 @@ class DataTrainingArguments:
                 ], "`validation_file` should be a csv, a json or a txt file."
 
 
-logger = logging.getLogger(__name__)
-
-
-MODEL_CONFIG_CLASSES = list(MODEL_FOR_CAUSAL_LM_MAPPING.keys())
-MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
-
-
 def filter_linear_layers(module, fqn, first_layer_name=None, last_layer_name=None):
     if isinstance(module, torch.nn.Linear):
         if module.in_features % 16 != 0 or module.out_features % 16 != 0:
@@ -415,7 +321,7 @@ def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
-    # pc = ParallelismConfig()
+
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, TrainingArguments)
     )
@@ -458,48 +364,15 @@ def main():
     config = AutoConfig.from_pretrained(
         model_name_or_path,
     )
-    accelerator_log_kwargs = {
-        "log_with": "wandb",
-        # "log_with": "trackio",
-        "project_dir": "train_output",
-        # Убираем "mixed_precision": "fp8" чтобы избежать конфликта с bf16
-    }
-    accelerator = None
     match optimization_level:
         case "opt_1":
             print("opt_1")
             # https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.from_pretrained.attn_implementation
-            model = AutoModelForCausalLM.from_pretrained(
+            model = LlamaForCausalLM.from_pretrained(
                 model_name_or_path,
                 torch_dtype=torch_dtype,
                 attn_implementation=model_args.attn_implementation,
-                # device_map={"": 0},
             )
-            # model = AutoModelForCausalLM.from_config(
-            #     config,
-            #     torch_dtype=torch_dtype,
-            #     attn_implementation=model_args.attn_implementation,
-            # )
-            dataloader_params = [
-                "split_batches",
-                "dispatch_batches",
-                "even_batches",
-                "use_seedable_sampler",
-            ]
-
-            dataloader_config = DataLoaderConfiguration(
-                **{
-                    param: training_args.accelerator_config.pop(param)
-                    for param in dataloader_params
-                }
-            )
-            accelerator = Accelerator(
-                mixed_precision="bf16",
-                dataloader_config=dataloader_config,
-                gradient_accumulation_steps=training_args.gradient_accumulation_steps,
-                **accelerator_log_kwargs,
-            )
-
         case "opt_28":
             print("opt_28")
 
@@ -550,258 +423,116 @@ def main():
                         backend="inductor",
                         # mode="max-autotune",
                     )
+    # не совсем корректно выкидывать, но как есть
+    with training_args.main_process_first(
+        desc="load dataset",
+    ):
+        tok_logger = transformers.utils.logging.get_logger(
+            "transformers.tokenization_utils_base"
+        )
+        print("load hf_edu dataset")
+        raw_datasets = load_dataset(
+            "HuggingFaceFW/fineweb-edu",
+            name="sample-10BT",
+            split="train",
+            cache_dir="/code/fineweb_edu_10b",
+            num_proc=16,
+        )
+        raw_datasets = raw_datasets.select(list(range(len(raw_datasets) // 6)))
 
-            dataloader_params = [
-                "split_batches",
-                "dispatch_batches",
-                "even_batches",
-                "use_seedable_sampler",
+    with training_args.main_process_first(
+        desc="pre-process dataset",
+    ):
+        # column_names = list(raw_datasets["train"].features)
+        column_names = list(raw_datasets.features)
+        text_column_name = "text" if "text" in column_names else column_names[0]
+        # block_size = 2048
+        block_size = data_args.block_size
+
+        def tokenize_function(examples):
+            with CaptureLogger(tok_logger) as cl:
+                output = tokenizer(examples[text_column_name])
+            # clm input could be much much longer than block_size
+            if "Token indices sequence length is longer than the" in cl.out:
+                tok_logger.warning(
+                    "^^^^^^^^^^^^^^^^ Please ignore the warning above - this long input will be chunked into smaller bits"
+                    " before being passed to the model."
+                )
+            return output
+
+        tokenized_datasets = raw_datasets.map(
+            tokenize_function,
+            batched=True,
+            num_proc=min(os.cpu_count() - 2, 64),
+            remove_columns=column_names,
+            # load_from_cache_file=not data_args.overwrite_cache,
+            desc="Running tokenizer on dataset",
+        )
+
+        def group_texts(examples):
+            # Concatenate all texts.
+            concatenated_examples = {
+                k: list(chain(*examples[k])) for k in examples.keys()
+            }
+            total_length = len(concatenated_examples[list(examples.keys())[0]])
+            # We drop the small remainder, and if the total_length < block_size  we exclude this batch and return an empty dict.
+            # We could add padding if the model supported it instead of this drop, you can customize this part to your needs.
+            total_length = (total_length // block_size) * block_size
+            # Split by chunks of max_len.
+            result = {
+                k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
+                for k, t in concatenated_examples.items()
+            }
+            result["labels"] = result["input_ids"].copy()
+            return result
+
+        lm_datasets = tokenized_datasets.map(
+            group_texts,
+            batched=True,
+            num_proc=min(os.cpu_count() - 2, 64),
+            desc=f"Grouping texts in chunks of {block_size}",
+        )
+
+        lm_datasets = lm_datasets.remove_columns(
+            column_names=[
+                item
+                for item in lm_datasets.features.keys()
+                if not item
+                in [
+                    "input_ids",
+                    "labels",
+                    "attention_mask",
+                ]
             ]
-
-            dataloader_config = DataLoaderConfiguration(
-                **{
-                    param: training_args.accelerator_config.pop(param)
-                    for param in dataloader_params
-                }
-            )
-            accelerator = Accelerator(
-                mixed_precision="bf16",
-                dataloader_config=dataloader_config,
-                gradient_accumulation_steps=training_args.gradient_accumulation_steps,
-                **accelerator_log_kwargs,
-            )
+        )
+        train_dataset = lm_datasets
 
     print("model_args.attn_implementation", model_args.attn_implementation)
 
-    match dataloader_type:
-        case "mosaic_edu":
-            # from streaming.base.util import clean_stale_shared_memory
-
-            # clean_stale_shared_memory()
-            # local_dir = "fineweb_edu_10b_numpy_mds_chunked"
-            # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked"
-            # run rm -rf /dev/shm/* if stuck
-            local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_1024"
-            # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_2048"
-            train_dataset = StreamingDataset(
-                local=local_dir,
-                remote=local_dir,
-                batch_size=training_args.per_device_train_batch_size,
-                # batch_size=64,
-                split=None,
-                shuffle=True,
-            )
-            train_dataloader = DataLoader(
-                train_dataset,
-                batch_size=training_args.per_device_train_batch_size,
-                pin_memory=True,
-                num_workers=training_args.per_device_train_batch_size,
-                collate_fn=default_data_collator,
-                drop_last=True,
-                # shuffle=True,
-                persistent_workers=True,
-            )
-
-    # print(train_dataset[0])
-
     print(training_args)
     # Initialize our Trainer
-    # training_args.gradient_checkpointing = False
+    training_args.gradient_checkpointing = False
     training_args.run_name = optimization_level
-
-    # Optimizer
-    # Split weights in two groups, one with weight decay and the other not.
-    no_decay = ["bias", "layer_norm.weight"]
-
-    optimizer_grouped_parameters = [
-        {
-            "params": [
-                p
-                for n, p in model.named_parameters()
-                if not any(nd in n for nd in no_decay)
-            ],
-            "weight_decay": 0.0,
-        },
-        {
-            "params": [
-                p
-                for n, p in model.named_parameters()
-                if any(nd in n for nd in no_decay)
-            ],
-            "weight_decay": 0.0,
-        },
-    ]
-    optimizer = torch.optim.AdamW(
-        optimizer_grouped_parameters,
-        lr=training_args.learning_rate,
-        fused=True,
-    )
-    # optimizer = bnb.optim.Adam8bit(
-    #     optimizer_grouped_parameters,
-    #     lr=training_args.learning_rate,
-    # )
-
-    num_update_steps_per_epoch = math.ceil(
-        len(train_dataloader) / training_args.gradient_accumulation_steps
-    )
-    # if training_args.max_train_steps is None:
-    max_train_steps = int(training_args.num_train_epochs) * num_update_steps_per_epoch
-
-    lr_scheduler = get_scheduler(
-        name=training_args.lr_scheduler_type,
-        optimizer=optimizer,
-        num_warmup_steps=0,
-        num_training_steps=max_train_steps * accelerator.num_processes,
+    # training_args.accelerator_config =
+    print(training_args.accelerator_config)
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=None,
+        processing_class=tokenizer,
+        # Data collator will default to DataCollatorWithPadding, so we change it.
+        # data_collator=default_data_collator,
+        data_collator=data_collator,
+        # compute_metrics=compute_metrics,
+        # preprocess_logits_for_metrics=preprocess_logits_for_metrics,
+        compute_metrics=None,
+        preprocess_logits_for_metrics=None,
     )
 
-    # Prepare everything with our `accelerator`.
-    # model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = (
-    #     accelerator.prepare(
-    #         model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
-    #     )
-    # )
-    model, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
-        model, optimizer, train_dataloader, lr_scheduler
-    )
-
-    # We need to recalculate our total training steps as the size of the training dataloader may have changed.
-    num_update_steps_per_epoch = math.ceil(
-        len(train_dataloader) / training_args.gradient_accumulation_steps
-    )
-
-    # Afterwards we recalculate our number of training epochs
-    training_args.num_train_epochs = math.ceil(
-        max_train_steps / num_update_steps_per_epoch
-    )
-
-    # Figure out how many steps we should save the Accelerator states
-    save_steps = training_args.save_steps
-
-    # We need to initialize the trackers we use, and also store our configuration.
-    # The trackers initializes automatically on the main process.
-
-    accelerator.init_trackers(
-        "llm_pretraining_optimization",
-        training_args,
-        init_kwargs={"wandb": {"name": f"{optimization_level}_acc"}},
-    )
-
-    # Train!
-    total_batch_size = (
-        training_args.per_device_train_batch_size
-        * accelerator.num_processes
-        * training_args.gradient_accumulation_steps
-    )
-    print("total_batch_size", total_batch_size)
-
-    logger.info("***** Running training *****")
-    logger.info(f"  Num examples = {len(train_dataset)}")
-    logger.info(f"  Num Epochs = {training_args.num_train_epochs}")
-    logger.info(
-        f"  Instantaneous batch size per device = {training_args.per_device_train_batch_size}"
-    )
-    logger.info(
-        f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}"
-    )
-    logger.info(
-        f"  Gradient Accumulation steps = {training_args.gradient_accumulation_steps}"
-    )
-    logger.info(f"  Total optimization steps = {max_train_steps}")
-    # Only show the progress bar once on each machine.
-    progress_bar = tqdm(
-        range(max_train_steps),
-        disable=not accelerator.is_local_main_process,
-    )
-    completed_steps = 0
-    starting_epoch = 0
-    log_steps = 0
-
-    # update the progress_bar if load from checkpoint
-    progress_bar.update(completed_steps)
-    # print(next(iter(train_dataloader)))
-    # exit()
-    global_step = 0
-    total_loss = 0
-    total_tokens = 0
-    # print(model)
-    model.train()
-    model.zero_grad()
-    last_log_time = time.monotonic()
-    last_log_total_tokens = 0
-    for epoch in range(starting_epoch, training_args.num_train_epochs):
-        active_dataloader = train_dataloader
-        active_dataloader_len = len(active_dataloader)
-        print("active_dataloader=", active_dataloader_len)
-        active_dataloader.set_epoch(epoch)
-        for local_step, batch in enumerate(active_dataloader):
-            # with accelerator.no_sync(model):
-            # batch["labels"] = batch["input_ids"].clone()
-            # print("batch", batch)
-            batch_tokens = batch["input_ids"].shape
-            # print(batch_tokens)
-            batch_toks = 1
-            for item in batch_tokens:
-                batch_toks *= item
-            print(batch_toks)
-            total_tokens += batch_toks
-            outputs = model(**batch)
-            loss = outputs.loss
-            # print("loss", loss)
-
-            outputs = None
-            batch = None
-            # We keep track of the loss at each epoch
-            accelerator.backward(loss)
-            total_loss += loss.detach().float()
-            # так как gradient_accumulation_steps=1 в данном примере, то мы делаем
-            # клиппинг каждый шаг
-            _grad_norm = accelerator.clip_grad_norm_(
-                model.parameters(),
-                1.0,
-            )
-            optimizer.step()
-            lr_scheduler.step()
-            optimizer.zero_grad()
-            accelerator.gradient_state._set_sync_gradients(True)
-            if accelerator.sync_gradients:
-                progress_bar.update(1)
-                completed_steps += 1
-
-            if (global_step + 1) % training_args.logging_steps == 0:
-                # Вместо этого считаем среднюю скорость с последнего лога
-                current_time = time.monotonic()
-                elapsed_time = current_time - last_log_time
-                tokens_processed = total_tokens - last_log_total_tokens
-                print(tokens_processed, tokens_processed / training_args.logging_steps)
-                # Вот это и есть ваша реальная средняя пропускная способность
-                effective_tokens_per_second = tokens_processed / elapsed_time
-                print("effective_tokens_per_second", effective_tokens_per_second)
-                accelerator.log(
-                    {
-                        "train/loss": total_loss / training_args.logging_steps,
-                        "train/learning_rate": lr_scheduler.get_last_lr()[0],
-                        "train/grad_norm": _grad_norm,
-                        "throughput/device/tokens_per_second": effective_tokens_per_second,
-                        "throughput/total_tokens": total_tokens,
-                    },
-                    step=log_steps,
-                )
-                log_steps += 1
-                total_loss -= total_loss
-                last_log_time = current_time
-                last_log_total_tokens = total_tokens
-
-            global_step += 1
-            # if global_step > 30:
-            #     break
-
-    output_dir = f"step_{completed_steps}"
-    if training_args.output_dir is not None:
-        output_dir = os.path.join(training_args.output_dir, output_dir)
-    accelerator.save_state(output_dir)
-
-    accelerator.wait_for_everyone()
-    accelerator.end_training()
+    # Training
+    train_result = trainer.train()
+    # trainer.save_model()  # Saves the tokenizer too for easy upload
 
 
 if __name__ == "__main__":
