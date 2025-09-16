@@ -43,3 +43,4 @@ accelerate launch --config_file $config_path accelerate_nlp_example.py \
 
 # 12737 2 gpu, batch 20, 1024, A100-40GB, hf_edu
 # 13232 2 gpu, batch 20, 1024, A100-40GB, mosaic_edu
+# 23608 2 gpu, batch 20, 1024, A100-80GB, mosaic_edu
