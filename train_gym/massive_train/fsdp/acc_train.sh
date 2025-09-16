@@ -6,14 +6,14 @@ config_path=/code/train_gym/massive_train/fsdp/fsdp2_default_config.yaml
 export http_proxy="127.0.0.1:2334"
 export https_proxy="127.0.0.1:2334"
 # export CUDA_VISIBLE_DEVICES=2,3,4,5,6,7
-# export CUDA_VISIBLE_DEVICES=0,1
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0,1
+# export CUDA_VISIBLE_DEVICES=0
 # export CUDA_VISIBLE_DEVICES=3
 accelerate launch --config_file $config_path accelerate_nlp_example.py \
     --model_name_or_path=unsloth/Llama-3.2-1B-Instruct \
     --dataset_name wikitext \
     --dataset_config_name wikitext-2-raw-v1 \
-    --per_device_train_batch_size 4 \
+    --per_device_train_batch_size 19 \
     --per_device_eval_batch_size 4 \
     --do_train \
     --do_eval \
@@ -47,3 +47,11 @@ accelerate launch --config_file $config_path accelerate_nlp_example.py \
 # 23608 2 gpu, batch 20, 1024, A100-80GB, mosaic_edu
 
 # 8410 1 gpu, batch 4, 1024, 4090, mosaic_edu
+# 16335 1 gpu, batch 4, 1024, A100-40GB, mosaic_edu
+
+# 17613 2 gpu, batch 4, 1024, A100-40GB, mosaic_edu
+# 20795 2 gpu, batch 8, 1024, A100-40GB, mosaic_edu
+# 22531 2 gpu, batch 16, 1024, A100-40GB, mosaic_edu
+# 23077 2 gpu, batch 18, 1024, A100-40GB, mosaic_edu
+# 23025 2 gpu, batch 19, 1024, A100-40GB, mosaic_edu
+# 13232 2 gpu, batch 20, 1024, A100-40GB, mosaic_edu max
