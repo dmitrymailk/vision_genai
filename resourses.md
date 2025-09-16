@@ -208,6 +208,12 @@
 - [how to slice data for pretraining olmo(абсолютно тоже самое что и amber только более замудрено)](https://github.com/allenai/OLMo/blob/59a53e3f68e546330ca5a99ec626e58f9ab96494/scripts/prepare_memmap_dataset.py#L159)
 - [Managing LLM Pretraining data using Mosaic Data Sharding](https://community.databricks.com/t5/technical-blog/managing-llm-pretraining-data-using-mosaic-data-sharding/ba-p/117158)
 
+### How to Eval models
+- [Language Model Evaluation Harness](https://github.com/EleutherAI/lm-evaluation-harness)
+- [Lighteval is your all-in-one toolkit for evaluating LLMs across multiple backends](https://github.com/huggingface/lighteval)
+- [lm-evaluation-harness New Model Guide](https://github.com/EleutherAI/lm-evaluation-harness/blob/main/docs/model_guide.md)
+- [Lighteval Evaluating a Custom Model](https://huggingface.co/docs/lighteval/en/evaluating-a-custom-model)
+
 ### Trainer repos
 - [VeOmni: Scaling Any Modality Model Training with Model-Centric Distributed Recipe Zoo](https://github.com/ByteDance-Seed/VeOmni)
 - [This folder contains examples of using FSDP2 with Accelerate, fp8](https://github.com/huggingface/accelerate/tree/main/examples/fsdp2)
