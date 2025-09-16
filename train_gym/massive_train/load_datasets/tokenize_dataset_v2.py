@@ -155,7 +155,7 @@ if __name__ == "__main__":
     )
 
     # Используем 1/6 часть датасета
-    # dataset = dataset.select(range(len(dataset) // 6))
+    dataset = dataset.select(range(len(dataset) // 6))
     print(f"Размер датасета для обработки: {len(dataset)} документов")
 
     # Создаем выходную директорию
