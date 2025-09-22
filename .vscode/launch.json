@@ -161,6 +161,20 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-        }
+        },
+        {
+            "name": "lm_eval",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "accelerate.commands.launch",
+            "args": [
+                "lm_eval",
+                
+            ],
+            "console": "integratedTerminal",
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "0,1"
+            }
+        },
     ],
 }
