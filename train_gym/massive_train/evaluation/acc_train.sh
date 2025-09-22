@@ -23,4 +23,4 @@ python accelerate_trainer_eval.py \
     --save_steps 5000000 \
     --optim adamw_8bit \
     --dataloader_type hf_edu \
-    --eval_steps 500
+    --eval_steps 2000

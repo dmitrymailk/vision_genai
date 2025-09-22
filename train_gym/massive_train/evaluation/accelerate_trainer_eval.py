@@ -685,6 +685,33 @@ def main():
     model.zero_grad()
     last_log_time = time.monotonic()
     last_log_total_tokens = 0
+
+    # evas
+    target_metrics = [
+        # "arc_easy",
+        # "leaderboard_gpqa",
+        # "leaderboard_bbh",
+        "arc_easy",
+        "hellaswag",
+    ]
+    metrics_result = evaluator.simple_evaluate(
+        model=HFLM(pretrained=model, tokenizer=tokenizer),
+        tasks=target_metrics,
+        verbosity="WARNING",
+        # limit=1000,
+    )
+    metrics_result = metrics_result["results"]
+    # print(metrics_result)
+    report_dict = {}
+    for metric_name in target_metrics:
+        for key, value in metrics_result[metric_name].items():
+            report_dict[f"eval/{metric_name}/{key}"] = value
+
+    accelerator.log(
+        report_dict,
+        step=0,
+    )
+
     for epoch in range(starting_epoch, training_args.num_train_epochs):
         active_dataloader = train_dataloader
         active_dataloader_len = len(active_dataloader)
@@ -761,7 +788,7 @@ def main():
                     model=HFLM(pretrained=model, tokenizer=tokenizer),
                     tasks=target_metrics,
                     verbosity="WARNING",
-                    limit=1000,
+                    # limit=1000,
                 )
                 metrics_result = metrics_result["results"]
                 # print(metrics_result)
