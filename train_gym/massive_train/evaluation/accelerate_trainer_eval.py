@@ -554,7 +554,7 @@ def main():
                 collate_fn=default_data_collator,
                 batch_size=training_args.per_device_train_batch_size,
                 drop_last=True,
-                num_workers=training_args.per_device_train_batch_size,
+                num_workers=4,
                 persistent_workers=True,
                 pin_memory=True,
             )
@@ -675,18 +675,8 @@ def main():
 
     # update the progress_bar if load from checkpoint
     progress_bar.update(completed_steps)
-    # print(next(iter(train_dataloader)))
-    # exit()
-    global_step = 0
-    total_loss = 0
-    total_tokens = 0
-    # print(model)
-    model.train()
-    model.zero_grad()
-    last_log_time = time.monotonic()
-    last_log_total_tokens = 0
-
-    # evas
+    # evals
+    model = model.eval()
     target_metrics = [
         # "arc_easy",
         # "leaderboard_gpqa",
@@ -711,6 +701,17 @@ def main():
         report_dict,
         step=0,
     )
+    # print(next(iter(train_dataloader)))
+    # exit()
+    global_step = 0
+    total_loss = 0
+    total_tokens = 0
+    # print(model)
+    model.train()
+    model.zero_grad()
+    last_log_time = time.monotonic()
+    last_log_total_tokens = 0
+
 
     for epoch in range(starting_epoch, training_args.num_train_epochs):
         active_dataloader = train_dataloader
@@ -718,6 +719,7 @@ def main():
         print("active_dataloader=", active_dataloader_len)
         active_dataloader.set_epoch(epoch)
         for local_step, batch in enumerate(active_dataloader):
+            model = model.train()
             # with accelerator.no_sync(model):
             # batch["labels"] = batch["input_ids"].clone()
             # print("batch", batch)
@@ -777,6 +779,7 @@ def main():
 
             if (global_step + 1) % training_args.eval_steps == 0:
                 # evas
+                model = model.eval()
                 target_metrics = [
                     # "arc_easy",
                     # "leaderboard_gpqa",
