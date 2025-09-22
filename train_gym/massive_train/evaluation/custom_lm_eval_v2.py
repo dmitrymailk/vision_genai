@@ -37,12 +37,12 @@ from packaging import version
 eval_logger = logging.getLogger(__name__)
 
 
-# Регистрируем новую, упрощенную модель под другим именем
-@register_model("hf-auto-simplified")
-class SimpleHFLM(HFLM):
+@register_model("hf-auto-accelerate")
+class SimpleAccelerateHFLM(HFLM):
     def __init__(
         self,
         pretrained: str | transformers.PreTrainedModel,
+        accelerator: Accelerator | None = None,
         backend: Literal["default", "causal", "seq2seq"] = "default",
         # override whether the model should be treated as decoder-only (causal) or encoder-decoder (seq2seq)
         revision: str | None = "main",
@@ -88,7 +88,7 @@ class SimpleHFLM(HFLM):
         # необходимо для корректной работы
         TemplateLM.__init__(self)
         # optionally: take in an already-initialized transformers.PreTrainedModel
-        if not isinstance(pretrained, str):
+        if not isinstance(pretrained, str) and accelerator is None:
             eval_logger.warning(
                 "`pretrained` model kwarg is not of type `str`. Many other model arguments may be ignored. Please do not launch via accelerate or use `parallelize=True` if passing an existing model this way."
             )
@@ -99,7 +99,16 @@ class SimpleHFLM(HFLM):
             self._device = self._model.device
             self._config = self._model.config
             gpus = 0
-
+        elif not isinstance(pretrained, str) and not accelerator is None:
+            self._model = pretrained
+            self.accelerator = accelerator
+            gpus = torch.cuda.device_count()
+            self._device = (
+                self.accelerator.device
+                if hasattr(self, "accelerator")
+                else torch.device(device)
+            )
+            self._config = kwargs.get("config")
         else:
             assert isinstance(device, str)
             assert isinstance(pretrained, str)
@@ -269,7 +278,7 @@ class SimpleHFLM(HFLM):
         else:
             self.batch_size_per_gpu = int(batch_size)
 
-        if isinstance(pretrained, str):
+        if isinstance(pretrained, str) or not accelerator is None:
             if (gpus >= 1 or str(self.device) == "mps") and not (
                 parallelize or autogptq or hasattr(self, "accelerator")
             ):
@@ -324,78 +333,6 @@ class SimpleHFLM(HFLM):
             eval_logger.info(
                 f"Loglikelihood prefix token id used in evaluation: {self.prefix_token_id}"
             )
-
-    def _create_model(
-        self,
-        pretrained: str,
-        revision: str | None = "main",
-        dtype: str | torch.dtype | None = "auto",
-        trust_remote_code: bool | None = False,
-        # arguments used for splitting a model across GPUs naively.
-        # only used if `parallelize=True`.
-        # (accelerate naive PP (device_map) options)
-        parallelize: bool | None = False,
-        gpus: int | None = None,
-        max_memory_per_gpu: int | str | None = None,
-        max_cpu_memory: int | str | None = None,
-        offload_folder: str | None = "./offload",
-        # PEFT, delta weights and quantization options
-        peft: str | None = None,
-        delta: str | None = None,
-        autogptq: bool | str | None = False,
-        gptqmodel: bool | None = False,
-        gguf_file: str | None = None,
-        quantization_config: None = None,
-        subfolder: str = "",
-        **kwargs,
-    ) -> None:
-        """Initializes an HF or HF-compatible PreTrainedModel from scratch
-        inside HFLM, using the kwargs passed into self.__init__().
-
-        Also handles functionality such as AutoGPTQ usage and PEFT wrapping.
-
-        For future similar extensions to AutoGPTQ that are not core to HF's ecosystem,
-        (such as PyTorch models that are nearly, but not quite, fully mirroring
-        HF's public interface relied on in this HFLM class)
-        please consider subclassing HFLM and overriding this and other methods as needed.
-        """
-
-        model_kwargs = kwargs or {}
-
-        model_kwargs.update(
-            self._get_accelerate_args(
-                parallelize=parallelize,
-                device_map=kwargs.get("device_map"),
-                max_memory_per_gpu=max_memory_per_gpu,
-                max_cpu_memory=max_cpu_memory,
-                offload_folder=offload_folder,
-                gpus=gpus,
-            )
-        )
-
-        if not autogptq and not gptqmodel:
-            if model_kwargs.get("load_in_4bit"):
-                # assert vparse(transformers.__version__) >= vparse(
-                #     "4.30.0"
-                # ), "load_in_4bit requires transformers >= 4.30.0"
-                if compute_dtype := model_kwargs.get("bnb_4bit_compute_dtype"):
-                    model_kwargs["bnb_4bit_compute_dtype"] = get_dtype(compute_dtype)
-            # print("model_kwargs", model_kwargs)
-            self._model = self.AUTO_MODEL_CLASS.from_pretrained(
-                pretrained,
-                revision=revision,
-                torch_dtype=get_dtype(dtype),
-                trust_remote_code=trust_remote_code,
-                gguf_file=gguf_file,
-                quantization_config=quantization_config,
-                subfolder=subfolder,
-                **model_kwargs,
-            )
-            # model_kwargs
-            # model_kwargs {'max_memory': None, 'device_map': {'': 'cuda:0'}}
-            # model_kwargs {'max_memory': None, 'device_map': {'': 'cuda:1'}}
-            # model_kwargs {'max_memory': None, 'device_map': {'': 'cuda:2'}}
-            # model_kwargs {'max_memory': None, 'device_map': {'': 'cuda:3'}}
 
     def _loglikelihood_tokens(
         self,
