@@ -76,12 +76,13 @@ if __name__ == "__main__":
         # model=HFLM(pretrained=model, tokenizer=tokenizer),
         model=eval_model,
         tasks=[
-            "arc_easy",
+            # "arc_easy",
             # "hellaswag",
+            "global_mmlu_en_stem",
         ],
         verbosity="WARNING",
         batch_size=64,
-        # limit=100,
+        limit=300,
     )
 
     if eval_model._rank == 0:
