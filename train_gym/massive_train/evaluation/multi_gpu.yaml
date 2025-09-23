@@ -2,5 +2,5 @@ distributed_type: "MULTI_GPU"
 # Can be one of "no", "fp16", or "bf16" (see `transformer_engine.yaml` for `fp8`)
 mixed_precision: "bf16"
 # Specify the number of GPUs to use
-# num_processes: 4
-num_processes: 6
+num_processes: 4
+# num_processes: 6
