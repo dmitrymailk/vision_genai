@@ -70,19 +70,24 @@ if __name__ == "__main__":
         accelerator=accelerator,
         tokenizer=tokenizer,
         config=config,
+        batch_size=64,
+        # batch_size=32,
+        # mixed_precision_dtype=torch.bfloat16,
+        # mixed_precision_dtype="bf16",
     )
 
     results = evaluator.simple_evaluate(
         # model=HFLM(pretrained=model, tokenizer=tokenizer),
         model=eval_model,
         tasks=[
-            # "arc_easy",
-            # "hellaswag",
+            "arc_easy",
+            "hellaswag",
             "global_mmlu_en_stem",
+            # "squadv2",
         ],
         verbosity="WARNING",
         batch_size=64,
-        limit=300,
+        # limit=300,
     )
 
     if eval_model._rank == 0:
@@ -92,3 +97,7 @@ if __name__ == "__main__":
 # {'arc_easy': {'alias': 'arc_easy', 'acc,none': 0.6548821548821548, 'acc_stderr,none': 0.009755139387152048, 'acc_norm,none': 0.6052188552188552, 'acc_norm_stderr,none': 0.01003003893588358}, 'hellaswag': {'alias': 'hellaswag', 'acc,none': 0.477096195976897, 'acc_stderr,none': 0.004984543540932336, 'acc_norm,none': 0.6363274248157738, 'acc_norm_stderr,none': 0.004800728138792352}}
 
 # fsdp2 A100-80GB 4GPU, arc_easy, hellaswag - 7 min 27 sec
+
+
+# FSDP, 4GPU batch 32, squadv2, больше 55 min 20 sec, 8.75s/it
+# DDP, 4GPU batch 32, squadv2, больше 10 min 20 sec, 1.15s/it
