@@ -63,11 +63,55 @@ import random
 from train_gym.massive_train.evaluation.custom_lm_eval_v2 import SimpleAccelerateHFLM
 from lm_eval import evaluator
 import torch.distributed as dist
-
-# from transformers.trainer_pt_utils import AcceleratorConfig
+from streaming import StreamingDataset
+from transformers.trainer_utils import speed_metrics, get_last_checkpoint
+import time
 
 
 class PretrainTrainer(Trainer):
+    def log(self, logs: dict[str, float], start_time: Optional[float] = None) -> None:
+        if self.state.epoch is not None:
+            logs["epoch"] = self.state.epoch
+        if self.args.include_num_input_tokens_seen:
+            train_metadata = getattr(self.state, "train_metadata", None)
+
+            logs["num_input_tokens_seen"] = self.state.num_input_tokens_seen
+            input_tokens_seen = self.state.num_input_tokens_seen
+            if not train_metadata is None:
+                start_time = train_metadata["prev_log_time"]
+                input_tokens_seen = (
+                    input_tokens_seen - train_metadata["prev_total_tokens"]
+                )
+                # мы полагаемся только на локальное время, потому что если мы передадим время
+                # из главного цикла, но будем продолжать обучение с чекпоинта у нас будет выброс
+                # по скорости
+                logs.update(
+                    speed_metrics("train", start_time, num_tokens=input_tokens_seen)
+                )
+
+        output = {**logs, **{"step": self.state.global_step}}
+        self.state.log_history.append(output)
+        self.control = self.callback_handler.on_log(
+            self.args, self.state, self.control, logs
+        )
+
+        # чтобы не добавлять новых полей в state и не переписывать всё, просто сохраним в одно поле
+        if self.args.include_num_input_tokens_seen:
+            setattr(
+                self.state,
+                "train_metadata",
+                {
+                    "prev_total_tokens": self.state.num_input_tokens_seen,
+                    "prev_log_time": time.time(),
+                },
+            )
+
+    def get_train_dataloader(self) -> DataLoader:
+        # for mosaic streaming
+        if self.train_dataset is None:
+            raise ValueError("Trainer: training requires a train_dataset.")
+        return self.train_dataset
+
     def _evaluate(self, *args, **kwargs):
         self.model.eval()
         eval_model = SimpleAccelerateHFLM(
@@ -75,19 +119,25 @@ class PretrainTrainer(Trainer):
             accelerator=self.accelerator,
             tokenizer=self.processing_class,
             config=self.model.config,
-            batch_size=self.args.per_device_train_batch_size,
+            batch_size=self.args.per_device_eval_batch_size,
         )
         target_metrics = [
             "arc_easy",
-            # "hellaswag",
-            "global_mmlu_en_stem",
-            # "squadv2",
+            "hellaswag",
+            "winogrande",
+            "sciq",
+            "copa",
+            "openbookqa",
+            "mmlu_stem",
+            "mmlu_other",
+            "mmlu_social_sciences",
+            "mmlu_humanities",
         ]
         metrics_result = evaluator.simple_evaluate(
             model=eval_model,
             tasks=target_metrics,
             verbosity="WARNING",
-            batch_size=self.args.per_device_train_batch_size,
+            batch_size=self.args.per_device_eval_batch_size,
         )
         self.accelerator.wait_for_everyone()
         report_dict = {}
@@ -98,7 +148,8 @@ class PretrainTrainer(Trainer):
                 for key, value in metrics_result[metric_name].items():
                     report_dict[f"eval_{metric_name}_{key}"] = value
             self.log(report_dict)
-
+        # данный объект используется например для отбора лучшего чекпоинта, поэтому его нужно передать дальше
+        # по всем потокам
         metrics_to_broadcast = [report_dict]
         dist.broadcast_object_list(metrics_to_broadcast, src=0)
         synced_lm_eval_metrics = metrics_to_broadcast[0]
@@ -369,8 +420,6 @@ def main():
                 attn_implementation=model_args.attn_implementation,
             )
 
-    
-
     match dataloader_type:
         case "hf_edu":
             tok_logger = transformers.utils.logging.get_logger(
@@ -452,22 +501,48 @@ def main():
                 ]
             )
             train_dataset = lm_datasets
+        case "mosaic_edu":
+            from streaming.base.util import clean_stale_shared_memory
 
-            # train_dataloader = DataLoader(
-            #     train_dataset,
-            #     shuffle=True,
-            #     collate_fn=default_data_collator,
-            #     batch_size=training_args.per_device_train_batch_size,
-            #     drop_last=True,
-            #     num_workers=4,
-            #     persistent_workers=True,
-            #     pin_memory=True,
-            # )
+            clean_stale_shared_memory()
+            # local_dir = "fineweb_edu_10b_numpy_mds_chunked"
+            # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked"
+            # run rm -rf /dev/shm/* if stuck
+            # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_1024"
+            local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_2048"
+            train_dataset = StreamingDataset(
+                local=local_dir,
+                remote=local_dir,
+                batch_size=training_args.per_device_train_batch_size,
+                # batch_size=64,
+                split=None,
+                shuffle=True,
+            )
+            train_dataset = DataLoader(
+                train_dataset,
+                batch_size=training_args.per_device_train_batch_size,
+                pin_memory=True,
+                num_workers=4,
+                collate_fn=default_data_collator,
+                drop_last=True,
+                # shuffle=True,
+                # persistent_workers=True,
+            )
 
-    print(training_args)
+    # print(training_args)
     # Initialize our Trainer
     training_args.gradient_checkpointing = False
     training_args.run_name = optimization_level
+    # 176_291_840
+    # 010_000_000
+    save_tokens = 20_000_000
+    world_size = torch.cuda.device_count()
+    save_steps = save_tokens // (
+        data_args.block_size * training_args.per_device_train_batch_size * world_size
+    )
+    print("save_steps/eval_steps", save_steps)
+    training_args.save_steps = save_steps
+    training_args.eval_steps = save_steps
 
     # print(training_args.accelerator_config)
     trainer = PretrainTrainer(
@@ -479,16 +554,12 @@ def main():
         data_collator=data_collator,
     )
 
+    resume_from_checkpoint = get_last_checkpoint(training_args.output_dir)
+    resume_from_checkpoint = not resume_from_checkpoint is None
+
     # Training
-    train_result = trainer.train()
-    # trainer.save_model()  # Saves the tokenizer too for easy upload
-
-    metrics = train_result.metrics
-
-    metrics["train_samples"] = len(train_dataset)
-
-    trainer.log_metrics("train", metrics)
-    trainer.save_metrics("train", metrics)
+    train_result = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+    trainer.save_model()  # Saves the tokenizer too for easy upload
 
 
 if __name__ == "__main__":
