@@ -502,37 +502,33 @@ def main():
             )
             train_dataset = lm_datasets
         case "mosaic_edu":
-            from streaming.base.util import clean_stale_shared_memory
+            # from streaming.base.util import clean_stale_shared_memory
 
-            clean_stale_shared_memory()
+            # clean_stale_shared_memory()
             # local_dir = "fineweb_edu_10b_numpy_mds_chunked"
             # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked"
             # run rm -rf /dev/shm/* if stuck
             # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_1024"
             local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_2048"
+            world_size = torch.cuda.device_count()
             train_dataset = StreamingDataset(
                 local=local_dir,
                 remote=local_dir,
                 batch_size=training_args.per_device_train_batch_size,
+                # batch_size=None,
                 # batch_size=64,
                 split=None,
                 shuffle=True,
+                num_canonical_nodes=world_size,
             )
-            # train_dataset = DataLoader(
-            #     train_dataset,
-            #     batch_size=training_args.per_device_train_batch_size,
-            #     pin_memory=True,
-            #     num_workers=4,
-            #     collate_fn=default_data_collator,
-            #     drop_last=True,
-            #     # shuffle=True,
-            #     # persistent_workers=True,
-            # )
+            # если не выставить это, процесс зависнет и обучения не будет
+            training_args.accelerator_config.dispatch_batches = False
 
     # print(training_args)
     # Initialize our Trainer
     training_args.gradient_checkpointing = False
     training_args.run_name = optimization_level
+    
     # 176_291_840
     # 010_000_000
     save_tokens = 20_000_000

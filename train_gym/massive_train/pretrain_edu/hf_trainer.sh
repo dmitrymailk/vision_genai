@@ -31,8 +31,8 @@ accelerate launch --config_file $config_path -m train_gym.massive_train.pretrain
     --save_steps 5000000 \
     --data_seed 42 \
     --optim adamw_torch \
-    --dataloader_type hf_edu
-    # --dataloader_type mosaic_edu
+    --dataloader_type hf_edu \
+    # --dataloader_type mosaic_edu \
     # --eval_on_start \
     # --dataloader_type ram_edu
     # --dataloader_type hf
