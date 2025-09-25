@@ -67,9 +67,75 @@ from streaming import StreamingDataset
 from transformers.trainer_utils import speed_metrics, get_last_checkpoint
 import time
 import gc
+from torch.optim.lr_scheduler import LambdaLR
+
+
+def get_wsd_scheduler(
+    optimizer,
+    num_warmup_steps,
+    num_training_steps,
+    last_epoch=-1,
+    stable_ratio=1.0,
+    start_lambda=0,
+    end_lambda=1,
+    start_global_step=None,
+    end_global_step=None,
+    wsd_style="cos",
+):
+    # code from yulan mini
+
+    if wsd_style == "cos":
+
+        def lr_lambda(current_step):
+            if (
+                start_global_step is not None
+                and end_global_step is not None
+                and start_global_step <= current_step <= end_global_step
+            ):
+                return (
+                    1
+                    - math.cos(
+                        math.pi
+                        * float(current_step - start_global_step)
+                        / float(max(1, end_global_step - start_global_step))
+                        / 2
+                    )
+                ) * (end_lambda - start_lambda) + start_lambda
+            if current_step < num_warmup_steps:
+                return (float(current_step) / float(max(1, num_warmup_steps))) * (
+                    end_lambda - start_lambda
+                ) + start_lambda
+            num_stable_steps = stable_ratio * num_training_steps
+            if stable_ratio == 1.0 or current_step <= num_stable_steps:
+                return 1.0
+            return max(
+                0.1,
+                float(num_training_steps - current_step)
+                / float(max(1, num_training_steps - num_stable_steps)),
+            )
+
+    return LambdaLR(optimizer, lr_lambda, last_epoch)
 
 
 class PretrainTrainer(Trainer):
+    # def create_scheduler(
+    #     self, num_training_steps: int, optimizer: torch.optim.Optimizer = None
+    # ):
+    #     # WSD scheduler
+    #     if self.lr_scheduler is None:
+    #         self.lr_scheduler = get_wsd_scheduler(
+    #             optimizer=self.optimizer if optimizer is None else optimizer,
+    #             num_warmup_steps=self.args.get_warmup_steps(num_training_steps),
+    #             num_training_steps=num_training_steps,
+    #             start_lambda=self.args.start_lambda,
+    #             end_lambda=self.args.end_lambda,
+    #             start_global_step=self.args.start_global_step,
+    #             end_global_step=self.args.end_global_step,
+    #         )
+    #         self._created_lr_scheduler = True
+    #         print("Using WSD scheduler")
+    #     return self.lr_scheduler
+
     def log(self, logs: dict[str, float], start_time: Optional[float] = None) -> None:
         if self.state.epoch is not None:
             logs["epoch"] = self.state.epoch
@@ -555,6 +621,7 @@ def main():
 
     # 176_291_840
     # 010_000_000
+    # 405_635_072
     save_tokens = 20_000_000
     world_size = torch.cuda.device_count()
     save_steps = save_tokens // (
@@ -563,8 +630,9 @@ def main():
     print("save_steps/eval_steps", save_steps)
     training_args.save_steps = save_steps
     training_args.eval_steps = save_steps
-
-    # print(training_args.accelerator_config)
+    # from OLMO2 paper
+    training_args.learning_rate = 6e-4
+    # TODO: wds scheduler, mu initialization. recheck eval code
     trainer = PretrainTrainer(
         model=model,
         args=training_args,
