@@ -66,6 +66,7 @@ import torch.distributed as dist
 from streaming import StreamingDataset
 from transformers.trainer_utils import speed_metrics, get_last_checkpoint
 import time
+import gc
 
 
 class PretrainTrainer(Trainer):
@@ -106,55 +107,72 @@ class PretrainTrainer(Trainer):
                 },
             )
 
-    # def get_train_dataloader(self) -> DataLoader:
-    #     # for mosaic streaming
-    #     if self.train_dataset is None:
-    #         raise ValueError("Trainer: training requires a train_dataset.")
-    #     return self.train_dataset
-
     def _evaluate(self, *args, **kwargs):
         self.model.eval()
-        eval_model = SimpleAccelerateHFLM(
-            pretrained=self.model,
-            accelerator=self.accelerator,
-            tokenizer=self.processing_class,
-            config=self.model.config,
-            batch_size=self.args.per_device_eval_batch_size,
-        )
-        target_metrics = [
-            "arc_easy",
-            "hellaswag",
-            "winogrande",
-            "sciq",
-            "copa",
-            "openbookqa",
-            "mmlu_stem",
-            "mmlu_other",
-            "mmlu_social_sciences",
-            "mmlu_humanities",
-        ]
-        metrics_result = evaluator.simple_evaluate(
-            model=eval_model,
-            tasks=target_metrics,
-            verbosity="WARNING",
-            batch_size=self.args.per_device_eval_batch_size,
-        )
-        self.accelerator.wait_for_everyone()
-        report_dict = {}
-        if self.accelerator.is_main_process:
-            metrics_result = metrics_result["results"]
-            # print(metrics_result)
-            for metric_name in target_metrics:
-                for key, value in metrics_result[metric_name].items():
-                    report_dict[f"eval_{metric_name}_{key}"] = value
-            self.log(report_dict)
-        # данный объект используется например для отбора лучшего чекпоинта, поэтому его нужно передать дальше
-        # по всем потокам
-        metrics_to_broadcast = [report_dict]
-        dist.broadcast_object_list(metrics_to_broadcast, src=0)
-        synced_lm_eval_metrics = metrics_to_broadcast[0]
+        train_metadata = getattr(self.state, "train_metadata", None)
+        # если метадата None и global_step ноль, значит это самая первая эвалюация модели
+        # или если метадата не None и глобальный шаг больше нуля, значит что мы продложили тренировку и
+        # это не самый первый шаг при продложении
+        if (
+            train_metadata is None
+            and self.state.global_step == 0
+            or not train_metadata is None
+            and self.state.global_step > 0
+        ):
+            eval_model = SimpleAccelerateHFLM(
+                pretrained=self.model,
+                accelerator=self.accelerator,
+                tokenizer=self.processing_class,
+                config=self.model.config,
+                batch_size=self.args.per_device_eval_batch_size,
+            )
+            target_metrics = [
+                "arc_easy",
+                "hellaswag",
+                "winogrande",
+                "sciq",
+                "copa",
+                "openbookqa",
+                "mmlu_stem",
+                "mmlu_other",
+                "mmlu_social_sciences",
+                "mmlu_humanities",
+            ]
+            metrics_result = evaluator.simple_evaluate(
+                model=eval_model,
+                tasks=target_metrics,
+                verbosity="WARNING",
+                batch_size=self.args.per_device_eval_batch_size,
+            )
+            gc.collect()
+            torch.cuda.empty_cache()
+            self.accelerator.wait_for_everyone()
+            report_dict = {}
+            if self.accelerator.is_main_process:
+                metrics_result = metrics_result["results"]
+                # print(metrics_result)
+                ban_keys = ["stderr", "alias"]
+                for metric_name in target_metrics:
+                    for key, value in metrics_result[metric_name].items():
+                        eval_key = f"eval_{metric_name}_{key}"
+                        if not any(ban_key in eval_key for ban_key in ban_keys):
+                            report_dict[eval_key] = value
+                # в общем wandb иногда багает и неравильно отображает шаги относительно метрик
+                # это в целом можно решить в графическом интерфейсе, но на всякий можно явно указывать
+                # в логах какой это шаг
+                # self.accelerator.log(
+                #     report_dict,
+                #     step=self.state.global_step,
+                # )
 
-        return synced_lm_eval_metrics
+            # данный объект используется например для отбора лучшего чекпоинта, поэтому его нужно передать дальше
+            # по всем потокам
+            metrics_to_broadcast = [report_dict]
+            dist.broadcast_object_list(metrics_to_broadcast, src=0)
+            synced_lm_eval_metrics = metrics_to_broadcast[0]
+            self.log(synced_lm_eval_metrics)
+
+            return synced_lm_eval_metrics
 
 
 @dataclass
@@ -556,8 +574,10 @@ def main():
         data_collator=data_collator,
     )
 
-    resume_from_checkpoint = get_last_checkpoint(training_args.output_dir)
-    resume_from_checkpoint = not resume_from_checkpoint is None
+    resume_from_checkpoint = os.path.exists(training_args.output_dir)
+    if resume_from_checkpoint:
+        resume_from_checkpoint = get_last_checkpoint(training_args.output_dir)
+        resume_from_checkpoint = not resume_from_checkpoint is None
 
     # Training
     train_result = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
