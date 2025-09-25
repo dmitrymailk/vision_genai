@@ -106,11 +106,11 @@ class PretrainTrainer(Trainer):
                 },
             )
 
-    def get_train_dataloader(self) -> DataLoader:
-        # for mosaic streaming
-        if self.train_dataset is None:
-            raise ValueError("Trainer: training requires a train_dataset.")
-        return self.train_dataset
+    # def get_train_dataloader(self) -> DataLoader:
+    #     # for mosaic streaming
+    #     if self.train_dataset is None:
+    #         raise ValueError("Trainer: training requires a train_dataset.")
+    #     return self.train_dataset
 
     def _evaluate(self, *args, **kwargs):
         self.model.eval()
@@ -518,16 +518,16 @@ def main():
                 split=None,
                 shuffle=True,
             )
-            train_dataset = DataLoader(
-                train_dataset,
-                batch_size=training_args.per_device_train_batch_size,
-                pin_memory=True,
-                num_workers=4,
-                collate_fn=default_data_collator,
-                drop_last=True,
-                # shuffle=True,
-                # persistent_workers=True,
-            )
+            # train_dataset = DataLoader(
+            #     train_dataset,
+            #     batch_size=training_args.per_device_train_batch_size,
+            #     pin_memory=True,
+            #     num_workers=4,
+            #     collate_fn=default_data_collator,
+            #     drop_last=True,
+            #     # shuffle=True,
+            #     # persistent_workers=True,
+            # )
 
     # print(training_args)
     # Initialize our Trainer
