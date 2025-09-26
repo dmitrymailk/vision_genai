@@ -622,7 +622,7 @@ def main():
     # 176_291_840
     # 010_000_000
     # 405_635_072
-    save_tokens = 20_000_000
+    save_tokens = 50_000_000
     world_size = torch.cuda.device_count()
     save_steps = save_tokens // (
         data_args.block_size * training_args.per_device_train_batch_size * world_size
@@ -630,9 +630,9 @@ def main():
     print("save_steps/eval_steps", save_steps)
     training_args.save_steps = save_steps
     training_args.eval_steps = save_steps
-    # from OLMO2 paper
-    training_args.learning_rate = 6e-4
-    # TODO: wds scheduler, mu initialization. recheck eval code
+    # from OLMO2 paper, bad convergence on small scale for this model, idk.
+    # training_args.learning_rate = 6e-4
+    # TODO: wds scheduler, mu initialization. recheck eval code. add train from file config
     trainer = PretrainTrainer(
         model=model,
         args=training_args,
