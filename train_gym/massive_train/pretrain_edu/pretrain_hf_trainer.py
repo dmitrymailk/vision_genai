@@ -70,71 +70,7 @@ import gc
 from torch.optim.lr_scheduler import LambdaLR
 
 
-def get_wsd_scheduler(
-    optimizer,
-    num_warmup_steps,
-    num_training_steps,
-    last_epoch=-1,
-    stable_ratio=1.0,
-    start_lambda=0,
-    end_lambda=1,
-    start_global_step=None,
-    end_global_step=None,
-    wsd_style="cos",
-):
-    # code from yulan mini
-
-    if wsd_style == "cos":
-
-        def lr_lambda(current_step):
-            if (
-                start_global_step is not None
-                and end_global_step is not None
-                and start_global_step <= current_step <= end_global_step
-            ):
-                return (
-                    1
-                    - math.cos(
-                        math.pi
-                        * float(current_step - start_global_step)
-                        / float(max(1, end_global_step - start_global_step))
-                        / 2
-                    )
-                ) * (end_lambda - start_lambda) + start_lambda
-            if current_step < num_warmup_steps:
-                return (float(current_step) / float(max(1, num_warmup_steps))) * (
-                    end_lambda - start_lambda
-                ) + start_lambda
-            num_stable_steps = stable_ratio * num_training_steps
-            if stable_ratio == 1.0 or current_step <= num_stable_steps:
-                return 1.0
-            return max(
-                0.1,
-                float(num_training_steps - current_step)
-                / float(max(1, num_training_steps - num_stable_steps)),
-            )
-
-    return LambdaLR(optimizer, lr_lambda, last_epoch)
-
-
 class PretrainTrainer(Trainer):
-    # def create_scheduler(
-    #     self, num_training_steps: int, optimizer: torch.optim.Optimizer = None
-    # ):
-    #     # WSD scheduler
-    #     if self.lr_scheduler is None:
-    #         self.lr_scheduler = get_wsd_scheduler(
-    #             optimizer=self.optimizer if optimizer is None else optimizer,
-    #             num_warmup_steps=self.args.get_warmup_steps(num_training_steps),
-    #             num_training_steps=num_training_steps,
-    #             start_lambda=self.args.start_lambda,
-    #             end_lambda=self.args.end_lambda,
-    #             start_global_step=self.args.start_global_step,
-    #             end_global_step=self.args.end_global_step,
-    #         )
-    #         self._created_lr_scheduler = True
-    #         print("Using WSD scheduler")
-    #     return self.lr_scheduler
 
     def log(self, logs: dict[str, float], start_time: Optional[float] = None) -> None:
         if self.state.epoch is not None:
@@ -451,6 +387,7 @@ def main():
         (ModelArguments, DataTrainingArguments, TrainingArguments)
     )
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    # model_args, data_args, training_args = parser.parse_yaml_file()
     dataloader_type = data_args.dataloader_type
     # Setup logging
     logging.basicConfig(
@@ -622,7 +559,7 @@ def main():
     # 176_291_840
     # 010_000_000
     # 405_635_072
-    save_tokens = 50_000_000
+    save_tokens = 200_000_000
     world_size = torch.cuda.device_count()
     save_steps = save_tokens // (
         data_args.block_size * training_args.per_device_train_batch_size * world_size
@@ -632,7 +569,15 @@ def main():
     training_args.eval_steps = save_steps
     # from OLMO2 paper, bad convergence on small scale for this model, idk.
     # training_args.learning_rate = 6e-4
-    # TODO: wds scheduler, mu initialization. recheck eval code. add train from file config
+    # TODO: mu initialization. recheck eval code. add train from file config
+    if training_args.lr_scheduler_type == "warmup_stable_decay":
+        # Based on MiniCPM, decay 10% https://arxiv.org/pdf/2404.06395
+        # https://huggingface.co/docs/transformers/v4.56.2/en/main_classes/optimizer_schedules#transformers.get_wsd_schedule
+        # yulan mini тоже использовали данный scheduler https://arxiv.org/pdf/2412.17743
+        max_steps = training_args.max_steps
+        num_decay_steps = int(0.1 * max_steps)
+        training_args.lr_scheduler_kwargs["num_decay_steps"] = num_decay_steps
+
     trainer = PretrainTrainer(
         model=model,
         args=training_args,
@@ -650,6 +595,13 @@ def main():
     # Training
     train_result = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
     trainer.save_model()  # Saves the tokenizer too for easy upload
+    metrics = train_result.metrics
+    trainer.log_metrics("train", metrics)
+    trainer.save_metrics("train", metrics)
+    trainer.save_state()
+    metrics = trainer.evaluate()
+    trainer.log_metrics("eval", metrics)
+    trainer.save_metrics("eval", metrics)
 
 
 if __name__ == "__main__":
