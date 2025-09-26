@@ -9,9 +9,10 @@ block_size: 2048
 logging_steps: 4 
 eval_steps: 500 
 eval_strategy: steps 
-include_num_input_tokens_seen: 
+include_num_input_tokens_seen: true
 attn_implementation: flash_attention_2 
-optimization_level: opt_1 
+# optimization_level: opt_1 
+optimization_level: opt_28 
 bf16: true
 remove_unused_columns: False 
 gradient_checkpointing: False 
@@ -22,7 +23,7 @@ optim: adamw_torch
 lr_scheduler_type: warmup_stable_decay 
 warmup_steps: 1000
 dataloader_type: mosaic_edu 
-max_steps: 5000
+max_steps: 12300
 # eval_on_start: true
 # dataloader_type hf_edu \
 # dataloader_type ram_edu

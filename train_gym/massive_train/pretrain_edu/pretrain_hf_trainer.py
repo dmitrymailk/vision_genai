@@ -67,7 +67,13 @@ from streaming import StreamingDataset
 from transformers.trainer_utils import speed_metrics, get_last_checkpoint
 import time
 import gc
-from torch.optim.lr_scheduler import LambdaLR
+from cut_cross_entropy.transformers.llama import (
+    cce_forward,
+    linear_cross_entropy,
+    _PATCH_OPTS,
+)
+from torchao.float8 import convert_to_float8_training, Float8LinearConfig
+import argparse
 
 
 class PretrainTrainer(Trainer):
@@ -386,8 +392,19 @@ def main():
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, TrainingArguments)
     )
-    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    # model_args, data_args, training_args = parser.parse_yaml_file()
+    # model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    cli_parser = argparse.ArgumentParser()
+    cli_parser.add_argument(
+        "--yaml_file",
+        type=str,
+        default="/code/train_gym/massive_train/pretrain_edu/configs/llama3.2-1B.yaml",
+        required=True,
+        help="yaml_file input file to process.",
+    )
+    yaml_file = cli_parser.parse_args().yaml_file
+
+    model_args, data_args, training_args = parser.parse_yaml_file(yaml_file=yaml_file)
+    # training_args.max_s
     dataloader_type = data_args.dataloader_type
     # Setup logging
     logging.basicConfig(
@@ -429,17 +446,63 @@ def main():
     match optimization_level:
         case "opt_1":
             print("opt_1")
-            # https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.from_pretrained.attn_implementation
-            # model = AutoModelForCausalLM.from_pretrained(
-            #     model_name_or_path,
-            #     torch_dtype=torch_dtype,
-            #     attn_implementation=model_args.attn_implementation,
-            # )
             model = AutoModelForCausalLM.from_config(
                 config,
                 torch_dtype=torch_dtype,
                 attn_implementation=model_args.attn_implementation,
             )
+        case "opt_28":
+            print("opt_28")
+
+            model = AutoModelForCausalLM.from_config(
+                config,
+                torch_dtype=torch_dtype,
+                attn_implementation=model_args.attn_implementation,
+            )
+            # unsloth version
+            # данный метод работает если reduction cross entropy mean 
+            # и у нас нет никаких accumulation steps. однако если у нас pretrain
+            # все метки идут плотно и поэтому можно в целом складывать средние лоссы
+            # но в общем случае нам нужно делить loss на количество токенов которые
+            # породили этот лосс. иными словами reduction mean подходит не для всех случаев 
+            # только когда у нас одинаковое количество токенов во ВСЕХ батчах
+            # https://huggingface.co/blog/gradient_accumulation
+            # https://unsloth.ai/blog/gradient
+            
+            model.forward = MethodType(cce_forward, model)
+            first_linear = None
+            last_linear = None
+            for name, module in model.named_modules():
+                if isinstance(module, torch.nn.Linear):
+                    if first_linear is None:
+                        first_linear = name
+                    last_linear = name
+
+            major, minor = torch.cuda.get_device_capability()
+            # Target version
+            target_major = 8
+            target_minor = 9
+            if (major > target_major) or (
+                major == target_major and minor >= target_minor
+            ):
+                func = partial(
+                    filter_linear_layers,
+                    first_layer_name=first_linear,
+                    last_layer_name=last_linear,
+                )
+                config = Float8LinearConfig.from_recipe_name("tensorwise")
+                convert_to_float8_training(
+                    model,
+                    config=config,
+                    module_filter_fn=func,
+                )
+
+            for m in reversed(list(model.modules())):
+                if isinstance(m, LlamaDecoderLayer):
+                    m.compile(
+                        backend="inductor",
+                        # mode="max-autotune",
+                    )
 
     match dataloader_type:
         case "hf_edu":
@@ -599,7 +662,7 @@ def main():
     trainer.log_metrics("train", metrics)
     trainer.save_metrics("train", metrics)
     trainer.save_state()
-    metrics = trainer.evaluate()
+    metrics = trainer._evaluate()
     trainer.log_metrics("eval", metrics)
     trainer.save_metrics("eval", metrics)
 

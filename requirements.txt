@@ -25,3 +25,4 @@ plotly==6.2.0
 ipywidgets
 more-itertools==10.8.0
 mosaicml-streaming==0.13.0
+lm-eval==0.4.9.1
