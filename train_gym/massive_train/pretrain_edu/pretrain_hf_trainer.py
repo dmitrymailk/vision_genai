@@ -339,6 +339,9 @@ class DataTrainingArguments:
             )
         },
     )
+    max_train_tokens: Optional[int] = field(
+        default=405_635_072,
+    )
     streaming: bool = field(default=False, metadata={"help": "Enable streaming mode"})
     block_size: Optional[int] = field(
         default=1024,
@@ -460,15 +463,15 @@ def main():
                 attn_implementation=model_args.attn_implementation,
             )
             # unsloth version
-            # данный метод работает если reduction cross entropy mean 
+            # данный метод работает если reduction cross entropy mean
             # и у нас нет никаких accumulation steps. однако если у нас pretrain
             # все метки идут плотно и поэтому можно в целом складывать средние лоссы
             # но в общем случае нам нужно делить loss на количество токенов которые
-            # породили этот лосс. иными словами reduction mean подходит не для всех случаев 
+            # породили этот лосс. иными словами reduction mean подходит не для всех случаев
             # только когда у нас одинаковое количество токенов во ВСЕХ батчах
             # https://huggingface.co/blog/gradient_accumulation
             # https://unsloth.ai/blog/gradient
-            
+
             model.forward = MethodType(cce_forward, model)
             first_linear = None
             last_linear = None
@@ -614,8 +617,6 @@ def main():
             # если не выставить это, процесс зависнет и обучения не будет
             training_args.accelerator_config.dispatch_batches = False
 
-    # print(training_args)
-    # Initialize our Trainer
     training_args.gradient_checkpointing = False
     training_args.run_name = optimization_level
 
@@ -624,12 +625,17 @@ def main():
     # 405_635_072
     save_tokens = 200_000_000
     world_size = torch.cuda.device_count()
-    save_steps = save_tokens // (
+    tokens_per_step = (
         data_args.block_size * training_args.per_device_train_batch_size * world_size
     )
+    save_steps = save_tokens // tokens_per_step
+    max_train_tokens = data_args.max_train_tokens
+    max_steps = max_train_tokens // tokens_per_step + 1
     print("save_steps/eval_steps", save_steps)
+    print("max_steps", max_steps)
     training_args.save_steps = save_steps
     training_args.eval_steps = save_steps
+    training_args.max_steps = max_steps
     # from OLMO2 paper, bad convergence on small scale for this model, idk.
     # training_args.learning_rate = 6e-4
     # TODO: mu initialization. recheck eval code. add train from file config
