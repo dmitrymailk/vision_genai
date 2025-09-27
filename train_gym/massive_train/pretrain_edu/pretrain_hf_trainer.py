@@ -1,5 +1,4 @@
 import logging
-import math
 import os
 
 os.environ["WANDB_PROJECT"] = "llm_pretraining"
@@ -7,16 +6,11 @@ import sys
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Optional
-
 import datasets
-import evaluate
 import torch
 from datasets import load_dataset
-
 import transformers
 from transformers import (
-    CONFIG_MAPPING,
-    MODEL_FOR_CAUSAL_LM_MAPPING,
     AutoConfig,
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -24,42 +18,12 @@ from transformers import (
     Trainer,
     TrainingArguments,
     default_data_collator,
-    is_torch_xla_available,
     set_seed,
 )
 from transformers.testing_utils import CaptureLogger
-from transformers.utils.versions import require_version
-
-# from liger_kernel.transformers.functional import liger_cross_entropy
-from typing import Any, Sequence, cast
-
-# from cut_cross_entropy.transformers import cce_patch
-from transformers import DataCollatorWithFlattening
-from transformers.models.llama.modeling_llama import (
-    LlamaAttention,
-    LlamaDecoderLayer,
-    LlamaModel,
-    LlamaForCausalLM,
-)
-
-from transformers.modeling_outputs import BaseModelOutputWithPast
-from transformers.loss.loss_utils import nn
+from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 from functools import partial
-from accelerate.utils import compile_regions
-
-from liger_kernel.transformers import AutoLigerKernelForCausalLM
 from types import MethodType
-
-# from torchao.float8 import convert_to_float8_training, Float8LinearConfig
-from accelerate.utils import FP8RecipeKwargs
-from torch.utils.data import (
-    DataLoader,
-    Dataset,
-    IterableDataset,
-    RandomSampler,
-    SequentialSampler,
-)
-import random
 from train_gym.massive_train.evaluation.custom_lm_eval_v2 import SimpleAccelerateHFLM
 from lm_eval import evaluator
 import torch.distributed as dist
@@ -67,11 +31,7 @@ from streaming import StreamingDataset
 from transformers.trainer_utils import speed_metrics, get_last_checkpoint
 import time
 import gc
-from cut_cross_entropy.transformers.llama import (
-    cce_forward,
-    linear_cross_entropy,
-    _PATCH_OPTS,
-)
+from cut_cross_entropy.transformers.llama import cce_forward
 from torchao.float8 import convert_to_float8_training, Float8LinearConfig
 import argparse
 import torch
@@ -187,9 +147,6 @@ class PretrainTrainer(Trainer):
 
 @dataclass
 class ModelArguments:
-    """
-    Arguments pertaining to which model/config/tokenizer we are going to fine-tune, or train from scratch.
-    """
 
     model_name_or_path: Optional[str] = field(
         default=None,
@@ -199,152 +156,28 @@ class ModelArguments:
             )
         },
     )
-    model_type: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "If training from scratch, pass a model type from the list: "
-        },
-    )
-    config_overrides: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": (
-                "Override some existing default config settings when a model is trained from scratch. Example: "
-                "n_embd=10,resid_pdrop=0.2,scale_attn_weights=false,summary_type=cls_index"
-            )
-        },
-    )
-    config_name: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "Pretrained config name or path if not the same as model_name"
-        },
-    )
-    tokenizer_name: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "Pretrained tokenizer name or path if not the same as model_name"
-        },
-    )
-    cache_dir: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "Where do you want to store the pretrained models downloaded from huggingface.co"
-        },
-    )
-    use_fast_tokenizer: bool = field(
-        default=True,
-        metadata={
-            "help": "Whether to use one of the fast tokenizer (backed by the tokenizers library) or not."
-        },
-    )
-    model_revision: str = field(
-        default="main",
-        metadata={
-            "help": "The specific model version to use (can be a branch name, tag name or commit id)."
-        },
-    )
-    token: str = field(
-        default=None,
-        metadata={
-            "help": (
-                "The token to use as HTTP bearer authorization for remote files. If not specified, will use the token "
-                "generated when running `huggingface-cli login` (stored in `~/.huggingface`)."
-            )
-        },
-    )
-    trust_remote_code: bool = field(
-        default=False,
-        metadata={
-            "help": (
-                "Whether to trust the execution of code from datasets/models defined on the Hub."
-                " This option should only be set to `True` for repositories you trust and in which you have read the"
-                " code, as it will execute code present on the Hub on your local machine."
-            )
-        },
-    )
-    torch_dtype: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": (
-                "Override the default `torch.dtype` and load the model under this dtype. If `auto` is passed, the "
-                "dtype will be automatically derived from the model's weights."
-            ),
-            "choices": ["auto", "bfloat16", "float16", "float32"],
-        },
-    )
-    attn_implementation: Optional[str] = field(
-        default="eager",
-        metadata={
-            "choices": ["eager", "sdpa", "flash_attention_2"],
-        },
-    )
+
     optimization_level: Optional[str] = field(
         default="opt_1",
+        metadata={
+            "help": ("The model optimization variant."),
+        },
     )
-
-    def __post_init__(self):
-        if self.config_overrides is not None and (
-            self.config_name is not None or self.model_name_or_path is not None
-        ):
-            raise ValueError(
-                "--config_overrides can't be used in combination with --config_name or --model_name_or_path"
-            )
 
 
 @dataclass
 class DataTrainingArguments:
-    """
-    Arguments pertaining to what data we are going to input our model for training and eval.
-    """
 
-    dataset_name: Optional[str] = field(
-        default=None,
-        metadata={"help": "The name of the dataset to use (via the datasets library)."},
-    )
     dataloader_type: Optional[str] = field(
         default="hf_edu",
         metadata={
             "help": "The type dataloader_type (default hf method or mosaic streaming)"
         },
     )
-    dataset_config_name: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "The configuration name of the dataset to use (via the datasets library)."
-        },
-    )
-    train_file: Optional[str] = field(
-        default=None, metadata={"help": "The input training data file (a text file)."}
-    )
-    validation_file: Optional[str] = field(
-        default=None,
-        metadata={
-            "help": "An optional input evaluation data file to evaluate the perplexity on (a text file)."
-        },
-    )
-    max_train_samples: Optional[int] = field(
-        default=None,
-        metadata={
-            "help": (
-                "For debugging purposes or quicker training, truncate the number of training examples to this "
-                "value if set."
-            )
-        },
-    )
-    max_eval_samples: Optional[int] = field(
-        default=None,
-        metadata={
-            "help": (
-                "For debugging purposes or quicker training, truncate the number of evaluation examples to this "
-                "value if set."
-            )
-        },
-    )
     max_train_tokens: Optional[int] = field(
         default=405_635_072,
+        metadata={"help": ("Max train tokens")},
     )
-    streaming: bool = field(default=False, metadata={"help": "Enable streaming mode"})
     block_size: Optional[int] = field(
         default=1024,
         metadata={
@@ -354,24 +187,6 @@ class DataTrainingArguments:
                 "Default to the model max input length for single sentence inputs (take into account special tokens)."
             )
         },
-    )
-    overwrite_cache: bool = field(
-        default=False,
-        metadata={"help": "Overwrite the cached training and evaluation sets"},
-    )
-    validation_split_percentage: Optional[int] = field(
-        default=5,
-        metadata={
-            "help": "The percentage of the train set used as validation set in case there's no validation split"
-        },
-    )
-    preprocessing_num_workers: Optional[int] = field(
-        default=None,
-        metadata={"help": "The number of processes to use for the preprocessing."},
-    )
-    keep_linebreaks: bool = field(
-        default=True,
-        metadata={"help": "Whether to keep line breaks when using TXT files or not."},
     )
 
 
@@ -444,7 +259,6 @@ def main():
     torch_dtype = torch.bfloat16
     data_collator = default_data_collator
     optimization_level = model_args.optimization_level
-    original_forward = LlamaForCausalLM.forward
     config = AutoConfig.from_pretrained(
         model_name_or_path,
     )
@@ -561,7 +375,6 @@ def main():
                     batched=True,
                     num_proc=min(os.cpu_count() - 1, 64),
                     remove_columns=column_names,
-                    # load_from_cache_file=not data_args.overwrite_cache,
                     desc="Running tokenizer on dataset",
                 )
 
@@ -653,10 +466,6 @@ def main():
         num_decay_steps = int(0.1 * max_steps)
         training_args.lr_scheduler_kwargs["num_decay_steps"] = num_decay_steps
 
-    # optimizer = OptimizerInBackward(
-    #     model.parameters(), torch.optim.AdamW, lr=training_args.learning_rate
-    # )
-
     trainer = PretrainTrainer(
         model=model,
         args=training_args,
@@ -664,7 +473,6 @@ def main():
         eval_dataset=train_dataset,
         processing_class=tokenizer,
         data_collator=data_collator,
-        # optimizers=optimizer
     )
 
     resume_from_checkpoint = os.path.exists(training_args.output_dir)
@@ -674,7 +482,7 @@ def main():
 
     # Training
     train_result = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
-    trainer.save_model()  # Saves the tokenizer too for easy upload
+    trainer.save_model()
     metrics = train_result.metrics
     trainer.log_metrics("train", metrics)
     trainer.save_metrics("train", metrics)
