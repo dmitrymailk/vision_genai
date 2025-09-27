@@ -1,7 +1,8 @@
 model_name_or_path: unsloth/Llama-3.2-1B-Instruct 
 # per_device_train_batch_size: 4 
 # per_device_train_batch_size: 8 
-per_device_train_batch_size: 10 # max for A100-40GB
+# per_device_train_batch_size: 10 # max for A100-40GB
+per_device_train_batch_size: 12 # max for A100-40GB with liger
 per_device_eval_batch_size: 32 
 do_train: true
 do_eval: true
@@ -13,8 +14,10 @@ eval_steps: 500
 eval_strategy: steps 
 include_num_input_tokens_seen: true
 attn_implementation: flash_attention_2 
-# optimization_level: opt_1 
-optimization_level: opt_28 
+# optimization_level: opt_1 # baseline hf model
+optimization_level: opt_2 # liger kernel
+# optimization_level: opt_3 # cut cross entropy+torch.compile
+# optim: adamw_bnb_8bit
 bf16: true
 remove_unused_columns: False 
 gradient_checkpointing: False 

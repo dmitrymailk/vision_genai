@@ -74,6 +74,8 @@ from cut_cross_entropy.transformers.llama import (
 )
 from torchao.float8 import convert_to_float8_training, Float8LinearConfig
 import argparse
+import torch
+from liger_kernel.transformers import apply_liger_kernel_to_llama
 
 
 class PretrainTrainer(Trainer):
@@ -454,14 +456,23 @@ def main():
                 torch_dtype=torch_dtype,
                 attn_implementation=model_args.attn_implementation,
             )
-        case "opt_28":
-            print("opt_28")
-
+        case "opt_2":
+            print("opt_2")
+            apply_liger_kernel_to_llama()
             model = AutoModelForCausalLM.from_config(
                 config,
                 torch_dtype=torch_dtype,
                 attn_implementation=model_args.attn_implementation,
             )
+
+        case "opt_3":
+            print("opt_3")
+            model = AutoModelForCausalLM.from_config(
+                config,
+                torch_dtype=torch_dtype,
+                attn_implementation=model_args.attn_implementation,
+            )
+
             # unsloth version
             # данный метод работает если reduction cross entropy mean
             # и у нас нет никаких accumulation steps. однако если у нас pretrain
@@ -471,15 +482,7 @@ def main():
             # только когда у нас одинаковое количество токенов во ВСЕХ батчах
             # https://huggingface.co/blog/gradient_accumulation
             # https://unsloth.ai/blog/gradient
-
             model.forward = MethodType(cce_forward, model)
-            first_linear = None
-            last_linear = None
-            for name, module in model.named_modules():
-                if isinstance(module, torch.nn.Linear):
-                    if first_linear is None:
-                        first_linear = name
-                    last_linear = name
 
             major, minor = torch.cuda.get_device_capability()
             # Target version
@@ -488,6 +491,14 @@ def main():
             if (major > target_major) or (
                 major == target_major and minor >= target_minor
             ):
+                first_linear = None
+                last_linear = None
+                for name, module in model.named_modules():
+                    if isinstance(module, torch.nn.Linear):
+                        if first_linear is None:
+                            first_linear = name
+                        last_linear = name
+
                 func = partial(
                     filter_linear_layers,
                     first_layer_name=first_linear,
@@ -595,11 +606,6 @@ def main():
                 )
                 train_dataset = lm_datasets
         case "mosaic_edu":
-            # from streaming.base.util import clean_stale_shared_memory
-
-            # clean_stale_shared_memory()
-            # local_dir = "fineweb_edu_10b_numpy_mds_chunked"
-            # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked"
             # run rm -rf /dev/shm/* if stuck
             # local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_1024"
             local_dir = "/code/fineweb_edu_10b_numpy_mds_chunked_2048"
@@ -647,6 +653,10 @@ def main():
         num_decay_steps = int(0.1 * max_steps)
         training_args.lr_scheduler_kwargs["num_decay_steps"] = num_decay_steps
 
+    # optimizer = OptimizerInBackward(
+    #     model.parameters(), torch.optim.AdamW, lr=training_args.learning_rate
+    # )
+
     trainer = PretrainTrainer(
         model=model,
         args=training_args,
@@ -654,6 +664,7 @@ def main():
         eval_dataset=train_dataset,
         processing_class=tokenizer,
         data_collator=data_collator,
+        # optimizers=optimizer
     )
 
     resume_from_checkpoint = os.path.exists(training_args.output_dir)

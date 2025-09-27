@@ -1,3 +1,4 @@
+# устаревшая дефолтная версия для hf trainer
 pushd /code/
 
 export http_proxy="127.0.0.1:2334"
