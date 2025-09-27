@@ -268,7 +268,7 @@ def main():
             model = AutoModelForCausalLM.from_config(
                 config,
                 torch_dtype=torch_dtype,
-                attn_implementation=model_args.attn_implementation,
+                attn_implementation="flash_attention_2",
             )
         case "opt_2":
             print("opt_2")
@@ -276,7 +276,7 @@ def main():
             model = AutoModelForCausalLM.from_config(
                 config,
                 torch_dtype=torch_dtype,
-                attn_implementation=model_args.attn_implementation,
+                attn_implementation="flash_attention_2",
             )
 
         case "opt_3":
@@ -455,7 +455,7 @@ def main():
     training_args.save_steps = save_steps
     training_args.eval_steps = save_steps
     training_args.max_steps = max_steps
-    # from OLMO2 paper, bad convergence on small scale for this model, idk.
+    # lr from OLMO2 paper, bad convergence on small scale for this model, idk.
     # training_args.learning_rate = 6e-4
     # TODO: mu initialization. recheck eval code. add train from file config
     if training_args.lr_scheduler_type == "warmup_stable_decay":
