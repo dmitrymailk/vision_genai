@@ -231,7 +231,7 @@ class SimpleAccelerateHFLM(HFLM):
         # access self._model through self.model property outside this method
         if isinstance(self.model, torch.nn.Module):
             self.model.eval()
-            self.model.tie_weights()
+            # self.model.tie_weights()
 
         self.think_end_token = (
             int(think_end_token)

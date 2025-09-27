@@ -205,9 +205,6 @@ def filter_linear_layers(module, fqn, first_layer_name=None, last_layer_name=Non
 
 
 def main():
-    # See all possible arguments in src/transformers/training_args.py
-    # or by passing the --help flag to this script.
-    # We now keep distinct sets of args, for a cleaner separation of concerns.
 
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, TrainingArguments)
@@ -224,7 +221,7 @@ def main():
     yaml_file = cli_parser.parse_args().yaml_file
 
     model_args, data_args, training_args = parser.parse_yaml_file(yaml_file=yaml_file)
-    # training_args.max_s
+
     dataloader_type = data_args.dataloader_type
     # Setup logging
     logging.basicConfig(
@@ -457,7 +454,7 @@ def main():
     training_args.max_steps = max_steps
     # lr from OLMO2 paper, bad convergence on small scale for this model, idk.
     # training_args.learning_rate = 6e-4
-    # TODO: mu initialization. recheck eval code. add train from file config
+    # TODO: mu initialization from yulan mini. recheck eval code. add train from file config
     if training_args.lr_scheduler_type == "warmup_stable_decay":
         # Based on MiniCPM, decay 10% https://arxiv.org/pdf/2404.06395
         # https://huggingface.co/docs/transformers/v4.56.2/en/main_classes/optimizer_schedules#transformers.get_wsd_schedule

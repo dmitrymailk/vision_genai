@@ -1,0 +1,34 @@
+model_name_or_path: unsloth/Llama-3.2-1B-Instruct 
+per_device_train_batch_size: 4 
+per_device_eval_batch_size: 32 
+do_train: true
+do_eval: true
+output_dir: ./hf_trainer_edu 
+report_to: wandb 
+block_size: 2048 
+logging_steps: 4 
+eval_steps: 500 
+eval_strategy: steps 
+include_num_input_tokens_seen: true
+optimization_level: opt_1_rmt 
+bf16: true
+remove_unused_columns: False 
+gradient_checkpointing: False 
+# намеренно большое число. так как мы определяем остановку на основе количества увиденных токенов
+num_train_epochs: 1000000000
+save_steps: 5000000 
+data_seed: 42 
+optim: adamw_torch 
+lr_scheduler_type: warmup_stable_decay 
+warmup_steps: 1000
+dataloader_type: mosaic_edu 
+max_steps: 12300
+dataloader_num_workers: 4
+max_train_tokens: 405635072
+eval_on_start: true
+
+# rmt params
+segment_size: 1024
+max_n_segments: 2
+vary_n_segments: False 
+k2: -1
