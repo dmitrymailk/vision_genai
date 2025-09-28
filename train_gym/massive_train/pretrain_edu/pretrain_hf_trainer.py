@@ -434,7 +434,9 @@ def main():
             training_args.accelerator_config.dispatch_batches = False
 
     training_args.gradient_checkpointing = False
-    training_args.run_name = optimization_level
+    training_args.run_name = (
+        f"{optimization_level}_batch_{training_args.per_device_train_batch_size}"
+    )
 
     # 176_291_840
     # 010_000_000

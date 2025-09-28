@@ -2,6 +2,17 @@ import math
 import torch
 from torch.nn import CrossEntropyLoss
 from transformers.modeling_outputs import CausalLMOutputWithCrossAttentions
+from typing import TYPE_CHECKING
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
+from torch.nn import CrossEntropyLoss
+from transformers.modeling_outputs import CausalLMOutputWithPast
+from liger_kernel.transformers.model.llama import lce_maybe_trainable_lm_head
+
+if TYPE_CHECKING:
+    from transformers.cache_utils import Cache
 
 
 class MemoryCell(torch.nn.Module):
@@ -570,3 +581,113 @@ class RecurrentWrapperTrain(torch.nn.Module):
 
     def gradient_checkpointing_enable(self, *args, **kwargs):
         self.memory_cell.model.gradient_checkpointing_enable(*args, **kwargs)
+
+
+class MemoryCellTrainLiger(MemoryCellTrain):
+    def process_output(self, model_outputs, **kwargs):
+        if self.num_mem_tokens not in {0, None}:
+            out = CausalLMOutputWithCrossAttentions()
+            memory_state = model_outputs.hidden_states[-1][:, -self.num_mem_tokens :]
+            if not self.training:
+                out["logits"] = model_outputs.logits[
+                    :, self.num_mem_tokens : -self.num_mem_tokens
+                ]
+
+            if kwargs.get("output_hidden_states"):
+                out["hidden_states"] = [
+                    lh[:, self.num_mem_tokens : -self.num_mem_tokens]
+                    for lh in model_outputs.hidden_states
+                ]
+            if kwargs.get("output_attentions"):
+                out["attentions"] = model_outputs["attentions"]
+
+            if not kwargs["labels"] is None:
+                last_hidden = out["hidden_states"][-1].contiguous()
+
+                loss = lce_maybe_trainable_lm_head(
+                    self.model,
+                    hidden_states=last_hidden,
+                    hidden_size=self.model.config.hidden_size,
+                    labels=kwargs["labels"],
+                    shift_labels=None,
+                    num_items_in_batch=kwargs["num_items_in_batch"],
+                )
+
+                out["loss"] = loss
+
+            # clean memory while training
+            if self.training:
+                out["logits"] = None
+                out["attentions"] = None
+                out["hidden_states"] = None
+        else:
+            memory_state = None
+            out = model_outputs
+
+        return out, memory_state
+
+
+def lce_forward(
+    self,
+    input_ids: torch.LongTensor = None,
+    attention_mask: Optional[torch.Tensor] = None,
+    position_ids: Optional[torch.LongTensor] = None,
+    past_key_values: Optional[Union["Cache", List[torch.FloatTensor]]] = None,
+    inputs_embeds: Optional[torch.FloatTensor] = None,
+    labels: Optional[torch.LongTensor] = None,
+    use_cache: Optional[bool] = None,
+    output_attentions: Optional[bool] = None,
+    output_hidden_states: Optional[bool] = None,
+    return_dict: Optional[bool] = None,
+    cache_position: Optional[torch.LongTensor] = None,
+    logits_to_keep: Union[int, torch.Tensor] = 0,
+    skip_logits: Optional[bool] = None,
+    **kwargs,
+) -> Union[Tuple, CausalLMOutputWithPast]:
+
+    output_attentions = (
+        output_attentions
+        if output_attentions is not None
+        else self.config.output_attentions
+    )
+    output_hidden_states = (
+        output_hidden_states
+        if output_hidden_states is not None
+        else self.config.output_hidden_states
+    )
+    return_dict = (
+        return_dict if return_dict is not None else self.config.use_return_dict
+    )
+
+    # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+    outputs = self.model(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+        position_ids=position_ids,
+        past_key_values=past_key_values,
+        inputs_embeds=inputs_embeds,
+        use_cache=use_cache,
+        output_attentions=output_attentions,
+        output_hidden_states=output_hidden_states,
+        return_dict=return_dict,
+        cache_position=cache_position,
+        **kwargs,
+    )
+
+    if self.config.pretraining_tp > 1:
+        raise Exception("Liger Kernel does not support pretraining_tp!!")
+
+    logits = None
+    loss = None
+
+    # if not return_dict:
+    #     output = (logits,) + outputs[1:]
+    #     return (loss,) + output if loss is not None else output
+
+    return CausalLMOutputWithPast(
+        loss=loss,
+        logits=logits,
+        past_key_values=outputs.past_key_values,
+        hidden_states=outputs.hidden_states,
+        attentions=outputs.attentions,
+    )

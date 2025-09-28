@@ -1,5 +1,5 @@
 model_name_or_path: unsloth/Llama-3.2-1B-Instruct 
-per_device_train_batch_size: 4 
+per_device_train_batch_size: 10 
 per_device_eval_batch_size: 32 
 do_train: true
 do_eval: true
@@ -10,8 +10,9 @@ logging_steps: 4
 eval_steps: 500 
 eval_strategy: steps 
 include_num_input_tokens_seen: true
-optimization_level: opt_1_rmt # посегментное вычисление лосса 
+# optimization_level: opt_1_rmt # посегментное вычисление лосса 
 # optimization_level: opt_2_rmt # baseline
+optimization_level: opt_3_rmt # liger model
 bf16: true
 remove_unused_columns: False 
 gradient_checkpointing: False 
@@ -26,7 +27,7 @@ dataloader_type: mosaic_edu
 max_steps: 12300
 dataloader_num_workers: 4
 max_train_tokens: 405635072
-eval_on_start: true
+# eval_on_start: true
 
 # rmt params
 memory_size: 32

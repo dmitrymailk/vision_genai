@@ -36,8 +36,7 @@ from torchao.float8 import convert_to_float8_training, Float8LinearConfig
 import argparse
 import torch
 from liger_kernel.transformers import apply_liger_kernel_to_llama
-
-
+import liger_kernel
 from train_gym.massive_train.pretrain_edu.pretrain_hf_trainer import (
     PretrainTrainer,
     DataTrainingArguments,
@@ -48,6 +47,8 @@ from train_gym.rmt.rmt_wrappers import (
     RecurrentWrapper,
     MemoryCellTrain,
     RecurrentWrapperTrain,
+    MemoryCellTrainLiger,
+    lce_forward,
 )
 
 
@@ -166,7 +167,10 @@ def main():
                 attn_implementation="flash_attention_2",
             )
             # посегментное вычисление лосса
-            cell = MemoryCellTrain(model, num_mem_tokens=model_args.memory_size)
+            cell = MemoryCellTrain(
+                model,
+                num_mem_tokens=model_args.memory_size,
+            )
             model = RecurrentWrapperTrain(
                 cell,
                 segment_size=model_args.segment_size,
@@ -182,8 +186,32 @@ def main():
                 torch_dtype=torch_dtype,
                 attn_implementation="flash_attention_2",
             )
-            cell = MemoryCell(model, num_mem_tokens=model_args.memory_size)
+            cell = MemoryCell(
+                model,
+                num_mem_tokens=model_args.memory_size,
+            )
             model = RecurrentWrapper(
+                cell,
+                segment_size=model_args.segment_size,
+                max_n_segments=model_args.max_n_segments,
+                vary_n_segments=model_args.vary_n_segments,
+                k2=model_args.k2,
+            )
+        case "opt_3_rmt":
+            print("opt_3_rmt")
+            # apply liger kernel
+            liger_kernel.transformers.model.llama.lce_forward = lce_forward
+            apply_liger_kernel_to_llama()
+            model = AutoModelForCausalLM.from_config(
+                config,
+                torch_dtype=torch_dtype,
+                attn_implementation="flash_attention_2",
+            )
+            cell = MemoryCellTrainLiger(
+                model,
+                num_mem_tokens=model_args.memory_size,
+            )
+            model = RecurrentWrapperTrain(
                 cell,
                 segment_size=model_args.segment_size,
                 max_n_segments=model_args.max_n_segments,
@@ -211,7 +239,9 @@ def main():
             training_args.accelerator_config.dispatch_batches = False
 
     training_args.gradient_checkpointing = False
-    training_args.run_name = optimization_level
+    training_args.run_name = (
+        f"{optimization_level}_batch_{training_args.per_device_train_batch_size}"
+    )
 
     # 176_291_840
     # 010_000_000
