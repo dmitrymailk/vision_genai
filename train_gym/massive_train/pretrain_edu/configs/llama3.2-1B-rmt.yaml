@@ -10,8 +10,8 @@ logging_steps: 4
 eval_steps: 500 
 eval_strategy: steps 
 include_num_input_tokens_seen: true
-# optimization_level: opt_1_rmt #  
-optimization_level: opt_2_rmt 
+optimization_level: opt_1_rmt # посегментное вычисление лосса 
+# optimization_level: opt_2_rmt # baseline
 bf16: true
 remove_unused_columns: False 
 gradient_checkpointing: False 

@@ -59,7 +59,7 @@ class MemoryCell(torch.nn.Module):
         out = self.model.generate(
             inputs_embeds=seg_kwargs["inputs_embeds"],
             attention_mask=seg_kwargs["attention_mask"],
-            **generate_kwargs
+            **generate_kwargs,
         )
         return out
 
@@ -302,14 +302,19 @@ class MemoryCellTrain(torch.nn.Module):
             memory_state = self.set_memory(input_ids.shape)
 
         labels = None
+        num_items_in_batch = None
         if "labels" in kwargs:
             labels = kwargs.pop("labels")
+
+        if "num_items_in_batch" in kwargs:
+            num_items_in_batch = kwargs.pop("num_items_in_batch")
 
         seg_kwargs = self.process_input(
             input_ids, memory_state, write_mem=True, **kwargs
         )
         out = self.model(**seg_kwargs)
         kwargs["labels"] = labels
+        kwargs["num_items_in_batch"] = num_items_in_batch
         out, new_memory_state = self.process_output(out, **kwargs)
 
         return out, new_memory_state
@@ -319,12 +324,15 @@ class MemoryCellTrain(torch.nn.Module):
             memory_state = self.set_memory(input_ids.shape)
 
         seg_kwargs = self.process_input(
-            input_ids, memory_state, attention_mask=attention_mask, write_mem=False
+            input_ids,
+            memory_state,
+            attention_mask=attention_mask,
+            write_mem=False,
         )
         out = self.model.generate(
             inputs_embeds=seg_kwargs["inputs_embeds"],
             attention_mask=seg_kwargs["attention_mask"],
-            **generate_kwargs
+            **generate_kwargs,
         )
         return out
 
@@ -379,35 +387,36 @@ class MemoryCellTrain(torch.nn.Module):
                 out["attentions"] = model_outputs["attentions"]
 
             if not kwargs["labels"] is None:
-                # loss = self.model.loss_function(
-                #     logits=out["logits"],
-                #     labels=,
-                #     vocab_size=self.model.config.vocab_size,
+                loss = self.model.loss_function(
+                    logits=out["logits"],
+                    labels=kwargs["labels"],
+                    vocab_size=self.model.config.vocab_size,
+                    num_items_in_batch=kwargs["num_items_in_batch"],
+                )
+                # logits = out["logits"]
+                # labels = kwargs["labels"]
+                # ignore_index = -100
+                # logits = logits.float()
+                # vocab_size = self.model.config.vocab_size
+                # labels = torch.nn.functional.pad(
+                #     labels,
+                #     (0, 1),
+                #     value=ignore_index,
                 # )
-                logits = out["logits"]
-                labels = kwargs["labels"]
-                ignore_index = -100
-                logits = logits.float()
-                vocab_size = self.model.config.vocab_size
-                labels = torch.nn.functional.pad(
-                    labels,
-                    (0, 1),
-                    value=ignore_index,
-                )
-                shift_labels = labels[..., 1:].contiguous()
+                # shift_labels = labels[..., 1:].contiguous()
 
-                # Flatten the tokens
-                logits = logits.view(-1, vocab_size)
-                shift_labels = shift_labels.view(-1)
-                # Enable model parallelism
-                shift_labels = shift_labels.to(logits.device)
+                # # Flatten the tokens
+                # logits = logits.view(-1, vocab_size)
+                # shift_labels = shift_labels.view(-1)
+                # # Enable model parallelism
+                # shift_labels = shift_labels.to(logits.device)
 
-                loss = torch.nn.functional.cross_entropy(
-                    logits,
-                    shift_labels,
-                    ignore_index=ignore_index,
-                    reduction="sum",
-                )
+                # loss = torch.nn.functional.cross_entropy(
+                #     logits,
+                #     shift_labels,
+                #     ignore_index=ignore_index,
+                #     reduction="sum",
+                # )
                 out["loss"] = loss
 
             # clean memory while training
@@ -452,7 +461,10 @@ class RecurrentWrapperTrain(torch.nn.Module):
         cell_outputs = []
         for seg_num, segment in enumerate(segmented):
             cell_out, memory_state = self.memory_cell(
-                **segment, memory_state=memory_state, output_hidden_states=True
+                **segment,
+                memory_state=memory_state,
+                output_hidden_states=True,
+                num_items_in_batch=num_items_in_batch,
             )
             cell_outputs.append(cell_out)
             memory_state = self.manage_gradients(memory_state, seg_num)
@@ -463,7 +475,6 @@ class RecurrentWrapperTrain(torch.nn.Module):
             labels_mask=labels_mask,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            num_items_in_batch=num_items_in_batch,
         )
         return out
 
@@ -534,7 +545,7 @@ class RecurrentWrapperTrain(torch.nn.Module):
             losses = [o.loss for o in cell_outputs]
             losses = torch.stack(losses, dim=0).sum(dim=0)
 
-            out["loss"] = losses / kwargs["num_items_in_batch"]
+            out["loss"] = losses
         else:
             out["loss"] = 0
 
