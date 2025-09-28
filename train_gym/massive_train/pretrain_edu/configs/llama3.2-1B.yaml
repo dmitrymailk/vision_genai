@@ -13,8 +13,8 @@ logging_steps: 4
 eval_steps: 500 
 eval_strategy: steps 
 include_num_input_tokens_seen: true
-# optimization_level: opt_1 # baseline hf model
-optimization_level: opt_2 # liger kernel
+optimization_level: opt_1 # baseline hf model
+# optimization_level: opt_2 # liger kernel
 # optimization_level: opt_3 # cut cross entropy+torch.compile
 # optim: adamw_bnb_8bit
 bf16: true
@@ -31,7 +31,7 @@ dataloader_type: mosaic_edu
 max_steps: 12300
 dataloader_num_workers: 4
 max_train_tokens: 405635072
-# eval_on_start: true
+eval_on_start: true
 # dataloader_type hf_edu \
 # dataloader_type ram_edu
 # dataloader_type hf

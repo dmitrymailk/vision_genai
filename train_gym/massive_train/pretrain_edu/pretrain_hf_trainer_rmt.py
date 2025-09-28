@@ -161,25 +161,6 @@ def main():
     match optimization_level:
         case "opt_1_rmt":
             print("opt_1_rmt")
-            model = AutoModelForCausalLM.from_config(
-                config,
-                torch_dtype=torch_dtype,
-                attn_implementation="flash_attention_2",
-            )
-            # посегментное вычисление лосса
-            cell = MemoryCellTrain(
-                model,
-                num_mem_tokens=model_args.memory_size,
-            )
-            model = RecurrentWrapperTrain(
-                cell,
-                segment_size=model_args.segment_size,
-                max_n_segments=model_args.max_n_segments,
-                vary_n_segments=model_args.vary_n_segments,
-                k2=model_args.k2,
-            )
-        case "opt_2_rmt":
-            print("opt_2_rmt")
             # baseline
             model = AutoModelForCausalLM.from_config(
                 config,
@@ -191,6 +172,25 @@ def main():
                 num_mem_tokens=model_args.memory_size,
             )
             model = RecurrentWrapper(
+                cell,
+                segment_size=model_args.segment_size,
+                max_n_segments=model_args.max_n_segments,
+                vary_n_segments=model_args.vary_n_segments,
+                k2=model_args.k2,
+            )
+        case "opt_2_rmt":
+            print("opt_2_rmt")
+            model = AutoModelForCausalLM.from_config(
+                config,
+                torch_dtype=torch_dtype,
+                attn_implementation="flash_attention_2",
+            )
+            # посегментное вычисление лосса
+            cell = MemoryCellTrain(
+                model,
+                num_mem_tokens=model_args.memory_size,
+            )
+            model = RecurrentWrapperTrain(
                 cell,
                 segment_size=model_args.segment_size,
                 max_n_segments=model_args.max_n_segments,
@@ -246,7 +246,7 @@ def main():
     # 176_291_840
     # 010_000_000
     # 405_635_072
-    save_tokens = 200_000_000
+    save_tokens = 400_000_000
     world_size = torch.cuda.device_count()
     tokens_per_step = (
         data_args.block_size * training_args.per_device_train_batch_size * world_size
@@ -298,3 +298,11 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# liger kernel+batch 10 = 82633 tok/sec. 4gpus A100-40GB
+# 82633*86_400=7_139_491_200 tok/day
+# 100_000_000_000/7_139_491_200=14.00 days
+
+# baseline rmt +batch 4 = 58004 tok/sec. 4gpus A100-40GB
+# 58004*86_400=5_011_545_600 tok/day
+# 100_000_000_000/5_011_545_600=19.9539 days
