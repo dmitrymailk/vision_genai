@@ -178,6 +178,10 @@ class DataTrainingArguments:
         default=405_635_072,
         metadata={"help": ("Max train tokens")},
     )
+    save_tokens: Optional[int] = field(
+        default=400_000_000,
+        metadata={"help": ("save model after seen tokens")},
+    )
     block_size: Optional[int] = field(
         default=1024,
         metadata={
@@ -441,7 +445,8 @@ def main():
     # 176_291_840
     # 010_000_000
     # 405_635_072
-    save_tokens = 200_000_000
+    # save_tokens = 400_000_000
+    save_tokens = data_args.save_tokens
     world_size = torch.cuda.device_count()
     tokens_per_step = (
         data_args.block_size * training_args.per_device_train_batch_size * world_size

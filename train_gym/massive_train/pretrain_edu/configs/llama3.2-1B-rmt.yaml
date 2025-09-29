@@ -1,5 +1,6 @@
 model_name_or_path: unsloth/Llama-3.2-1B-Instruct 
-per_device_train_batch_size: 4 
+# per_device_train_batch_size: 4 
+per_device_train_batch_size: 10 # max for A100-40GB with opt_3_rmt 
 per_device_eval_batch_size: 32 
 do_train: true
 do_eval: true
@@ -10,14 +11,15 @@ logging_steps: 4
 eval_steps: 500 
 eval_strategy: steps 
 include_num_input_tokens_seen: true
-optimization_level: opt_1_rmt # baseline 
+# optimization_level: opt_1_rmt # baseline 
 # optimization_level: opt_2_rmt # посегментное вычисление лосса
-# optimization_level: opt_3_rmt # посегментное вычисление лосса+liger model
+optimization_level: opt_3_rmt # посегментное вычисление лосса+liger model
 bf16: true
 remove_unused_columns: False 
 gradient_checkpointing: False 
 # намеренно большое число. так как мы определяем остановку на основе количества увиденных токенов
 num_train_epochs: 1000000000
+# вычисляем динамически на основе токенов
 save_steps: 5000000 
 data_seed: 42 
 optim: adamw_torch 
@@ -26,10 +28,11 @@ warmup_steps: 1000
 dataloader_type: mosaic_edu 
 max_steps: 12300
 dataloader_num_workers: 4
-max_train_tokens: 405635072
-eval_on_start: true
+save_tokens: 400_000_000
+max_train_tokens: 405_635_072
+# eval_on_start: true
 
-# rmt params
+# rmt specific params
 memory_size: 32
 segment_size: 1024
 max_n_segments: 2

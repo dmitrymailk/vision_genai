@@ -246,7 +246,8 @@ def main():
     # 176_291_840
     # 010_000_000
     # 405_635_072
-    save_tokens = 400_000_000
+    # save_tokens = 400_000_000
+    save_tokens = data_args.save_tokens
     world_size = torch.cuda.device_count()
     tokens_per_step = (
         data_args.block_size * training_args.per_device_train_batch_size * world_size
