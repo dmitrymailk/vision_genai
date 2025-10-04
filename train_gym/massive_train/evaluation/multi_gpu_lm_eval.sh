@@ -104,16 +104,18 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3
 # export CUDA_VISIBLE_DEVICES=0
 
 # model_name=HuggingFaceTB/SmolLM2-360M
-model_name=unsloth/Llama-3.2-1B-Instruct
+# model_name=unsloth/Llama-3.2-1B-Instruct
+model_name=Qwen/Qwen2.5-7B-Instruct
 # lm_eval \
     # --model_args pretrained=$model_name \
 accelerate launch --mixed_precision bf16 -m lm_eval \
     --model hf \
-    --model_args pretrained=$model_name \
     --tasks babilongv2_qa1_under_4k_instruct,babilongv2_qa2_under_4k_instruct,babilongv2_qa3_under_4k_instruct,babilongv2_qa4_under_4k_instruct,babilongv2_qa5_under_4k_instruct \
-    --batch_size 64 \
+    --model_args pretrained=$model_name \
+    --batch_size 16 \
     --apply_chat_template \
     --system_instruction "You are a helpful assistant." \
+    # --tasks babilong_qa1,babilong_qa2,babilong_qa3,babilong_qa4,babilong_qa5 \
     # --tasks babilongv2_qa2_under_4k_instruct \
     # --output_path chat_template_test_results.json \
     # --log_samples \
@@ -157,3 +159,52 @@ accelerate launch --mixed_precision bf16 -m lm_eval \
 # | - babilongv2_qa5_2k_instruct   |Yaml   |none  |     0|acc   |↑  |0.5335|±  |   N/A|
 # | - babilongv2_qa5_4k_instruct   |Yaml   |none  |     0|acc   |↑  |0.6026|±  |   N/A|
 
+
+# hf (pretrained=unsloth/Llama-3.2-1B-Instruct), gen_kwargs: (None), limit: None, num_fewshot: None, batch_size: 64
+# |   Tasks    |Version|Filter|n-shot|Metric|   |Value |   |Stderr|
+# |------------|------:|------|-----:|------|---|-----:|---|-----:|
+# |babilong_qa1|      0|none  |     2|acc   |↑  |0.7490|±  |0.0137|
+# |babilong_qa2|      0|none  |     2|acc   |↑  |0.4454|±  |0.0157|
+# |babilong_qa3|      0|none  |     2|acc   |↑  |0.3253|±  |0.0148|
+# |babilong_qa4|      0|none  |     2|acc   |↑  |0.2282|±  |0.0133|
+# |babilong_qa5|      0|none  |     2|acc   |↑  |0.2543|±  |0.0138|
+
+# hf (pretrained=Qwen/Qwen2.5-7B-Instruct), gen_kwargs: (None), limit: None, num_fewshot: None, batch_size: 32
+# |   Tasks    |Version|Filter|n-shot|Metric|   |Value |   |Stderr|
+# |------------|------:|------|-----:|------|---|-----:|---|-----:|
+# |babilong_qa1|      0|none  |     2|acc   |↑  |0.9840|±  |0.0040|
+# |babilong_qa2|      0|none  |     2|acc   |↑  |0.6286|±  |0.0153|
+# |babilong_qa3|      0|none  |     2|acc   |↑  |0.3794|±  |0.0154|
+# |babilong_qa4|      0|none  |     2|acc   |↑  |0.5165|±  |0.0158|
+# |babilong_qa5|      0|none  |     2|acc   |↑  |0.8599|±  |0.0110|
+
+
+# 14 min 53 sec
+# hf (pretrained=Qwen/Qwen2.5-7B-Instruct), gen_kwargs: (None), limit: None, num_fewshot: None, batch_size: 16
+# |             Tasks              |Version|Filter|n-shot|Metric|   |Value |   |Stderr|
+# |--------------------------------|-------|------|-----:|------|---|-----:|---|------|
+# |babilongv2_qa1_under_4k_instruct|    N/A|      |      |      |   |      |   |      |
+# | - babilongv2_qa1_0k_instruct   |Yaml   |none  |     0|acc   |↑  |0.9840|±  |   N/A|
+# | - babilongv2_qa1_1k_instruct   |Yaml   |none  |     0|acc   |↑  |0.9270|±  |   N/A|
+# | - babilongv2_qa1_2k_instruct   |Yaml   |none  |     0|acc   |↑  |0.9240|±  |   N/A|
+# | - babilongv2_qa1_4k_instruct   |Yaml   |none  |     0|acc   |↑  |0.9140|±  |   N/A|
+# |babilongv2_qa2_under_4k_instruct|    N/A|      |      |      |   |      |   |      |
+# | - babilongv2_qa2_0k_instruct   |Yaml   |none  |     0|acc   |↑  |0.6186|±  |   N/A|
+# | - babilongv2_qa2_1k_instruct   |Yaml   |none  |     0|acc   |↑  |0.5415|±  |   N/A|
+# | - babilongv2_qa2_2k_instruct   |Yaml   |none  |     0|acc   |↑  |0.5475|±  |   N/A|
+# | - babilongv2_qa2_4k_instruct   |Yaml   |none  |     0|acc   |↑  |0.5245|±  |   N/A|
+# |babilongv2_qa3_under_4k_instruct|    N/A|      |      |      |   |      |   |      |
+# | - babilongv2_qa3_0k_instruct   |Yaml   |none  |     0|acc   |↑  |0.3614|±  |   N/A|
+# | - babilongv2_qa3_1k_instruct   |Yaml   |none  |     0|acc   |↑  |0.4095|±  |   N/A|
+# | - babilongv2_qa3_2k_instruct   |Yaml   |none  |     0|acc   |↑  |0.3828|±  |   N/A|
+# | - babilongv2_qa3_4k_instruct   |Yaml   |none  |     0|acc   |↑  |0.3373|±  |   N/A|
+# |babilongv2_qa4_under_4k_instruct|    N/A|      |      |      |   |      |   |      |
+# | - babilongv2_qa4_0k_instruct   |Yaml   |none  |     0|acc   |↑  |0.5816|±  |   N/A|
+# | - babilongv2_qa4_1k_instruct   |Yaml   |none  |     0|acc   |↑  |0.6346|±  |   N/A|
+# | - babilongv2_qa4_2k_instruct   |Yaml   |none  |     0|acc   |↑  |0.6517|±  |   N/A|
+# | - babilongv2_qa4_4k_instruct   |Yaml   |none  |     0|acc   |↑  |0.6436|±  |   N/A|
+# |babilongv2_qa5_under_4k_instruct|    N/A|      |      |      |   |      |   |      |
+# | - babilongv2_qa5_0k_instruct   |Yaml   |none  |     0|acc   |↑  |0.8809|±  |   N/A|
+# | - babilongv2_qa5_1k_instruct   |Yaml   |none  |     0|acc   |↑  |0.8766|±  |   N/A|
+# | - babilongv2_qa5_2k_instruct   |Yaml   |none  |     0|acc   |↑  |0.8749|±  |   N/A|
+# | - babilongv2_qa5_4k_instruct   |Yaml   |none  |     0|acc   |↑  |0.8639|±  |   N/A|
