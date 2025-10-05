@@ -11,12 +11,15 @@ from train_gym.massive_train.evaluation.custom_lm_eval import SimpleHFLM
 from train_gym.massive_train.evaluation.custom_lm_eval_v2 import SimpleAccelerateHFLM
 from accelerate import Accelerator
 
+
 if __name__ == "__main__":
     # model_name = "unsloth/Llama-3.2-1B-Instruct"
     accelerator = Accelerator()
 
     with accelerator.main_process_first():
         model_name = "unsloth/Llama-3.2-1B"
+        # model_name = "unsloth/Llama-3.2-1B-Instruct"
+        # model_name = "allenai/OLMo-2-0425-1B-SFT"
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=torch.bfloat16,
@@ -31,6 +34,7 @@ if __name__ == "__main__":
     # eval_model = SimpleAccelerateHFLM(
     #     pretrained=model_name,
     # )
+    # model._skip_keys_device_placement = None
     use_fsdp = True
     # use_fsdp = False
     if use_fsdp:
@@ -65,13 +69,19 @@ if __name__ == "__main__":
         model = accelerator.prepare(model)
 
     # print(accelerator.unwrap_model(model).config)
+    # batch_size = 1
+    # batch_size = 64
+    # batch_size = 56
+    batch_size = 32
+    # batch_size = 8
     eval_model = SimpleAccelerateHFLM(
         pretrained=model,
         accelerator=accelerator,
         tokenizer=tokenizer,
         config=config,
         # batch_size=64,
-        batch_size=32,
+        batch_size=batch_size,
+        # batch_size=32,
         # mixed_precision_dtype=torch.bfloat16,
         # mixed_precision_dtype="bf16",
     )
@@ -90,10 +100,23 @@ if __name__ == "__main__":
             "mmlu_other",
             "mmlu_social_sciences",
             "mmlu_humanities",
+            # "babilongv2_qa1_under_4k_instruct",
+            # "babilongv2_qa2_under_4k_instruct",
+            # "babilongv2_qa3_under_4k_instruct",
+            # "babilongv2_qa4_under_4k_instruct",
+            # "babilongv2_qa5_under_4k_instruct",
+            "babilongv2_qa1_under_4k_base",
+            "babilongv2_qa2_under_4k_base",
+            "babilongv2_qa3_under_4k_base",
+            "babilongv2_qa4_under_4k_base",
+            "babilongv2_qa5_under_4k_base",
+            # "babilongv2_qa1_0k_instruct",
         ],
         verbosity="WARNING",
-        batch_size=64,
+        # batch_size=64,
+        batch_size=batch_size,
         # limit=300,
+        # apply_chat_template=True,
     )
 
     if eval_model._rank == 0:
