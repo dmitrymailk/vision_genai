@@ -17,9 +17,9 @@ if __name__ == "__main__":
     accelerator = Accelerator()
 
     with accelerator.main_process_first():
-        model_name = "unsloth/Llama-3.2-1B"
+        # model_name = "unsloth/Llama-3.2-1B"
+        model_name = "HuggingFaceTB/SmolLM2-360M"
         # model_name = "unsloth/Llama-3.2-1B-Instruct"
-        # model_name = "allenai/OLMo-2-0425-1B-SFT"
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=torch.bfloat16,
@@ -31,10 +31,7 @@ if __name__ == "__main__":
     # eval_model = HFLM(
     #     pretrained=model_name,
     # )
-    # eval_model = SimpleAccelerateHFLM(
-    #     pretrained=model_name,
-    # )
-    # model._skip_keys_device_placement = None
+
     use_fsdp = True
     # use_fsdp = False
     if use_fsdp:
@@ -72,8 +69,9 @@ if __name__ == "__main__":
     # batch_size = 1
     # batch_size = 64
     # batch_size = 56
-    batch_size = 32
+    # batch_size = 32
     # batch_size = 8
+    batch_size = 16
     eval_model = SimpleAccelerateHFLM(
         pretrained=model,
         accelerator=accelerator,
@@ -90,16 +88,16 @@ if __name__ == "__main__":
         # model=HFLM(pretrained=model, tokenizer=tokenizer),
         model=eval_model,
         tasks=[
-            "arc_easy",
-            "hellaswag",
-            "winogrande",
-            "sciq",
-            "copa",
-            "openbookqa",
-            "mmlu_stem",
-            "mmlu_other",
-            "mmlu_social_sciences",
-            "mmlu_humanities",
+            # "arc_easy",
+            # "hellaswag",
+            # "winogrande",
+            # "sciq",
+            # "copa",
+            # "openbookqa",
+            # "mmlu_stem",
+            # "mmlu_other",
+            # "mmlu_social_sciences",
+            # "mmlu_humanities",
             # "babilongv2_qa1_under_4k_instruct",
             # "babilongv2_qa2_under_4k_instruct",
             # "babilongv2_qa3_under_4k_instruct",

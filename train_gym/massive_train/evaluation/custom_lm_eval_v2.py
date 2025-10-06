@@ -507,7 +507,10 @@ class SimpleAccelerateHFLM(HFLM):
             call_kwargs = {}
             if self.backend == "causal":
                 batched_inps = pad_and_concat(
-                    padding_len_inp, inps, padding_side="right"
+                    padding_len_inp,
+                    inps,
+                    padding_side="right",
+                    # padding_side="left",
                 )  # [batch, padding_len_inp]
             elif self.backend == "seq2seq":
                 # TODO: left-pad encoder inps and mask?
@@ -612,6 +615,9 @@ class SimpleAccelerateHFLM(HFLM):
             # discard right-padding.
             # also discard the input/context tokens. we'll only score continuations.
             logits = logits[inplen - contlen : inplen]
+
+            # left
+            # logits = logits[-(inplen - contlen) :]
         # elif self.backend == "seq2seq":
         #     assert (
         #         contlen and not inplen
@@ -651,7 +657,11 @@ class SimpleAccelerateHFLM(HFLM):
         is_fsdp = self.accelerator.distributed_type == DistributedType.FSDP
         if is_fsdp:
             # FIX FSDP, FSDP2 GENERATION
-            generation_kwargs["cache_implementation"] = "static"
+            # generation_kwargs["cache_implementation"] = "static"
+            # generation_kwargs["cache_implementation"] = "offloaded_static"
+            # generation_kwargs["cache_implementation"] = "dynamic"
+            # generation_kwargs["cache_implementation"] = "offloaded_hybrid"
+            generation_kwargs["cache_implementation"] = "offloaded"
             generation_kwargs["disable_compile"] = True
         # fix OOMs. accelerate does unnecessary fp32 convertions.
         old_fwd = ConvertOutputsToFp32.__call__

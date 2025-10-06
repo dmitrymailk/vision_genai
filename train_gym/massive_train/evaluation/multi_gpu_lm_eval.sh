@@ -103,24 +103,24 @@
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 # export CUDA_VISIBLE_DEVICES=0
 
-# model_name=HuggingFaceTB/SmolLM2-360M
+model_name=HuggingFaceTB/SmolLM2-360M
 # model_name=unsloth/Llama-3.2-1B-Instruct
-model_name=Qwen/Qwen2.5-7B-Instruct
+# model_name=Qwen/Qwen2.5-7B-Instruct
 # lm_eval \
     # --model_args pretrained=$model_name \
 accelerate launch --mixed_precision bf16 -m lm_eval \
     --model hf \
-    --tasks babilongv2_qa1_under_4k_instruct,babilongv2_qa2_under_4k_instruct,babilongv2_qa3_under_4k_instruct,babilongv2_qa4_under_4k_instruct,babilongv2_qa5_under_4k_instruct \
+    --tasks babilongv2_qa1_under_4k_base,babilongv2_qa2_under_4k_base,babilongv2_qa3_under_4k_base,babilongv2_qa4_under_4k_base,babilongv2_qa5_under_4k_base \
     --model_args pretrained=$model_name \
-    --batch_size 16 \
-    --apply_chat_template \
-    --system_instruction "You are a helpful assistant." \
+    --batch_size 8 \
+    # --apply_chat_template \
+    # --system_instruction "You are a helpful assistant." \
+    # --tasks babilongv2_qa1_under_4k_instruct,babilongv2_qa2_under_4k_instruct,babilongv2_qa3_under_4k_instruct,babilongv2_qa4_under_4k_instruct,babilongv2_qa5_under_4k_instruct \
     # --tasks babilong_qa1,babilong_qa2,babilong_qa3,babilong_qa4,babilong_qa5 \
     # --tasks babilongv2_qa2_under_4k_instruct \
     # --output_path chat_template_test_results.json \
     # --log_samples \
     # --tasks babilongv2_qa2_0k_instruct \
-    # --tasks babilongv2_qa1_under_4k_base,babilongv2_qa2_under_4k_base,babilongv2_qa3_under_4k_base,babilongv2_qa4_under_4k_base,babilongv2_qa5_under_4k_base \
     # --batch_size 96
     # --tasks babilongv2_qa2_0k_base,babilongv2_qa2_1k_base,babilongv2_qa2_2k_base,babilongv2_qa2_4k_base \
     # --tasks babilongv2_qa1_0k_base,babilongv2_qa1_1k_base,babilongv2_qa1_2k_base,babilongv2_qa1_4k_base \

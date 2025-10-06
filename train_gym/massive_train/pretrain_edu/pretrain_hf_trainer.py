@@ -107,6 +107,11 @@ class PretrainTrainer(Trainer):
                 "mmlu_other",
                 "mmlu_social_sciences",
                 "mmlu_humanities",
+                "babilongv2_qa1_under_4k_base",
+                "babilongv2_qa2_under_4k_base",
+                "babilongv2_qa3_under_4k_base",
+                "babilongv2_qa4_under_4k_base",
+                "babilongv2_qa5_under_4k_base",
             ]
             metrics_result = evaluator.simple_evaluate(
                 model=eval_model,
