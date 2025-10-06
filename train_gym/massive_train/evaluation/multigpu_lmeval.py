@@ -12,11 +12,6 @@ from train_gym.massive_train.evaluation.custom_lm_eval_v2 import SimpleAccelerat
 from accelerate import Accelerator
 
 
-def check_cache(module, input, output):
-    if hasattr(output, "past_key_values") and output.past_key_values:
-        print(f"Cache device: {output.past_key_values[0][0].device}")
-
-
 if __name__ == "__main__":
     # model_name = "unsloth/Llama-3.2-1B-Instruct"
     accelerator = Accelerator()
@@ -35,10 +30,6 @@ if __name__ == "__main__":
         config = AutoConfig.from_pretrained(model_name)
         model.model.config.use_cache = True
         config.use_cache = True
-        # model.register_forward_hook(check_cache)
-    # eval_model = HFLM(
-    #     pretrained=model_name,
-    # )
 
     use_fsdp = True
     # use_fsdp = False
@@ -66,14 +57,12 @@ if __name__ == "__main__":
         optimizer = torch.optim.AdamW(
             optimizer_grouped_parameters,
         )
-        # model = accelerator.prepare(model)
         model, optimizer = accelerator.prepare(model, optimizer)
-        # optimizer = accelerator.prepare(optimizer)
+
     else:
         accelerator = Accelerator()
         model = accelerator.prepare(model)
 
-    # print(accelerator.unwrap_model(model).config)
     # batch_size = 1
     # batch_size = 64
     # batch_size = 56
@@ -111,13 +100,13 @@ if __name__ == "__main__":
             # "babilongv2_qa3_under_4k_instruct",
             # "babilongv2_qa4_under_4k_instruct",
             # "babilongv2_qa5_under_4k_instruct",
-            # "babilongv2_qa1_under_4k_base",
-            # "babilongv2_qa2_under_4k_base",
-            # "babilongv2_qa3_under_4k_base",
-            # "babilongv2_qa4_under_4k_base",
-            # "babilongv2_qa5_under_4k_base",
+            "babilongv2_qa1_under_4k_base",
+            "babilongv2_qa2_under_4k_base",
+            "babilongv2_qa3_under_4k_base",
+            "babilongv2_qa4_under_4k_base",
+            "babilongv2_qa5_under_4k_base",
             # "babilongv2_qa1_0k_instruct",
-            "babilongv2_qa1_0k_base",
+            # "babilongv2_qa1_0k_base",
         ],
         verbosity="WARNING",
         # batch_size=64,
@@ -133,7 +122,3 @@ if __name__ == "__main__":
 # {'arc_easy': {'alias': 'arc_easy', 'acc,none': 0.6548821548821548, 'acc_stderr,none': 0.009755139387152048, 'acc_norm,none': 0.6052188552188552, 'acc_norm_stderr,none': 0.01003003893588358}, 'hellaswag': {'alias': 'hellaswag', 'acc,none': 0.477096195976897, 'acc_stderr,none': 0.004984543540932336, 'acc_norm,none': 0.6363274248157738, 'acc_norm_stderr,none': 0.004800728138792352}}
 
 # fsdp2 A100-80GB 4GPU, arc_easy, hellaswag - 7 min 27 sec
-
-
-# FSDP, 4GPU batch 32, squadv2, больше 55 min 20 sec, 8.75s/it
-# DDP, 4GPU batch 32, squadv2, больше 10 min 20 sec, 1.15s/it

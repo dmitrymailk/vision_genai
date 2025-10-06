@@ -8,3 +8,6 @@ pip install flash-attn==2.8.0.post2 --no-build-isolation
 
 git clone https://github.com/dmitrymailk/cut-cross-entropy.git
 cd cut-cross-entropy && pip install -e .
+
+git clone https://github.com/dmitrymailk/lm-evaluation-harness.git
+cd lm-evaluation-harness/ && pip install -e .
