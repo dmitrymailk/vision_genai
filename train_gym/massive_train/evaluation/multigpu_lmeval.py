@@ -12,6 +12,11 @@ from train_gym.massive_train.evaluation.custom_lm_eval_v2 import SimpleAccelerat
 from accelerate import Accelerator
 
 
+def check_cache(module, input, output):
+    if hasattr(output, "past_key_values") and output.past_key_values:
+        print(f"Cache device: {output.past_key_values[0][0].device}")
+
+
 if __name__ == "__main__":
     # model_name = "unsloth/Llama-3.2-1B-Instruct"
     accelerator = Accelerator()
@@ -28,6 +33,9 @@ if __name__ == "__main__":
         )
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         config = AutoConfig.from_pretrained(model_name)
+        model.model.config.use_cache = True
+        config.use_cache = True
+        # model.register_forward_hook(check_cache)
     # eval_model = HFLM(
     #     pretrained=model_name,
     # )
@@ -103,12 +111,13 @@ if __name__ == "__main__":
             # "babilongv2_qa3_under_4k_instruct",
             # "babilongv2_qa4_under_4k_instruct",
             # "babilongv2_qa5_under_4k_instruct",
-            "babilongv2_qa1_under_4k_base",
-            "babilongv2_qa2_under_4k_base",
-            "babilongv2_qa3_under_4k_base",
-            "babilongv2_qa4_under_4k_base",
-            "babilongv2_qa5_under_4k_base",
+            # "babilongv2_qa1_under_4k_base",
+            # "babilongv2_qa2_under_4k_base",
+            # "babilongv2_qa3_under_4k_base",
+            # "babilongv2_qa4_under_4k_base",
+            # "babilongv2_qa5_under_4k_base",
             # "babilongv2_qa1_0k_instruct",
+            "babilongv2_qa1_0k_base",
         ],
         verbosity="WARNING",
         # batch_size=64,

@@ -656,13 +656,17 @@ class SimpleAccelerateHFLM(HFLM):
 
         is_fsdp = self.accelerator.distributed_type == DistributedType.FSDP
         if is_fsdp:
+            from transformers import DynamicCache
             # FIX FSDP, FSDP2 GENERATION
             # generation_kwargs["cache_implementation"] = "static"
             # generation_kwargs["cache_implementation"] = "offloaded_static"
-            # generation_kwargs["cache_implementation"] = "dynamic"
+            generation_kwargs["cache_implementation"] = "dynamic"
             # generation_kwargs["cache_implementation"] = "offloaded_hybrid"
-            generation_kwargs["cache_implementation"] = "offloaded"
+            # generation_kwargs["cache_implementation"] = "offloaded"
+            # generation_kwargs["cache_implementation"] = None
+            # generation_kwargs["past_key_values"] = DynamicCache()
             generation_kwargs["disable_compile"] = True
+            pass
         # fix OOMs. accelerate does unnecessary fp32 convertions.
         old_fwd = ConvertOutputsToFp32.__call__
         ConvertOutputsToFp32.__call__ = (
@@ -670,10 +674,15 @@ class SimpleAccelerateHFLM(HFLM):
         )
         # generation_kwargs.pop("early_stopping", None)
         # print(max_length, context.shape)
-        with torch.autocast(
-            device_type=self.device.type,
-            dtype=self.mixed_precision_dtype,
-            enabled=self.mixed_precision_dtype is not None,
+        # with torch.autocast(
+        #     device_type=self.device.type,
+        #     dtype=self.mixed_precision_dtype,
+        #     enabled=self.mixed_precision_dtype is not None,
+        # ):
+        # print("self.model", self.model)
+        with torch.distributed.fsdp.FullyShardedDataParallel.summon_full_params(
+            self.model,
+            writeback=False,
         ):
             res = self.model.generate(
                 input_ids=context,
@@ -682,10 +691,134 @@ class SimpleAccelerateHFLM(HFLM):
                 stopping_criteria=stopping_criteria,
                 pad_token_id=self.tokenizer.pad_token_id,
                 use_cache=True,
+                synced_gpus=True,
                 **generation_kwargs,
             )
         ConvertOutputsToFp32.__call__ = old_fwd
         return res
+
+    def _model_generate_(
+        self,
+        context,
+        max_length: int,
+        stop: list[str],
+        attention_mask: torch.Tensor | None = None,
+        **generation_kwargs: dict[str, Any],
+    ) -> torch.Tensor:
+        # temperature = 0.0 if not set
+        # if do_sample is false and temp==0.0:
+        # remove temperature, as do_sample=False takes care of this
+        # and we don't want a warning from HF
+        generation_kwargs["temperature"] = generation_kwargs.get("temperature", 0.0)
+        do_sample = generation_kwargs.get("do_sample")
+
+        # The temperature has to be a strictly positive float -- if it is 0.0, use greedy decoding strategies
+        if generation_kwargs.get("temperature") == 0.0 and do_sample is None:
+            generation_kwargs["do_sample"] = do_sample = False
+
+        if do_sample is False and generation_kwargs.get("temperature") == 0.0:
+            generation_kwargs.pop("temperature")
+        # build stopping criteria
+        stopping_criteria = stop_sequences_criteria(
+            self.tokenizer, stop, context.shape[1], context.shape[0]
+        )
+
+        is_fsdp = self.accelerator.distributed_type == DistributedType.FSDP
+        if is_fsdp:
+            # FIX FSDP, FSDP2 GENERATION
+            # generation_kwargs["cache_implementation"] = "static"
+            # generation_kwargs["cache_implementation"] = "offloaded_static"
+            # generation_kwargs["cache_implementation"] = "dynamic"
+            # generation_kwargs["cache_implementation"] = "offloaded_hybrid"
+            generation_kwargs["cache_implementation"] = "offloaded"
+            generation_kwargs["disable_compile"] = True
+            # pass
+        # fix OOMs. accelerate does unnecessary fp32 convertions.
+        old_fwd = ConvertOutputsToFp32.__call__
+        ConvertOutputsToFp32.__call__ = (
+            lambda self, *args, **kwargs: self.model_forward(*args, **kwargs)
+        )
+        input_ids = context
+
+        # Сохраняем начальные ID для последующей конкатенации
+        generated_ids = input_ids
+
+        # 2. Инициализация KV-кэша
+        past_key_values = None
+
+        # Получаем ID токена конца последовательности
+        eos_token_id = self.eot_token_id
+        if isinstance(
+            eos_token_id, list
+        ):  # Некоторые модели (например, Llama 3) могут иметь несколько EOS
+            eos_token_id = eos_token_id[0]
+        device = torch.accelerator.current_accelerator()
+        print(f"Starting generation on device: {device}")
+        max_new_tokens = max_length
+        # 3. Цикл генерации
+        for i in range(max_new_tokens):
+            print("step", i, device)
+            # Подготовка входов для модели.
+            # На первой итерации `model_inputs` содержит весь промпт.
+            # На последующих - только последний сгенерированный токен.
+            if past_key_values is None:
+                # Первая итерация
+                model_inputs = input_ids
+            else:
+                # Последующие итерации
+                model_inputs = generated_ids[:, -1:]
+
+            with (
+                torch.no_grad(),
+                torch.autocast(
+                    device_type=self.device.type,
+                    dtype=self.mixed_precision_dtype,
+                    enabled=self.mixed_precision_dtype is not None,
+                ),
+            ):
+                # Вызов модели
+                outputs = self.model(
+                    input_ids=model_inputs,
+                    past_key_values=past_key_values,
+                    use_cache=True,
+                    output_hidden_states=True,
+                    return_dict=False,
+                )
+
+            # 4. Извлечение логитов и нового токена
+            # Нас интересуют логиты только для самого последнего токена в последовательности
+            # next_token_logits = outputs.logits[:, -1, :]
+            next_token_logits = outputs[0][:, -1, :]
+
+            # Жадный выбор - берем токен с максимальной вероятностью
+            next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(-1)
+
+            # 5. Обновление состояния
+            # Сохраняем обновленный кэш для следующей итерации
+            # past_key_values = outputs.past_key_values
+            past_key_values = outputs[1]
+            print("past_key_values", len(past_key_values), past_key_values)
+
+            # Добавляем новый токен к сгенерированной последовательности
+            generated_ids = torch.cat([generated_ids, next_token_id], dim=-1)
+
+            # DEBUG: Распечатаем информацию о кэше на каждом ранге FSDP
+            # Это поможет понять, что с ним происходит
+            if i % 10 == 0:
+                # Проверяем кэш первого слоя
+                first_layer_key_cache = past_key_values[0][0]
+                print(
+                    f"[Rank {torch.distributed.get_rank() if torch.distributed.is_initialized() else 0}] "
+                    f"Step {i}: Cache shape: {first_layer_key_cache.shape}, "
+                    f"Cache device: {first_layer_key_cache.device}"
+                )
+
+            # 6. Проверка условия остановки
+            if next_token_id.item() == eos_token_id:
+                print(f"EOS token found. Stopping generation.")
+                break
+        ConvertOutputsToFp32.__call__ = old_fwd
+        return generated_ids
 
     def _model_call(
         self,
