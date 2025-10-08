@@ -50,6 +50,13 @@ from train_gym.rmt.rmt_wrappers import (
     MemoryCellTrainLiger,
     lce_forward,
 )
+from matplotlib.colors import LinearSegmentedColormap
+import seaborn as sns
+import matplotlib.pyplot as plt
+import io
+from PIL import Image
+import numpy as np
+import wandb
 
 
 @dataclass
@@ -97,6 +104,160 @@ class ModelArguments:
         default=False,
         metadata={"help": "vary_n_segments"},
     )
+
+
+class PretrainRMTTrainer(PretrainTrainer):
+
+    def create_babilong_plot(
+        self,
+        report_dict,
+        model_name="",
+        dataset_name="babilongv2",
+    ):
+        rows = ["qa1", "qa2", "qa3", "qa4", "qa5"]
+        cols = ["0k", "1k", "2k", "4k"]
+
+        babilong_matrix = np.zeros((len(rows), len(cols)))
+
+        for key in report_dict:
+            if dataset_name in key:
+                for i, row in enumerate(rows):
+                    for j, col in enumerate(cols):
+                        if row in key and col in key:
+                            babilong_matrix[i, j] = report_dict[key]
+
+                cmap = LinearSegmentedColormap.from_list(
+                    "ryg", ["red", "yellow", "green"], N=256
+                )
+
+        fig, ax = plt.subplots(1, 1, figsize=(5 * 1, 3.5))
+        sns.heatmap(
+            babilong_matrix * 100,
+            cmap=cmap,
+            vmin=0,
+            vmax=100,
+            annot=True,
+            fmt=".2f",
+            linewidths=0.5,
+            xticklabels=cols,
+            yticklabels=rows,
+            ax=ax,
+        )
+        ax.set_title(f"{model_name}", pad=20, y=0.95)
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight")
+        buf.seek(0)
+        pil_image = Image.open(buf)
+        return pil_image
+
+    def _evaluate(self, *args, **kwargs):
+        self.model.eval()
+        train_metadata = getattr(self.state, "train_metadata", None)
+
+        if (
+            train_metadata is None
+            and self.state.global_step == 0
+            or not train_metadata is None
+            and self.state.global_step > 0
+        ):
+            eval_model = SimpleAccelerateHFLM(
+                pretrained=self.model,
+                accelerator=self.accelerator,
+                tokenizer=self.processing_class,
+                config=self.model.config,
+                batch_size=self.args.per_device_eval_batch_size,
+            )
+            eval_metrics = [
+                "arc_easy",
+                "hellaswag",
+                "winogrande",
+                "sciq",
+                "copa",
+                "openbookqa",
+                "mmlu_stem",
+                "mmlu_other",
+                "mmlu_social_sciences",
+                "mmlu_humanities",
+                "babilongv2_qa1_under_4k_base",
+                "babilongv2_qa2_under_4k_base",
+                "babilongv2_qa3_under_4k_base",
+                "babilongv2_qa4_under_4k_base",
+                "babilongv2_qa5_under_4k_base",
+                # debug
+                # "babilongv2_qa1_0k_base"
+            ]
+            target_metrics = [
+                "arc_easy",
+                "hellaswag",
+                "winogrande",
+                "sciq",
+                "copa",
+                "openbookqa",
+                "mmlu_stem",
+                "mmlu_other",
+                "mmlu_social_sciences",
+                "mmlu_humanities",
+                "babilongv2_qa1_0k_base",
+                "babilongv2_qa1_1k_base",
+                "babilongv2_qa1_2k_base",
+                "babilongv2_qa1_4k_base",
+                "babilongv2_qa2_0k_base",
+                "babilongv2_qa2_1k_base",
+                "babilongv2_qa2_2k_base",
+                "babilongv2_qa2_4k_base",
+                "babilongv2_qa3_0k_base",
+                "babilongv2_qa3_1k_base",
+                "babilongv2_qa3_2k_base",
+                "babilongv2_qa3_4k_base",
+                "babilongv2_qa4_0k_base",
+                "babilongv2_qa4_1k_base",
+                "babilongv2_qa4_2k_base",
+                "babilongv2_qa4_4k_base",
+                "babilongv2_qa5_0k_base",
+                "babilongv2_qa5_1k_base",
+                "babilongv2_qa5_2k_base",
+                "babilongv2_qa5_4k_base",
+            ]
+            metrics_result = evaluator.simple_evaluate(
+                model=eval_model,
+                tasks=eval_metrics,
+                verbosity="WARNING",
+                batch_size=self.args.per_device_eval_batch_size,
+            )
+            gc.collect()
+            torch.cuda.empty_cache()
+            self.accelerator.wait_for_everyone()
+            report_dict = {}
+            if self.accelerator.is_main_process:
+                metrics_result = metrics_result["results"]
+
+                ban_keys = ["stderr", "alias", "under"]
+                for metric_name in target_metrics:
+                    for key, value in metrics_result[metric_name].items():
+                        eval_key = f"eval_{metric_name}_{key}"
+                        if not any(ban_key in eval_key for ban_key in ban_keys):
+                            report_dict[eval_key] = value
+
+                babilong_name = "babilongv2"
+                babilong_plot = self.create_babilong_plot(
+                    report_dict=report_dict,
+                    model_name=babilong_name,
+                )
+
+                self.accelerator.get_tracker("wandb").log(
+                    {
+                        f"eval_{babilong_name}": wandb.Image(babilong_plot),
+                    },
+                    step=self.state.global_step,
+                )
+
+            metrics_to_broadcast = [report_dict]
+            dist.broadcast_object_list(metrics_to_broadcast, src=0)
+            synced_lm_eval_metrics = metrics_to_broadcast[0]
+            self.log(synced_lm_eval_metrics)
+
+            return synced_lm_eval_metrics
 
 
 logger = logging.getLogger(__name__)
@@ -271,7 +432,7 @@ def main():
         num_decay_steps = int(0.1 * max_steps)
         training_args.lr_scheduler_kwargs["num_decay_steps"] = num_decay_steps
 
-    trainer = PretrainTrainer(
+    trainer = PretrainRMTTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
