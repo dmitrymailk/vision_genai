@@ -169,11 +169,27 @@
             "module": "accelerate.commands.launch",
             "args": [
                 "lm_eval",
-                
             ],
             "console": "integratedTerminal",
             "env": {
                 "CUDA_VISIBLE_DEVICES": "0,1"
+            }
+        },
+        {
+            "name": "train_gym.massive_train.evaluation.multigpu_lmeval",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "accelerate.commands.launch",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "--config_file=/code/train_gym/massive_train/evaluation/fsdp2_default_config.yaml",
+                // "train_gym/massive_train/evaluation/multigpu_lmeval.py",
+                "--module",
+                "train_gym.massive_train.evaluation.multigpu_lmeval"
+            ],
+            "justMyCode": false,
+            "env": {
+                "PYDEVD_WARN_EVALUATION_TIMEOUT": "10000",
             }
         },
     ],

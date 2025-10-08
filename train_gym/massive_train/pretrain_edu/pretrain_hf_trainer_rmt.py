@@ -164,7 +164,7 @@ def main():
             # baseline
             model = AutoModelForCausalLM.from_config(
                 config,
-                torch_dtype=torch_dtype,
+                dtype=torch_dtype,
                 attn_implementation="flash_attention_2",
             )
             cell = MemoryCell(
@@ -182,7 +182,7 @@ def main():
             print("opt_2_rmt")
             model = AutoModelForCausalLM.from_config(
                 config,
-                torch_dtype=torch_dtype,
+                dtype=torch_dtype,
                 attn_implementation="flash_attention_2",
             )
             # посегментное вычисление лосса
@@ -204,7 +204,7 @@ def main():
             apply_liger_kernel_to_llama()
             model = AutoModelForCausalLM.from_config(
                 config,
-                torch_dtype=torch_dtype,
+                dtype=torch_dtype,
                 attn_implementation="flash_attention_2",
             )
             cell = MemoryCellTrainLiger(

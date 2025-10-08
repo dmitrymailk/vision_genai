@@ -9,7 +9,8 @@ do_eval: true
 output_dir: ./hf_trainer_edu 
 report_to: wandb 
 block_size: 2048 
-logging_steps: 4 
+logging_steps: 4
+save_total_limit: 1
 eval_steps: 500 
 eval_strategy: steps 
 include_num_input_tokens_seen: true
@@ -32,4 +33,4 @@ max_steps: 12300
 dataloader_num_workers: 4
 save_tokens: 400_000_000
 max_train_tokens: 405_635_072
-# eval_on_start: true
+eval_on_start: true

@@ -655,7 +655,7 @@ class SimpleAccelerateHFLM(HFLM):
         )
 
         # FIX FSDP, FSDP2 GENERATION for transformers==4.53.2
-        # is_fsdp = self.accelerator.distributed_type == DistributedType.FSDP
+        is_fsdp = self.accelerator.distributed_type == DistributedType.FSDP
         # if is_fsdp:
         #     from transformers import DynamicCache
         #     generation_kwargs["cache_implementation"] = "offloaded"
@@ -667,11 +667,31 @@ class SimpleAccelerateHFLM(HFLM):
         ConvertOutputsToFp32.__call__ = (
             lambda self, *args, **kwargs: self.model_forward(*args, **kwargs)
         )
-        with torch.autocast(
-            device_type=self.device.type,
-            dtype=self.mixed_precision_dtype,
-            enabled=self.mixed_precision_dtype is not None,
+        if not getattr(self.model, "memory_cell", None) is None:
+            # в RMT у нас исчезает длина, поэтому нужен другой параметр вместо max_length
+            generation_kwargs["max_new_tokens"] = max_length - context.shape[1]
+            max_length = None
+
+        with (
+            torch.no_grad(),
+            torch.autocast(
+                device_type=self.device.type,
+                dtype=self.mixed_precision_dtype,
+                enabled=self.mixed_precision_dtype is not None,
+            ),
         ):
+            # я не знаю почему, но это фиксит проблему генерации при FSDP2
+            # возможно дело в prefetching весов
+            if is_fsdp:
+                self.model(
+                    torch.randint(
+                        low=0,
+                        high=128,
+                        size=(1, 1),
+                        dtype=torch.long,
+                        device=context.device,
+                    )
+                )
             res = self.model.generate(
                 input_ids=context,
                 attention_mask=attention_mask,

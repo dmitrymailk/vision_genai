@@ -96,7 +96,7 @@ class PretrainTrainer(Trainer):
                 config=self.model.config,
                 batch_size=self.args.per_device_eval_batch_size,
             )
-            target_metrics = [
+            eval_metrics = [
                 "arc_easy",
                 "hellaswag",
                 "winogrande",
@@ -112,10 +112,44 @@ class PretrainTrainer(Trainer):
                 "babilongv2_qa3_under_4k_base",
                 "babilongv2_qa4_under_4k_base",
                 "babilongv2_qa5_under_4k_base",
+                # debug
+                # "babilongv2_qa1_0k_base"
+            ]
+            target_metrics = [
+                "arc_easy",
+                "hellaswag",
+                "winogrande",
+                "sciq",
+                "copa",
+                "openbookqa",
+                "mmlu_stem",
+                "mmlu_other",
+                "mmlu_social_sciences",
+                "mmlu_humanities",
+                "babilongv2_qa1_0k_base",
+                "babilongv2_qa1_1k_base",
+                "babilongv2_qa1_2k_base",
+                "babilongv2_qa1_4k_base",
+                "babilongv2_qa2_0k_base",
+                "babilongv2_qa2_1k_base",
+                "babilongv2_qa2_2k_base",
+                "babilongv2_qa2_4k_base",
+                "babilongv2_qa3_0k_base",
+                "babilongv2_qa3_1k_base",
+                "babilongv2_qa3_2k_base",
+                "babilongv2_qa3_4k_base",
+                "babilongv2_qa4_0k_base",
+                "babilongv2_qa4_1k_base",
+                "babilongv2_qa4_2k_base",
+                "babilongv2_qa4_4k_base",
+                "babilongv2_qa5_0k_base",
+                "babilongv2_qa5_1k_base",
+                "babilongv2_qa5_2k_base",
+                "babilongv2_qa5_4k_base",
             ]
             metrics_result = evaluator.simple_evaluate(
                 model=eval_model,
-                tasks=target_metrics,
+                tasks=eval_metrics,
                 verbosity="WARNING",
                 batch_size=self.args.per_device_eval_batch_size,
             )
@@ -126,7 +160,7 @@ class PretrainTrainer(Trainer):
             if self.accelerator.is_main_process:
                 metrics_result = metrics_result["results"]
                 # print(metrics_result)
-                ban_keys = ["stderr", "alias"]
+                ban_keys = ["stderr", "alias", "under"]
                 for metric_name in target_metrics:
                     for key, value in metrics_result[metric_name].items():
                         eval_key = f"eval_{metric_name}_{key}"

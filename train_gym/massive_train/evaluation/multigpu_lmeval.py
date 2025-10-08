@@ -10,6 +10,14 @@ from lm_eval.models.huggingface import HFLM
 from train_gym.massive_train.evaluation.custom_lm_eval import SimpleHFLM
 from train_gym.massive_train.evaluation.custom_lm_eval_v2 import SimpleAccelerateHFLM
 from accelerate import Accelerator
+from train_gym.rmt.rmt_wrappers import (
+    MemoryCell,
+    RecurrentWrapper,
+)
+from train_gym.rmt.hf_rmt_wrappers import (
+    RMTForReasoning,
+    RMTConfig,
+)
 
 
 if __name__ == "__main__":
@@ -18,17 +26,34 @@ if __name__ == "__main__":
 
     with accelerator.main_process_first():
         # model_name = "unsloth/Llama-3.2-1B"
-        model_name = "HuggingFaceTB/SmolLM2-360M"
-        # model_name = "unsloth/Llama-3.2-1B-Instruct"
+        # model_name = "HuggingFaceTB/SmolLM2-360M"
+        model_name = "unsloth/Llama-3.2-1B-Instruct"
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=torch.bfloat16,
             attn_implementation="flash_attention_2",
             # device_map={"": 0},
         )
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
         config = AutoConfig.from_pretrained(model_name)
-        model.model.config.use_cache = True
+        # model = RMTForReasoning.from_pretrained(
+        #     model_name,
+        #     dtype=torch.bfloat16,
+        #     attn_implementation="flash_attention_2",
+        # )
+        cell = MemoryCell(
+            model,
+            num_mem_tokens=32,
+        )
+        model = RecurrentWrapper(
+            cell,
+            segment_size=1024,
+            max_n_segments=2,
+            vary_n_segments=False,
+            k2=-1,
+        )
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        # config = AutoConfig.from_pretrained(model_name)
+
         config.use_cache = True
 
     use_fsdp = True
@@ -66,9 +91,9 @@ if __name__ == "__main__":
     # batch_size = 1
     # batch_size = 64
     # batch_size = 56
-    # batch_size = 32
+    batch_size = 32
     # batch_size = 8
-    batch_size = 16
+    # batch_size = 16
     eval_model = SimpleAccelerateHFLM(
         pretrained=model,
         accelerator=accelerator,
@@ -100,13 +125,18 @@ if __name__ == "__main__":
             # "babilongv2_qa3_under_4k_instruct",
             # "babilongv2_qa4_under_4k_instruct",
             # "babilongv2_qa5_under_4k_instruct",
-            "babilongv2_qa1_under_4k_base",
-            "babilongv2_qa2_under_4k_base",
-            "babilongv2_qa3_under_4k_base",
-            "babilongv2_qa4_under_4k_base",
-            "babilongv2_qa5_under_4k_base",
+            # "babilongv2_qa1_under_4k_base",
+            # "babilongv2_qa2_under_4k_base",
+            # "babilongv2_qa3_under_4k_base",
+            # "babilongv2_qa4_under_4k_base",
+            # "babilongv2_qa5_under_4k_base",
             # "babilongv2_qa1_0k_instruct",
             # "babilongv2_qa1_0k_base",
+            # "arc_easy",
+            "babilongv2_qa1_0k_base",
+            "babilongv2_qa1_1k_base",
+            "babilongv2_qa1_2k_base",
+            "babilongv2_qa1_4k_base",
         ],
         verbosity="WARNING",
         # batch_size=64,
@@ -120,5 +150,3 @@ if __name__ == "__main__":
 
 
 # {'arc_easy': {'alias': 'arc_easy', 'acc,none': 0.6548821548821548, 'acc_stderr,none': 0.009755139387152048, 'acc_norm,none': 0.6052188552188552, 'acc_norm_stderr,none': 0.01003003893588358}, 'hellaswag': {'alias': 'hellaswag', 'acc,none': 0.477096195976897, 'acc_stderr,none': 0.004984543540932336, 'acc_norm,none': 0.6363274248157738, 'acc_norm_stderr,none': 0.004800728138792352}}
-
-# fsdp2 A100-80GB 4GPU, arc_easy, hellaswag - 7 min 27 sec
