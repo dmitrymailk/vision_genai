@@ -58,6 +58,8 @@ from PIL import Image
 import numpy as np
 import wandb
 from transformers.integrations import WandbCallback
+import matplotlib
+matplotlib.use('Agg') 
 
 
 @dataclass
