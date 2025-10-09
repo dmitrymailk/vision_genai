@@ -36,9 +36,76 @@ from torchao.float8 import convert_to_float8_training, Float8LinearConfig
 import argparse
 import torch
 from liger_kernel.transformers import apply_liger_kernel_to_llama
+from torch.utils.data import DataLoader, Dataset
+from accelerate.utils import send_to_device
+from transformers.utils import is_datasets_available
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from transformers.trainer_utils import seed_worker
+
+
+class DeviceDataLoader(DataLoader):
+    def __iter__(self):
+        cpu_iterator = super().__iter__()
+        current_device = torch.cuda.current_device()
+        current_device = torch.device(f"cuda:{current_device}")
+        for batch in cpu_iterator:
+            yield send_to_device(batch, current_device)
 
 
 class PretrainTrainer(Trainer):
+    def _get_dataloader(
+        self,
+        dataset: Dataset,
+        description: str,
+        batch_size: int,
+        sampler_fn: Optional[Callable[[Dataset], torch.utils.data.Sampler]] = None,
+        is_training: bool = False,
+        dataloader_key: Optional[str] = None,
+    ) -> DataLoader:
+
+        data_collator = self.data_collator
+        if is_datasets_available() and isinstance(dataset, datasets.Dataset):
+            dataset = self._remove_unused_columns(dataset, description=description)
+        else:
+            data_collator = self._get_collator_with_removed_columns(
+                self.data_collator, description=description
+            )
+
+        dataloader_params = {
+            "batch_size": batch_size,
+            "collate_fn": data_collator,
+            "num_workers": self.args.dataloader_num_workers,
+            "pin_memory": self.args.dataloader_pin_memory,
+            "persistent_workers": self.args.dataloader_persistent_workers,
+        }
+
+        if not isinstance(dataset, torch.utils.data.IterableDataset):
+            if sampler_fn is not None:
+                dataloader_params["sampler"] = sampler_fn(dataset)
+            dataloader_params["drop_last"] = self.args.dataloader_drop_last
+            dataloader_params["prefetch_factor"] = self.args.dataloader_prefetch_factor
+            if is_training:
+                dataloader_params["worker_init_fn"] = partial(
+                    seed_worker,
+                    num_workers=self.args.dataloader_num_workers,
+                    rank=self.args.process_index,
+                )
+        dataloader = None
+        if isinstance(dataset, StreamingDataset):
+            dataloader = DeviceDataLoader(dataset, **dataloader_params)
+        else:
+            dataloader = self.accelerator.prepare(
+                DataLoader(dataset, **dataloader_params)
+            )
+
+        # Store the prepared dataloader for subsequent evaluations if using persistent workers.
+        if dataloader_key is not None and self.args.dataloader_persistent_workers:
+            if hasattr(self, "_eval_dataloaders"):
+                self._eval_dataloaders[dataloader_key] = dataloader
+            else:
+                self._eval_dataloaders = {dataloader_key: dataloader}
+
+        return dataloader
 
     def log(self, logs: dict[str, float], start_time: Optional[float] = None) -> None:
         if self.state.epoch is not None:
@@ -252,7 +319,6 @@ def main():
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, TrainingArguments)
     )
-    # model_args, data_args, training_args = parser.parse_args_into_dataclasses()
     cli_parser = argparse.ArgumentParser()
     cli_parser.add_argument(
         "--yaml_file",
@@ -467,24 +533,16 @@ def main():
                 local=local_dir,
                 remote=local_dir,
                 batch_size=training_args.per_device_train_batch_size,
-                # batch_size=None,
-                # batch_size=64,
                 split=None,
                 shuffle=True,
                 num_canonical_nodes=world_size,
             )
-            # если не выставить это, процесс зависнет и обучения не будет
-            training_args.accelerator_config.dispatch_batches = False
 
     training_args.gradient_checkpointing = False
     training_args.run_name = (
         f"{optimization_level}_batch_{training_args.per_device_train_batch_size}"
     )
 
-    # 176_291_840
-    # 010_000_000
-    # 405_635_072
-    # save_tokens = 400_000_000
     save_tokens = data_args.save_tokens
     world_size = torch.cuda.device_count()
     tokens_per_step = (

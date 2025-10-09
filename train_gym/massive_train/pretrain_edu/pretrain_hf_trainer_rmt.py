@@ -59,7 +59,8 @@ import numpy as np
 import wandb
 from transformers.integrations import WandbCallback
 import matplotlib
-matplotlib.use('Agg') 
+
+matplotlib.use("Agg")
 
 
 @dataclass
@@ -187,7 +188,7 @@ class PretrainRMTTrainer(PretrainTrainer):
                 "babilongv2_qa3_under_4k_base",
                 "babilongv2_qa4_under_4k_base",
                 "babilongv2_qa5_under_4k_base",
-                # debug
+                # for debugging
                 # "babilongv2_qa1_0k_base"
             ]
             target_metrics = [
@@ -221,6 +222,8 @@ class PretrainRMTTrainer(PretrainTrainer):
                 "babilongv2_qa5_1k_base",
                 "babilongv2_qa5_2k_base",
                 "babilongv2_qa5_4k_base",
+                # for debugging
+                # "babilongv2_qa1_0k_base",
             ]
             metrics_result = evaluator.simple_evaluate(
                 model=eval_model,
@@ -273,7 +276,7 @@ def main():
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, TrainingArguments)
     )
-    # model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
     cli_parser = argparse.ArgumentParser()
     cli_parser.add_argument(
         "--yaml_file",
@@ -395,25 +398,17 @@ def main():
                 local=local_dir,
                 remote=local_dir,
                 batch_size=training_args.per_device_train_batch_size,
-                # batch_size=None,
-                # batch_size=64,
                 split=None,
                 shuffle=True,
                 num_canonical_nodes=world_size,
                 keep_zip=False,
             )
-            # если не выставить это, процесс зависнет и обучения не будет
-            training_args.accelerator_config.dispatch_batches = False
 
     training_args.gradient_checkpointing = False
     training_args.run_name = (
         f"{optimization_level}_batch_{training_args.per_device_train_batch_size}"
     )
 
-    # 176_291_840
-    # 010_000_000
-    # 405_635_072
-    # save_tokens = 400_000_000
     save_tokens = data_args.save_tokens
     world_size = torch.cuda.device_count()
     tokens_per_step = (

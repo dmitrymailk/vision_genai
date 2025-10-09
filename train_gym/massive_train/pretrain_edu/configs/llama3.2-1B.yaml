@@ -11,7 +11,6 @@ report_to: wandb
 block_size: 2048 
 logging_steps: 4
 save_total_limit: 1
-eval_steps: 500 
 eval_strategy: steps 
 include_num_input_tokens_seen: true
 # optimization_level: opt_1 # baseline hf model
@@ -20,17 +19,12 @@ optimization_level: opt_2 # liger kernel
 bf16: true
 remove_unused_columns: False 
 gradient_checkpointing: False 
-# намеренно большое число. так как мы определяем остановку на основе количества увиденных токенов
-num_train_epochs: 1000000000
-# вычисляем динамически на основе токенов
-save_steps: 5000000 
 data_seed: 42 
 optim: adamw_torch 
 lr_scheduler_type: warmup_stable_decay 
 warmup_steps: 1000
-dataloader_type: mosaic_edu 
-max_steps: 12300
+dataloader_type: mosaic_edu
 dataloader_num_workers: 4
-save_tokens: 400_000_000
+save_tokens: 200_000_000
 max_train_tokens: 405_635_072
 eval_on_start: true

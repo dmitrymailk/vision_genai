@@ -13,17 +13,84 @@ class TestDataset(Dataset):
         return self.data[index]
 
 
+from accelerate.utils import DataLoaderConfiguration
+from transformers.trainer_pt_utils import AcceleratorConfig
+from accelerate.utils import send_to_device
+from streaming import MDSWriter, StreamingDataset
+from torch.utils.data import DataLoader
+from transformers import default_data_collator
+import torch
+
+import os
+
+
+class DeviceDataLoader(DataLoader):
+    def __iter__(self):
+        cpu_iterator = super().__iter__()
+        current_device = torch.cuda.current_device()
+        current_device = torch.device(f"cuda:{current_device}")
+        for batch in cpu_iterator:
+            yield send_to_device(batch, current_device)
+
+
 def main():
     import multiprocessing
 
-    accelerator = Accelerator()
+    accelerator_config = AcceleratorConfig(
+        dispatch_batches=False,
+    )
+    dataloader_params = [
+        "split_batches",
+        "dispatch_batches",
+        "even_batches",
+        "use_seedable_sampler",
+    ]
 
-    dataset = TestDataset()
-    dataloader = DataLoader(dataset, batch_size=10, shuffle=False)
-    dataloader = accelerator.prepare(dataloader)
+    dataloader_config = DataLoaderConfiguration(
+        **{param: accelerator_config.pop(param) for param in dataloader_params}
+    )
+
+    accelerator = Accelerator(
+        dataloader_config=dataloader_config,
+    )
+
+    # local_dir = "fineweb_edu_10b_numpy_mds_chunked"
+    # local_dir = "fineweb_edu_10b_numpy_mds_chunked_1024"
+    local_dir = "fineweb_edu_10b_numpy_mds_chunked_2048"
+    # local_dir = "fineweb_edu_10b_numpy_mds_chunked"
+    batch_size = 10
+    # batch_size = 16
+    # batch_size = 4
+    dataset = StreamingDataset(
+        local=local_dir,
+        remote=local_dir,
+        batch_size=batch_size,
+        # batch_size=1,
+        # batch_size=64,
+        split=None,
+        shuffle=True,
+    )
+
+    dataloader = DeviceDataLoader(
+        dataset,
+        batch_size=batch_size,
+        # pin_memory=True,
+        num_workers=4,
+        collate_fn=default_data_collator,
+        # collate_fn=data_collator_streaming_fix,
+        drop_last=True,
+        # shuffle=True,
+        # persistent_workers=True,
+    )
+    # не нужно
+    # dataloader = accelerator.prepare(dataloader)
 
     for pos, d in enumerate(dataloader):
-        print(multiprocessing.current_process().pid, pos, d)
+        # inputs = accelerator.prepare(d["input_ids"][:10])
+        inputs = d["input_ids"][:10]
+        result = f"{len(dataloader)}_{inputs}_{inputs.device}"
+        print(result)
+        break
 
 
 if __name__ == "__main__":
@@ -31,48 +98,32 @@ if __name__ == "__main__":
 
 
 """
-9575695757 0  0 tensor([30, 31, 32, 33, 34, 35, 36, 37, 38, 39], device='cuda:3')
-tensor([20, 21, 22, 23, 24, 25, 26, 27, 28, 29], device='cuda:2')
-95757 1 95756 1 tensor([70, 71, 72, 73, 74, 75, 76, 77, 78, 79], device='cuda:3')
-tensor([60, 61, 62, 63, 64, 65, 66, 67, 68, 69], device='cuda:2')
-95757 2 95756 2 tensor([110, 111, 112, 113, 114, 115, 116, 117, 118, 119], device='cuda:3')
-tensor([100, 101, 102, 103, 104, 105, 106, 107, 108, 109], device='cuda:2')
-95757 3 95756 3 tensor([150, 151, 152, 153, 154, 155, 156, 157, 158, 159], device='cuda:3')
-tensor([140, 141, 142, 143, 144, 145, 146, 147, 148, 149], device='cuda:2')
-95757 4 95756 4 tensor([190, 191, 192, 193, 194, 195, 196, 197, 198, 199], device='cuda:3')
-tensor([180, 181, 182, 183, 184, 185, 186, 187, 188, 189], device='cuda:2')
-95757 5 95756 5 tensor([230, 231, 232, 233, 234, 235, 236, 237, 238, 239], device='cuda:3')
-tensor([220, 221, 222, 223, 224, 225, 226, 227, 228, 229], device='cuda:2')
-95757 6 95756 6 tensor([270, 271, 272, 273, 274, 275, 276, 277, 278, 279], device='cuda:3')
-95757 7 tensor([260, 261, 262, 263, 264, 265, 266, 267, 268, 269], device='cuda:2')
-95756 7 tensor([310, 311, 312, 313, 314, 315, 316, 317, 318, 319], device='cuda:3')
-95757 8 tensor([300, 301, 302, 303, 304, 305, 306, 307, 308, 309], device='cuda:2')
-95756 8 tensor([350, 351, 352, 353, 354, 355, 356, 357, 358, 359], device='cuda:3')
-95757 9 tensor([340, 341, 342, 343, 344, 345, 346, 347, 348, 349], device='cuda:2')
-95756 9 tensor([390, 391, 392, 393, 394, 395, 396, 397, 398, 399], device='cuda:3')
-95757 10 tensor([380, 381, 382, 383, 384, 385, 386, 387, 388, 389], device='cuda:2')
-95756 10 tensor([29, 30, 31, 32, 33, 34, 35, 36, 37, 38], device='cuda:3')
-tensor([19, 20, 21, 22, 23, 24, 25, 26, 27, 28], device='cuda:2')
-95755 0 tensor([10, 11, 12, 13, 14, 15, 16, 17, 18, 19], device='cuda:1')
-95755 1 tensor([50, 51, 52, 53, 54, 55, 56, 57, 58, 59], device='cuda:1')
-95755 2 tensor([90, 91, 92, 93, 94, 95, 96, 97, 98, 99], device='cuda:1')
-95755 3 tensor([130, 131, 132, 133, 134, 135, 136, 137, 138, 139], device='cuda:1')
-95755 4 tensor([170, 171, 172, 173, 174, 175, 176, 177, 178, 179], device='cuda:1')
-95755 5 tensor([210, 211, 212, 213, 214, 215, 216, 217, 218, 219], device='cuda:1')
-95755 6 tensor([250, 251, 252, 253, 254, 255, 256, 257, 258, 259], device='cuda:1')
-95755 7 tensor([290, 291, 292, 293, 294, 295, 296, 297, 298, 299], device='cuda:1')
-95755 8 tensor([330, 331, 332, 333, 334, 335, 336, 337, 338, 339], device='cuda:1')
-95755 9 tensor([370, 371, 372, 373, 374, 375, 376, 377, 378, 379], device='cuda:1')
-95755 10 tensor([ 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], device='cuda:1')
-95754 0 tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], device='cuda:0')
-95754 1 tensor([40, 41, 42, 43, 44, 45, 46, 47, 48, 49], device='cuda:0')
-95754 2 tensor([80, 81, 82, 83, 84, 85, 86, 87, 88, 89], device='cuda:0')
-95754 3 tensor([120, 121, 122, 123, 124, 125, 126, 127, 128, 129], device='cuda:0')
-95754 4 tensor([160, 161, 162, 163, 164, 165, 166, 167, 168, 169], device='cuda:0')
-95754 5 tensor([200, 201, 202, 203, 204, 205, 206, 207, 208, 209], device='cuda:0')
-95754 6 tensor([240, 241, 242, 243, 244, 245, 246, 247, 248, 249], device='cuda:0')
-95754 7 tensor([280, 281, 282, 283, 284, 285, 286, 287, 288, 289], device='cuda:0')
-95754 8 tensor([320, 321, 322, 323, 324, 325, 326, 327, 328, 329], device='cuda:0')
-95754 9 tensor([360, 361, 362, 363, 364, 365, 366, 367, 368, 369], device='cuda:0')
-95754 10 tensor([400,   0,   1,   2,   3,   4,   5,   6,   7,   8], device='cuda:0')
+118336_tensor([[  311,  4048,   872,  ...,  1115,  1436,   387],
+        [  320,  3692, 43346,  ...,  9367,    16,   274],
+        [58641,  1053,  2997,  ...,   872,  4868,   323],
+        ...,
+        [  505,   279,   432,  ..., 57811, 37027,  3445],
+        [ 2466,   323,  2678,  ...,   374,   279,  1888],
+        [  323,  1587,   539,  ...,  9951,  5149,   311]], device='cuda:2')_cuda:2
+118336_tensor([[  279,  3925,  6603,  ...,    12,   549,   652],
+        [  459,  2926, 15489,  ...,   956,  1120,   733],
+        [19338,   627,   644,  ..., 16828,  9064,   320],
+        ...,
+        [  498,   323, 63024,  ...,    20,   430,   279],
+        [  291, 11509,   477,  ..., 11983,   304,  1778],
+        [  432,  6048,    69,  ...,    13,    15, 87401]], device='cuda:1')_cuda:1
+118336_tensor([[22632,   311,   387,  ...,  3723,  4273,   304],
+        [ 2748, 19646,    13,  ...,   584,  2011,  3009],
+        [ 1766, 24923,   279,  ..., 17357,    11,  2911],
+        ...,
+        [  389, 25031, 19207,  ...,    13, 43474,  1521],
+        [ 9843,   279, 12434,  ...,  5663, 34465,     8],
+        [ 2759,    11, 16450,  ...,   311,   279,  1023]], device='cuda:3')_cuda:3
+118336_tensor([[  315, 35113, 59904,  ..., 12973,    13,   763],
+        [ 1054,  6219,   358,  ..., 36330,   220,  1758],
+        [  264,  2763,   810,  ...,  1405,   358,  1390],
+        ...,
+        [ 1047,  3549,  1778,  ...,   315, 11165,   268],
+        [ 2349,  3445,  2349,  ...,  2403, 72915, 15853],
+        [   11,  1054,  8747,  ...,   304,  1274,  3515]], device='cuda:0')_cuda:0
 """

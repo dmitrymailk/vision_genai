@@ -15,4 +15,4 @@ hf_train_config=/code/train_gym/massive_train/pretrain_edu/configs/llama3.2-1B-r
 
 # start training
 accelerate launch --config_file $config_path -m \
-    train_gym.massive_train.pretrain_edu.pretrain_hf_trainer_rmt --yaml_file $hf_train_config  > pretrain_rmt.log 2>&1 &
+    train_gym.massive_train.pretrain_edu.pretrain_hf_trainer_rmt --yaml_file $hf_train_config > pretrain_rmt.log 2>&1 &
