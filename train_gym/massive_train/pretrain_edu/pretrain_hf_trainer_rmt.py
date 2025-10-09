@@ -57,6 +57,7 @@ import io
 from PIL import Image
 import numpy as np
 import wandb
+from transformers.integrations import WandbCallback
 
 
 @dataclass
@@ -244,13 +245,15 @@ class PretrainRMTTrainer(PretrainTrainer):
                     report_dict=report_dict,
                     model_name=babilong_name,
                 )
-
-                self.accelerator.get_tracker("wandb").log(
-                    {
-                        f"eval_{babilong_name}": wandb.Image(babilong_plot),
-                    },
-                    step=self.state.global_step,
-                )
+                for callback in self.callback_handler.callbacks:
+                    if isinstance(callback, WandbCallback):
+                        # мы не можем логгировать изображения данным трейнером
+                        # потому что картинка не json serializable
+                        callback._wandb.log(
+                            {
+                                f"plots/{babilong_name}": wandb.Image(babilong_plot),
+                            },
+                        )
 
             metrics_to_broadcast = [report_dict]
             dist.broadcast_object_list(metrics_to_broadcast, src=0)
@@ -395,6 +398,7 @@ def main():
                 split=None,
                 shuffle=True,
                 num_canonical_nodes=world_size,
+                keep_zip=False,
             )
             # если не выставить это, процесс зависнет и обучения не будет
             training_args.accelerator_config.dispatch_batches = False

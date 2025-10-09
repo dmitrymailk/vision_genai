@@ -29,8 +29,10 @@ warmup_steps: 1000
 dataloader_type: mosaic_edu 
 max_steps: 12300
 dataloader_num_workers: 4
-save_tokens: 100_000_000
-max_train_tokens: 405_635_072
+# save_tokens: 10_000_000
+save_tokens: 500_000_000
+# max_train_tokens: 405_635_072
+max_train_tokens: 10_000_000_000
 eval_on_start: true
 
 # rmt specific params

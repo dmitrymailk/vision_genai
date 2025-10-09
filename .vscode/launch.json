@@ -192,5 +192,25 @@
                 "PYDEVD_WARN_EVALUATION_TIMEOUT": "10000",
             }
         },
+        {
+            "name": "train_gym/massive_train/pretrain_edu/pretrain_hf_trainer_rmt.py",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "accelerate.commands.launch",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "--config_file=/code/train_gym/massive_train/pretrain_edu/fsdp2_default_config.yaml",
+                "--module",
+                "train_gym.massive_train.pretrain_edu.pretrain_hf_trainer_rmt",
+                "--yaml_file",
+                "/code/train_gym/massive_train/pretrain_edu/configs/llama3.2-1B-rmt.yaml"
+            ],
+            "justMyCode": false,
+            "env": {
+               
+                "http_proxy": "127.0.0.1:2334",
+                "https_proxy": "127.0.0.1:2334"
+            }
+        },
     ],
 }
