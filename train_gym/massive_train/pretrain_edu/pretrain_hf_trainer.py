@@ -42,6 +42,18 @@ from transformers.utils import is_datasets_available
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from transformers.trainer_utils import seed_worker
 
+from matplotlib.colors import LinearSegmentedColormap
+import seaborn as sns
+import matplotlib.pyplot as plt
+import io
+from PIL import Image
+import numpy as np
+import wandb
+from transformers.integrations import WandbCallback
+import matplotlib
+
+matplotlib.use("Agg")
+
 
 class DeviceDataLoader(DataLoader):
     def __iter__(self):
@@ -144,12 +156,53 @@ class PretrainTrainer(Trainer):
                 },
             )
 
+    def create_babilong_plot(
+        self,
+        report_dict,
+        model_name="",
+        dataset_name="babilongv2",
+    ):
+        rows = ["qa1", "qa2", "qa3", "qa4", "qa5"]
+        cols = ["0k", "1k", "2k", "4k"]
+
+        babilong_matrix = np.zeros((len(rows), len(cols)))
+
+        for key in report_dict:
+            if dataset_name in key:
+                for i, row in enumerate(rows):
+                    for j, col in enumerate(cols):
+                        if row in key and col in key:
+                            babilong_matrix[i, j] = report_dict[key]
+
+                cmap = LinearSegmentedColormap.from_list(
+                    "ryg", ["red", "yellow", "green"], N=256
+                )
+
+        fig, ax = plt.subplots(1, 1, figsize=(5 * 1, 3.5))
+        sns.heatmap(
+            babilong_matrix * 100,
+            cmap=cmap,
+            vmin=0,
+            vmax=100,
+            annot=True,
+            fmt=".2f",
+            linewidths=0.5,
+            xticklabels=cols,
+            yticklabels=rows,
+            ax=ax,
+        )
+        ax.set_title(f"{model_name}", pad=20, y=0.95)
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight")
+        buf.seek(0)
+        pil_image = Image.open(buf)
+        return pil_image
+
     def _evaluate(self, *args, **kwargs):
         self.model.eval()
         train_metadata = getattr(self.state, "train_metadata", None)
-        # если метадата None и global_step ноль, значит это самая первая эвалюация модели
-        # или если метадата не None и глобальный шаг больше нуля, значит что мы продложили тренировку и
-        # это не самый первый шаг при продложении
+
         if (
             train_metadata is None
             and self.state.global_step == 0
@@ -179,7 +232,7 @@ class PretrainTrainer(Trainer):
                 "babilongv2_qa3_under_4k_base",
                 "babilongv2_qa4_under_4k_base",
                 "babilongv2_qa5_under_4k_base",
-                # debug
+                # for debugging
                 # "babilongv2_qa1_0k_base"
             ]
             target_metrics = [
@@ -213,6 +266,8 @@ class PretrainTrainer(Trainer):
                 "babilongv2_qa5_1k_base",
                 "babilongv2_qa5_2k_base",
                 "babilongv2_qa5_4k_base",
+                # for debugging
+                # "babilongv2_qa1_0k_base",
             ]
             metrics_result = evaluator.simple_evaluate(
                 model=eval_model,
@@ -226,23 +281,29 @@ class PretrainTrainer(Trainer):
             report_dict = {}
             if self.accelerator.is_main_process:
                 metrics_result = metrics_result["results"]
-                # print(metrics_result)
+
                 ban_keys = ["stderr", "alias", "under"]
                 for metric_name in target_metrics:
                     for key, value in metrics_result[metric_name].items():
                         eval_key = f"eval_{metric_name}_{key}"
                         if not any(ban_key in eval_key for ban_key in ban_keys):
                             report_dict[eval_key] = value
-                # в общем wandb иногда багает и неравильно отображает шаги относительно метрик
-                # это в целом можно решить в графическом интерфейсе, но на всякий можно явно указывать
-                # в логах какой это шаг
-                # self.accelerator.log(
-                #     report_dict,
-                #     step=self.state.global_step,
-                # )
 
-            # данный объект используется например для отбора лучшего чекпоинта, поэтому его нужно передать дальше
-            # по всем потокам
+                babilong_name = "babilongv2"
+                babilong_plot = self.create_babilong_plot(
+                    report_dict=report_dict,
+                    model_name=babilong_name,
+                )
+                for callback in self.callback_handler.callbacks:
+                    if isinstance(callback, WandbCallback):
+                        # мы не можем логгировать изображения данным трейнером
+                        # потому что картинка не json serializable
+                        callback._wandb.log(
+                            {
+                                f"plots/{babilong_name}": wandb.Image(babilong_plot),
+                            },
+                        )
+
             metrics_to_broadcast = [report_dict]
             dist.broadcast_object_list(metrics_to_broadcast, src=0)
             synced_lm_eval_metrics = metrics_to_broadcast[0]
