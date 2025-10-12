@@ -12,6 +12,7 @@ config_path=/code/train_gym/massive_train/pretrain_edu/fsdp2_default_config.yaml
 
 # train configs
 hf_train_config=/code/train_gym/massive_train/pretrain_edu/configs/llama3.2-1B-rmt.yaml
+# hf_train_config=/code/train_gym/massive_train/pretrain_edu/configs/llama3.2-1B-rmt-registers.yaml
 
 # start training
 accelerate launch --config_file $config_path -m \

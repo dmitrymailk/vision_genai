@@ -627,6 +627,19 @@ class MemoryCellTrainLiger(MemoryCellTrain):
         return out, memory_state
 
 
+class MemoryCellTrainLigerWithRegisters(MemoryCellTrainLiger):
+    def process_output(self, model_outputs, **kwargs):
+        out, memory_state = super().process_output(model_outputs, **kwargs)
+        # выбрасываем половину памяти (плохая сходимость)
+        # выбрасываем 4 токена памяти (плохая сходимость)
+        # на начальных этапах лосс сходится еще хуже чем при обычном RMT
+        # https://github.com/huggingface/transformers/blob/v4.57.0/src/transformers/models/dinov2_with_registers/modeling_dinov2_with_registers.py#L692
+        # https://github.com/huggingface/transformers/blob/v4.57.0/src/transformers/models/dinov2_with_registers/modeling_dinov2_with_registers.py#L164
+        # memory_state = memory_state[:, : memory_state.shape[1] // 2, :]
+        memory_state = memory_state[:, :-4, :]
+        return out, memory_state
+
+
 def lce_forward(
     self,
     input_ids: torch.LongTensor = None,

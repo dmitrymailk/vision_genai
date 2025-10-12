@@ -49,6 +49,7 @@ from train_gym.rmt.rmt_wrappers import (
     RecurrentWrapperTrain,
     MemoryCellTrainLiger,
     lce_forward,
+    MemoryCellTrainLigerWithRegisters,
 )
 from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
@@ -377,6 +378,27 @@ def main():
                 attn_implementation="flash_attention_2",
             )
             cell = MemoryCellTrainLiger(
+                model,
+                num_mem_tokens=model_args.memory_size,
+            )
+            model = RecurrentWrapperTrain(
+                cell,
+                segment_size=model_args.segment_size,
+                max_n_segments=model_args.max_n_segments,
+                vary_n_segments=model_args.vary_n_segments,
+                k2=model_args.k2,
+            )
+        case "opt_4_rmt":
+            print("opt_4_rmt")
+            # apply liger kernel
+            liger_kernel.transformers.model.llama.lce_forward = lce_forward
+            apply_liger_kernel_to_llama()
+            model = AutoModelForCausalLM.from_config(
+                config,
+                dtype=torch_dtype,
+                attn_implementation="flash_attention_2",
+            )
+            cell = MemoryCellTrainLigerWithRegisters(
                 model,
                 num_mem_tokens=model_args.memory_size,
             )
