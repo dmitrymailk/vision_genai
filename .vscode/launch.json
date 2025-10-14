@@ -207,9 +207,10 @@
             ],
             "justMyCode": false,
             "env": {
-               
                 "http_proxy": "127.0.0.1:2334",
-                "https_proxy": "127.0.0.1:2334"
+                "https_proxy": "127.0.0.1:2334",
+                "CUDA_VISIBLE_DEVICES":"0,1,2,3"
+                // "CUDA_VISIBLE_DEVICES": "0"
             }
         },
     ],

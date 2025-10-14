@@ -1,10 +1,12 @@
 model_name_or_path: unsloth/Llama-3.2-1B-Instruct 
 # per_device_train_batch_size: 4 
-per_device_train_batch_size: 10 # max for A100-40GB with opt_3_rmt 
+# per_device_train_batch_size: 10 # ok for A100-40GB with opt_3_rmt 
+per_device_train_batch_size: 11 # ok for A100-40GB with opt_3_rmt 
+# per_device_train_batch_size: 12 # max for A100-40GB with opt_3_rmt, but slow 
 per_device_eval_batch_size: 32 
 do_train: true
 do_eval: true
-output_dir: ./hf_trainer_edu 
+output_dir: model_checkpoints/rmt_1B_llama_3_2
 report_to: wandb 
 block_size: 2048 
 logging_steps: 4

@@ -4,7 +4,6 @@ import os
 os.environ["WANDB_PROJECT"] = "llm_pretraining"
 import sys
 from dataclasses import dataclass, field
-from itertools import chain
 from typing import Optional
 import datasets
 import torch
@@ -20,9 +19,7 @@ from transformers import (
     default_data_collator,
     set_seed,
 )
-from transformers.testing_utils import CaptureLogger
-from transformers.models.llama.modeling_llama import LlamaDecoderLayer
-from functools import partial
+import transformers
 from types import MethodType
 from train_gym.massive_train.evaluation.custom_lm_eval_v2 import SimpleAccelerateHFLM
 from lm_eval import evaluator
@@ -31,16 +28,13 @@ from streaming import StreamingDataset
 from transformers.trainer_utils import speed_metrics, get_last_checkpoint
 import time
 import gc
-from cut_cross_entropy.transformers.llama import cce_forward
-from torchao.float8 import convert_to_float8_training, Float8LinearConfig
 import argparse
 import torch
 from liger_kernel.transformers import apply_liger_kernel_to_llama
-import liger_kernel
+
 from train_gym.massive_train.pretrain_edu.pretrain_hf_trainer import (
     PretrainTrainer,
     DataTrainingArguments,
-    filter_linear_layers,
 )
 from train_gym.rmt.rmt_wrappers import (
     MemoryCell,
@@ -49,7 +43,6 @@ from train_gym.rmt.rmt_wrappers import (
     RecurrentWrapperTrain,
     MemoryCellTrainLiger,
     lce_forward,
-    MemoryCellTrainLigerWithRegisters,
 )
 from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
@@ -60,6 +53,7 @@ import numpy as np
 import wandb
 from transformers.integrations import WandbCallback
 import matplotlib
+from types import MethodType
 
 matplotlib.use("Agg")
 
@@ -370,35 +364,15 @@ def main():
         case "opt_3_rmt":
             print("opt_3_rmt")
             # apply liger kernel
-            liger_kernel.transformers.model.llama.lce_forward = lce_forward
             apply_liger_kernel_to_llama()
+
             model = AutoModelForCausalLM.from_config(
                 config,
                 dtype=torch_dtype,
                 attn_implementation="flash_attention_2",
             )
+            model.forward = MethodType(lce_forward, model)
             cell = MemoryCellTrainLiger(
-                model,
-                num_mem_tokens=model_args.memory_size,
-            )
-            model = RecurrentWrapperTrain(
-                cell,
-                segment_size=model_args.segment_size,
-                max_n_segments=model_args.max_n_segments,
-                vary_n_segments=model_args.vary_n_segments,
-                k2=model_args.k2,
-            )
-        case "opt_4_rmt":
-            print("opt_4_rmt")
-            # apply liger kernel
-            liger_kernel.transformers.model.llama.lce_forward = lce_forward
-            apply_liger_kernel_to_llama()
-            model = AutoModelForCausalLM.from_config(
-                config,
-                dtype=torch_dtype,
-                attn_implementation="flash_attention_2",
-            )
-            cell = MemoryCellTrainLigerWithRegisters(
                 model,
                 num_mem_tokens=model_args.memory_size,
             )

@@ -8,8 +8,12 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 from torch.nn import CrossEntropyLoss
-from transformers.modeling_outputs import CausalLMOutputWithPast
+from transformers.modeling_outputs import (
+    CausalLMOutputWithPast,
+    BaseModelOutputWithPast,
+)
 from liger_kernel.transformers.model.llama import lce_maybe_trainable_lm_head
+import gc
 
 if TYPE_CHECKING:
     from transformers.cache_utils import Cache
@@ -584,29 +588,92 @@ class RecurrentWrapperTrain(torch.nn.Module):
 
 
 class MemoryCellTrainLiger(MemoryCellTrain):
+    def generate(self, input_ids, memory_state, attention_mask=None, **generate_kwargs):
+        if memory_state is None:
+            memory_state = self.set_memory(input_ids.shape)
+
+        seg_kwargs = self.process_input(
+            input_ids,
+            memory_state,
+            attention_mask=attention_mask,
+            write_mem=False,
+        )
+        old_fwd = self.model.forward
+
+        def new_forward(*args, **kwargs):
+            output = old_fwd(*args, **kwargs)
+            out = CausalLMOutputWithCrossAttentions()
+            out["past_key_values"] = output["past_key_values"]
+            logits = self.model.lm_head(output.last_hidden_state)
+            out["logits"] = logits
+
+            if kwargs.get("output_hidden_states"):
+                out["hidden_states"] = output.hidden_states
+
+            if kwargs.get("output_attentions"):
+                out["attentions"] = output["attentions"]
+
+            return out
+
+        self.model.forward = new_forward
+
+        out = self.model.generate(
+            inputs_embeds=seg_kwargs["inputs_embeds"],
+            attention_mask=seg_kwargs["attention_mask"],
+            **generate_kwargs,
+        )
+        self.model.forward = old_fwd
+        return out
+
+    @torch.compile
+    def extract_last_hidden_state(self, model_outputs):
+        return model_outputs.last_hidden_state[
+            :, self.num_mem_tokens : -self.num_mem_tokens
+        ].contiguous()
+
     def process_output(self, model_outputs, **kwargs):
         if self.num_mem_tokens not in {0, None}:
             out = CausalLMOutputWithCrossAttentions()
-            memory_state = model_outputs.hidden_states[-1][:, -self.num_mem_tokens :]
+            memory_state = model_outputs.last_hidden_state[:, -self.num_mem_tokens :]
+
+            last_hidden_state = self.extract_last_hidden_state(model_outputs)
+            # last_hidden_state = model_outputs.last_hidden_state
+            # fake_labels = (
+            #     torch.ones(
+            #         (memory_state.shape[0], self.num_mem_tokens),
+            #         device=memory_state.device,
+            #         dtype=torch.long,
+            #     )
+            #     * -100
+            # )
+            # kwargs["labels"] = torch.cat(
+            #     [
+            #         fake_labels,
+            #         kwargs["labels"],
+            #         fake_labels,
+            #     ],
+            #     dim=1,
+            # )
+
+            model_outputs.last_hidden_state = None
+
             if not self.training:
-                out["logits"] = model_outputs.logits[
-                    :, self.num_mem_tokens : -self.num_mem_tokens
-                ]
+                logits = self.model.lm_head(last_hidden_state)
+                out["logits"] = logits
 
-            if kwargs.get("output_hidden_states"):
-                out["hidden_states"] = [
-                    lh[:, self.num_mem_tokens : -self.num_mem_tokens]
-                    for lh in model_outputs.hidden_states
-                ]
-            if kwargs.get("output_attentions"):
-                out["attentions"] = model_outputs["attentions"]
+                if kwargs.get("output_hidden_states"):
+                    out["hidden_states"] = [
+                        lh[:, self.num_mem_tokens : -self.num_mem_tokens]
+                        for lh in model_outputs.hidden_states
+                    ]
 
-            if not kwargs["labels"] is None:
-                last_hidden = out["hidden_states"][-1].contiguous()
+                if kwargs.get("output_attentions"):
+                    out["attentions"] = model_outputs["attentions"]
 
+            if not kwargs.get("labels") is None:
                 loss = lce_maybe_trainable_lm_head(
                     self.model,
-                    hidden_states=last_hidden,
+                    hidden_states=last_hidden_state,
                     hidden_size=self.model.config.hidden_size,
                     labels=kwargs["labels"],
                     shift_labels=None,
@@ -624,19 +691,6 @@ class MemoryCellTrainLiger(MemoryCellTrain):
             memory_state = None
             out = model_outputs
 
-        return out, memory_state
-
-
-class MemoryCellTrainLigerWithRegisters(MemoryCellTrainLiger):
-    def process_output(self, model_outputs, **kwargs):
-        out, memory_state = super().process_output(model_outputs, **kwargs)
-        # выбрасываем половину памяти (плохая сходимость)
-        # выбрасываем 4 токена памяти (плохая сходимость)
-        # на начальных этапах лосс сходится еще хуже чем при обычном RMT
-        # https://github.com/huggingface/transformers/blob/v4.57.0/src/transformers/models/dinov2_with_registers/modeling_dinov2_with_registers.py#L692
-        # https://github.com/huggingface/transformers/blob/v4.57.0/src/transformers/models/dinov2_with_registers/modeling_dinov2_with_registers.py#L164
-        # memory_state = memory_state[:, : memory_state.shape[1] // 2, :]
-        memory_state = memory_state[:, :-4, :]
         return out, memory_state
 
 
@@ -690,17 +744,4 @@ def lce_forward(
     if self.config.pretraining_tp > 1:
         raise Exception("Liger Kernel does not support pretraining_tp!!")
 
-    logits = None
-    loss = None
-
-    # if not return_dict:
-    #     output = (logits,) + outputs[1:]
-    #     return (loss,) + output if loss is not None else output
-
-    return CausalLMOutputWithPast(
-        loss=loss,
-        logits=logits,
-        past_key_values=outputs.past_key_values,
-        hidden_states=outputs.hidden_states,
-        attentions=outputs.attentions,
-    )
+    return outputs
