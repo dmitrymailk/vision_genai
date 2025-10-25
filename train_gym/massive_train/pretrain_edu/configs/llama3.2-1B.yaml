@@ -1,9 +1,9 @@
 model_name_or_path: unsloth/Llama-3.2-1B-Instruct 
-# per_device_train_batch_size: 4 
-# per_device_train_batch_size: 8
-per_device_train_batch_size: 9 # max for 5090
-# per_device_train_batch_size: 10 # max for A100-40GB
-# per_device_train_batch_size: 12 # max for A100-40GB with liger
+# per_device_train_batch_size: 4 # max for 5090 fsdp2
+# per_device_train_batch_size: 5 # max for 4090, DDP
+per_device_train_batch_size: 8 # max for 5090, DDP
+# per_device_train_batch_size: 10 # max for A100-40GB, fsdp2
+# per_device_train_batch_size: 12 # max for A100-40GB with liger, fsdp2
 per_device_eval_batch_size: 32 
 do_train: true
 do_eval: true
