@@ -18,6 +18,25 @@ from train_gym.rmt.hf_rmt_wrappers import (
     RMTForReasoning,
     RMTConfig,
 )
+from torch.utils.data import Dataset, DataLoader
+
+
+class DumbDataset(Dataset):
+
+    def __init__(self, num_samples=1000, feature_dim=10, num_classes=5):
+        self.num_samples = num_samples
+
+        self.features = torch.randn(num_samples, feature_dim)
+        self.labels = torch.randint(0, num_classes, (num_samples,))
+
+    def __len__(self):
+        return self.num_samples
+
+    def __getitem__(self, idx):
+        feature = self.features[idx]
+        label = self.labels[idx]
+
+        return feature, label
 
 
 if __name__ == "__main__":
@@ -55,7 +74,12 @@ if __name__ == "__main__":
         # config = AutoConfig.from_pretrained(model_name)
 
         config.use_cache = True
+    BATCH_SIZE = 4
+    NUM_SAMPLES = 100
 
+    # 1. Create an instance of our dataset
+    my_dataset = DumbDataset(num_samples=NUM_SAMPLES, feature_dim=10)
+    my_dataloader = DataLoader(dataset=my_dataset, batch_size=BATCH_SIZE, shuffle=True)
     use_fsdp = True
     # use_fsdp = False
     if use_fsdp:
@@ -82,7 +106,9 @@ if __name__ == "__main__":
         optimizer = torch.optim.AdamW(
             optimizer_grouped_parameters,
         )
-        model, optimizer = accelerator.prepare(model, optimizer)
+        model, optimizer, my_dataloader = accelerator.prepare(
+            model, optimizer, my_dataloader
+        )
 
     else:
         accelerator = Accelerator()
@@ -91,8 +117,8 @@ if __name__ == "__main__":
     # batch_size = 1
     # batch_size = 64
     # batch_size = 56
-    batch_size = 32
-    # batch_size = 8
+    # batch_size = 4
+    batch_size = 8
     # batch_size = 16
     eval_model = SimpleAccelerateHFLM(
         pretrained=model,
@@ -130,18 +156,18 @@ if __name__ == "__main__":
             # "babilongv2_qa3_under_4k_base",
             # "babilongv2_qa4_under_4k_base",
             # "babilongv2_qa5_under_4k_base",
-            # "babilongv2_qa1_0k_instruct",
+            "babilongv2_qa1_0k_instruct",
             # "babilongv2_qa1_0k_base",
             # "arc_easy",
-            "babilongv2_qa1_0k_base",
-            "babilongv2_qa1_1k_base",
-            "babilongv2_qa1_2k_base",
-            "babilongv2_qa1_4k_base",
+            # "babilongv2_qa1_0k_base",
+            # "babilongv2_qa1_1k_base",
+            # "babilongv2_qa1_2k_base",
+            # "babilongv2_qa1_4k_base",
         ],
         verbosity="WARNING",
         # batch_size=64,
         batch_size=batch_size,
-        # limit=300,
+        # limit=100,
         # apply_chat_template=True,
     )
 

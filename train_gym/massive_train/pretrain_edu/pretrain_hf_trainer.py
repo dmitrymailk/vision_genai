@@ -52,7 +52,13 @@ import wandb
 from transformers.integrations import WandbCallback
 import matplotlib
 
+# /opt/conda/lib/python3.11/site-packages/torch/backends/cuda/__init__.py:131: UserWarning: Please use the new API settings to control TF32 behavior, such as torch.backends.cudnn.conv.fp32_precision = 'tf32' or torch.backends.cuda.matmul.fp32_precision = 'ieee'. Old settings, e.g, torch.backends.cuda.matmul.allow_tf32 = True, torch.backends.cudnn.allow_tf32 = True, allowTF32CuDNN() and allowTF32CuBLAS() will be deprecated after Pytorch 2.9. Please see https://pytorch.org/docs/main/notes/cuda.html#tensorfloat-32-tf32-on-ampere-and-later-devices (Triggered internally at /pytorch/aten/src/ATen/Context.cpp:80.)
+
 matplotlib.use("Agg")
+from triton.backends.nvidia import compiler
+
+compiler.ptx_get_version("12.8")
+torch.backends.cudnn.conv.fp32_precision = "tf32"
 
 
 class DeviceDataLoader(DataLoader):
@@ -451,7 +457,7 @@ def main():
             model = AutoModelForCausalLM.from_config(
                 config,
                 torch_dtype=torch_dtype,
-                attn_implementation=model_args.attn_implementation,
+                attn_implementation="flash_attention_2",
             )
 
             # unsloth version
@@ -472,6 +478,7 @@ def main():
             if (major > target_major) or (
                 major == target_major and minor >= target_minor
             ):
+                print("apply float8")
                 first_linear = None
                 last_linear = None
                 for name, module in model.named_modules():
@@ -486,6 +493,7 @@ def main():
                     last_layer_name=last_linear,
                 )
                 config = Float8LinearConfig.from_recipe_name("tensorwise")
+                # config = Float8LinearConfig.from_recipe_name("rowwise")
                 convert_to_float8_training(
                     model,
                     config=config,

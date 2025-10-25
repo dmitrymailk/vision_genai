@@ -1,24 +1,24 @@
-xformers==0.0.31.post1
-torch==2.7.1
-diffusers==0.33.1
+# xformers==0.0.32.post2
+# torch==2.7.1
+diffusers==0.35.2
 wandb==0.19.11
 ipykernel
-transformers==4.57.0
+transformers==4.57.1
 nbformat==5.10.4
-accelerate==1.7.0
+accelerate==1.11.0
 datasets==4.1.1
 # unsloth==2025.9.9
-bitsandbytes==0.46.0
-peft==0.15.2
+bitsandbytes==0.48.1
+peft==0.17.1
 # trl==0.19.0
-triton==3.3.1
+# triton==3.5.0
 # cut_cross_entropy
 # unsloth-zoo==2025.9.12#
 evaluate==0.4.4
 # flash-attn==2.8.0.post2
 scikit-learn==1.7.0
-torchao==0.13.0
-liger-kernel==0.6.0
+torchao==0.14.1
+liger-kernel==0.6.2
 torchtune==0.6.1
 matplotlib==3.10.3
 plotly==6.2.0
@@ -26,3 +26,4 @@ ipywidgets
 more-itertools==10.8.0
 mosaicml-streaming==0.13.0
 # lm-eval==0.4.9.1
+seaborn==0.13.2

@@ -4,7 +4,10 @@ pip install -r requirements.txt
 # cd Liger-Kernel && pip install -e . && cd ..
 # cd torchtune && pip install -e . && cd ..
 
-pip install flash-attn==2.8.0.post2 --no-build-isolation
+export MAX_JOBS=18
+# for 5090
+export FLASH_ATTN_CUDA_ARCHS="80;120"
+pip install flash-attn==2.8.3 --no-build-isolation
 
 git clone https://github.com/dmitrymailk/cut-cross-entropy.git
 cd cut-cross-entropy && pip install -e .
