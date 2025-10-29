@@ -166,6 +166,7 @@ class PretrainRMTTrainer(PretrainTrainer):
                 tokenizer=self.processing_class,
                 config=self.model.config,
                 batch_size=self.args.per_device_eval_batch_size,
+                max_length=4096,
             )
             eval_metrics = [
                 "arc_easy",
