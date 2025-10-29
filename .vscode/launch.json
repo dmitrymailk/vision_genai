@@ -183,8 +183,8 @@
             "cwd": "${workspaceFolder}",
             "args": [
                 // "--config_file=/code/train_gym/massive_train/evaluation/fsdp2_default_config.yaml",
-                "--config_file=/code/train_gym/massive_train/evaluation/deepspeed_default_config.yaml",
-                // "--config_file=/code/train_gym/massive_train/evaluation/multi_gpu.yaml",
+                // "--config_file=/code/train_gym/massive_train/evaluation/deepspeed_default_config.yaml",
+                "--config_file=/code/train_gym/massive_train/evaluation/multi_gpu.yaml",
                 // "train_gym/massive_train/evaluation/multigpu_lmeval.py",
                 "--module",
                 "train_gym.massive_train.evaluation.multigpu_lmeval"

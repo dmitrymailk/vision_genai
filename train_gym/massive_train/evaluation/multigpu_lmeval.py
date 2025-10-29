@@ -46,7 +46,9 @@ if __name__ == "__main__":
     with accelerator.main_process_first():
         # model_name = "unsloth/Llama-3.2-1B"
         # model_name = "HuggingFaceTB/SmolLM2-360M"
-        model_name = "unsloth/Llama-3.2-1B-Instruct"
+        # model_name = "unsloth/Llama-3.2-1B-Instruct"
+        model_name = "alpindale/Llama-3.2-1B-Instruct"
+        # model_name = "model_checkpoints/gpt2"
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=torch.bfloat16,
@@ -54,27 +56,27 @@ if __name__ == "__main__":
             # device_map={"": 0},
         )
         config = AutoConfig.from_pretrained(model_name)
-        # model = RMTForReasoning.from_pretrained(
-        #     model_name,
-        #     dtype=torch.bfloat16,
-        #     attn_implementation="flash_attention_2",
-        # )
+
         cell = MemoryCell(
             model,
-            num_mem_tokens=32,
+            num_mem_tokens=16,
         )
         model = RecurrentWrapper(
             cell,
             segment_size=1024,
-            max_n_segments=2,
+            # segment_size=512,
+            # max_n_segments=2,
+            max_n_segments=32,
             vary_n_segments=False,
+            # vary_n_segments=True,
             k2=-1,
         )
+        model.load_state_dict(torch.load("/code/model_best.pt"))
+        # model.load_state_dict(torch.load("/code/pytorch_model.bin"))
         tokenizer = AutoTokenizer.from_pretrained(model_name)
-        # config = AutoConfig.from_pretrained(model_name)
 
         config.use_cache = True
-    BATCH_SIZE = 4
+    BATCH_SIZE = 1
     NUM_SAMPLES = 100
 
     # 1. Create an instance of our dataset
@@ -115,10 +117,10 @@ if __name__ == "__main__":
         model = accelerator.prepare(model)
 
     # batch_size = 1
-    # batch_size = 64
+    batch_size = 32
     # batch_size = 56
     # batch_size = 4
-    batch_size = 8
+    # batch_size = 8
     # batch_size = 16
     eval_model = SimpleAccelerateHFLM(
         pretrained=model,
@@ -156,13 +158,13 @@ if __name__ == "__main__":
             # "babilongv2_qa3_under_4k_base",
             # "babilongv2_qa4_under_4k_base",
             # "babilongv2_qa5_under_4k_base",
-            "babilongv2_qa1_0k_instruct",
+            # "babilongv2_qa1_0k_instruct",
             # "babilongv2_qa1_0k_base",
             # "arc_easy",
-            # "babilongv2_qa1_0k_base",
-            # "babilongv2_qa1_1k_base",
-            # "babilongv2_qa1_2k_base",
-            # "babilongv2_qa1_4k_base",
+            "babilongv2_qa1_0k_base",
+            "babilongv2_qa1_1k_base",
+            "babilongv2_qa1_2k_base",
+            "babilongv2_qa1_4k_base",
         ],
         verbosity="WARNING",
         # batch_size=64,

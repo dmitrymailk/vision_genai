@@ -188,7 +188,7 @@ class RecurrentWrapper(torch.nn.Module):
         out = self.memory_cell.generate(
             **final_segment, memory_state=memory_state, **generate_kwargs
         )
-
+        out = torch.cat([input_ids, out], dim=1)
         return out
 
     def segment(self, **kwargs):

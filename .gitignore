@@ -179,3 +179,4 @@ heatmap_with_title
 model_checkpoints
 *.pt
 *.safetensors
+*.bin
