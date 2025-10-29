@@ -47,12 +47,13 @@ if __name__ == "__main__":
         # model_name = "unsloth/Llama-3.2-1B"
         # model_name = "HuggingFaceTB/SmolLM2-360M"
         # model_name = "unsloth/Llama-3.2-1B-Instruct"
-        model_name = "alpindale/Llama-3.2-1B-Instruct"
-        # model_name = "model_checkpoints/gpt2"
+        # model_name = "alpindale/Llama-3.2-1B-Instruct"
+        model_name = "model_checkpoints/gpt2"
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2",
+            # torch_dtype=torch.bfloat16,
+            torch_dtype=torch.float32,
+            # attn_implementation="flash_attention_2",
             # device_map={"": 0},
         )
         config = AutoConfig.from_pretrained(model_name)
@@ -63,16 +64,16 @@ if __name__ == "__main__":
         )
         model = RecurrentWrapper(
             cell,
-            segment_size=1024,
-            # segment_size=512,
+            # segment_size=1024,
+            segment_size=512,
             # max_n_segments=2,
             max_n_segments=32,
-            vary_n_segments=False,
+            # vary_n_segments=False,
             # vary_n_segments=True,
             k2=-1,
         )
-        model.load_state_dict(torch.load("/code/model_best.pt"))
-        # model.load_state_dict(torch.load("/code/pytorch_model.bin"))
+        # model.load_state_dict(torch.load("/code/model_best.pt"))
+        model.load_state_dict(torch.load("/code/pytorch_model.bin"))
         tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         config.use_cache = True
@@ -116,8 +117,8 @@ if __name__ == "__main__":
         accelerator = Accelerator()
         model = accelerator.prepare(model)
 
-    # batch_size = 1
-    batch_size = 32
+    batch_size = 1
+    # batch_size = 32
     # batch_size = 56
     # batch_size = 4
     # batch_size = 8
@@ -132,6 +133,7 @@ if __name__ == "__main__":
         # batch_size=32,
         # mixed_precision_dtype=torch.bfloat16,
         # mixed_precision_dtype="bf16",
+        max_length=8096,
     )
 
     results = evaluator.simple_evaluate(

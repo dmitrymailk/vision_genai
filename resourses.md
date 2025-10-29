@@ -442,6 +442,14 @@
 - https://github.com/ML-GSAI/LLaDA
 - https://github.com/DreamLM/Dream
 
+### Unified Generation (Text, Image)
+- [Janus-Series: Unified Multimodal Understanding and Generation Models](https://github.com/deepseek-ai/Janus)
+- [VILA-U: a Unified Foundation Model Integrating Visual Understanding and Generation](https://hanlab.mit.edu/projects/vila-u)
+- [Emu3: Next-Token Prediction is All You Need](https://github.com/baaivision/Emu3)
+- [OmniGen: Unified Image Generation](https://github.com/VectorSpaceLab/OmniGen)
+- [Qwen3-omni is a natively end-to-end, omni-modal LLM developed by the Qwen team at Alibaba Cloud, capable of understanding text, audio, images, and video, as well as generating speech in real time.](https://github.com/QwenLM/Qwen3-Omni)
+- [Qwen2.5-Omni is an end-to-end multimodal model by Qwen team at Alibaba Cloud, capable of understanding text, audio, vision, video, and performing real-time speech generation.](https://github.com/QwenLM/Qwen2.5-Omni)
+
 ### Dynamic systems, Differential equations, Diffusion theory
 - [Neural Differential Equations Video explanation](https://youtu.be/AD3K8j12EIE?si=qjZYCo5okwcQbl90)
 - [Large Language Models to Diffusion Finetuning(SakanaAI)](https://github.com/SakanaAI/L2D)
