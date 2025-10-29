@@ -506,7 +506,7 @@ class RecurrentWrapperTrain(torch.nn.Module):
         out = self.memory_cell.generate(
             **final_segment, memory_state=memory_state, **generate_kwargs
         )
-
+        out = torch.cat([input_ids, out], dim=1)
         return out
 
     def segment(self, **kwargs):
@@ -622,6 +622,7 @@ class MemoryCellTrainLiger(MemoryCellTrain):
             attention_mask=seg_kwargs["attention_mask"],
             **generate_kwargs,
         )
+        out = torch.cat([input_ids, out], dim=1)
         self.model.forward = old_fwd
         return out
 
