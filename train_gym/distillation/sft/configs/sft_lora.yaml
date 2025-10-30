@@ -1,0 +1,52 @@
+model_name_or_path: /code/model_checkpoints/Qwen3-1.7B
+learning_rate: 2.0e-4
+eval_strategy: steps 
+max_steps: 6000
+eval_steps: 4000
+save_steps: 4000
+output_dir: ./model_checkpoints/sft/sft_lora_Qwen3-1.7B_v1
+eval_on_start: true
+
+# DATASET PARAMS
+dataset_text_field: text
+test_split_size: 3000
+dataset_num_proc: 22
+remove_unused_columns: False
+# в коде это реализовано другим способом, не средствами TRL
+assistant_only_loss: False
+
+# LORA PARAMS
+use_peft: true
+lora_r: 32 
+lora_alpha: 16 
+lora_target_modules:  [
+  "q_proj",
+  "k_proj",
+  "v_proj",
+  "o_proj",
+  "gate_proj",
+  "up_proj",
+  "down_proj",
+]
+
+# MEMORY OPTIMIZATIONS
+attn_implementation: flash_attention_2
+dtype: bfloat16
+use_liger_kernel: true
+per_device_eval_batch_size: 32
+# per_device_train_batch_size: 2 
+per_device_train_batch_size: 3 
+gradient_accumulation_steps: 4 
+gradient_checkpointing: false
+# gradient_checkpointing: true
+# gradient_checkpointing_kwargs: {"use_reentrant":True}
+optim: adamw_8bit
+# load_in_4bit: true
+# load_in_8bit: true
+packing: false
+prediction_loss_only: true
+
+# SPEED METRICS
+include_num_input_tokens_seen: True
+include_tokens_per_second: True
+logging_steps: 4

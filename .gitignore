@@ -180,3 +180,5 @@ model_checkpoints
 *.pt
 *.safetensors
 *.bin
+ultrachat_200k
+datasets/*

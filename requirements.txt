@@ -27,3 +27,4 @@ more-itertools==10.8.0
 mosaicml-streaming==0.13.0
 # lm-eval==0.4.9.1
 seaborn==0.13.2
+trl==0.24.0

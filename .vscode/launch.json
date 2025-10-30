@@ -215,5 +215,25 @@
                 // "CUDA_VISIBLE_DEVICES": "0"
             }
         },
+        {
+            "name": "train_gym/distillation/sft/sft_lora_train.py",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "accelerate.commands.launch",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "--config_file=/code/train_gym/distillation/sft/multi_gpu.yaml",
+                "--module",
+                "train_gym.distillation.sft.sft_lora_train",
+                "--config",
+                "/code/train_gym/distillation/sft/configs/sft_lora.yaml"
+            ],
+            "justMyCode": false,
+            "env": {
+                "http_proxy": "127.0.0.1:2334",
+                "https_proxy": "127.0.0.1:2334",
+                "CUDA_VISIBLE_DEVICES": "0"
+            }
+        },
     ],
 }
