@@ -450,6 +450,13 @@
 - [Qwen3-omni is a natively end-to-end, omni-modal LLM developed by the Qwen team at Alibaba Cloud, capable of understanding text, audio, images, and video, as well as generating speech in real time.](https://github.com/QwenLM/Qwen3-Omni)
 - [Qwen2.5-Omni is an end-to-end multimodal model by Qwen team at Alibaba Cloud, capable of understanding text, audio, vision, video, and performing real-time speech generation.](https://github.com/QwenLM/Qwen2.5-Omni)
 
+### Distillation
+- [On-Policy Distillation](https://thinkingmachines.ai/blog/on-policy-distillation/#distillation-for-personalization)
+- [Knowledge Distillation for Computer Vision](https://huggingface.co/docs/transformers/main/tasks/knowledge_distillation_for_image_classification)
+- [Official PyTorch implementation of DistiLLM: Towards Streamlined Distillation for Large Language Models (ICML 2024)](https://github.com/jongwooko/distillm) 
+- [Distilling Llama3.1 8B into Llama3.2 1B using Knowledge Distillation](https://meta-pytorch.org/torchtune/main/tutorials/llama_kd_tutorial.html#kd-recipe-in-torchtune)
+- [SLTrain: a sparse plus low-rank approach for parameter and memory efficient pretraining (NeurIPS 2024)](https://github.com/andyjm3/SLTrain/tree/main)
+
 ### Dynamic systems, Differential equations, Diffusion theory
 - [Neural Differential Equations Video explanation](https://youtu.be/AD3K8j12EIE?si=qjZYCo5okwcQbl90)
 - [Large Language Models to Diffusion Finetuning(SakanaAI)](https://github.com/SakanaAI/L2D)
