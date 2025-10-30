@@ -455,6 +455,9 @@
 - [Knowledge Distillation for Computer Vision](https://huggingface.co/docs/transformers/main/tasks/knowledge_distillation_for_image_classification)
 - [Official PyTorch implementation of DistiLLM: Towards Streamlined Distillation for Large Language Models (ICML 2024)](https://github.com/jongwooko/distillm) 
 - [Distilling Llama3.1 8B into Llama3.2 1B using Knowledge Distillation](https://meta-pytorch.org/torchtune/main/tutorials/llama_kd_tutorial.html#kd-recipe-in-torchtune)
+
+### LoRA Optimizations
+- [axolotl LoRA Optimizations](https://docs.axolotl.ai/docs/lora_optims.html)
 - [SLTrain: a sparse plus low-rank approach for parameter and memory efficient pretraining (NeurIPS 2024)](https://github.com/andyjm3/SLTrain/tree/main)
 
 ### Dynamic systems, Differential equations, Diffusion theory

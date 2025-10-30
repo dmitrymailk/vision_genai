@@ -69,7 +69,10 @@ import pandas as pd
 import copy
 from random import shuffle
 import json
-from train_gym.distillation.sft.utils import train_on_responses_only
+from train_gym.distillation.sft.utils import (
+    train_on_responses_only,
+    print_trainable_parameters,
+)
 from lm_eval import evaluator
 import time
 from matplotlib.colors import LinearSegmentedColormap
@@ -86,8 +89,37 @@ import torch.distributed as dist
 from torchao.float8 import convert_to_float8_training, Float8LinearConfig
 from functools import partial
 from transformers.models.qwen3.modeling_qwen3 import Qwen3DecoderLayer
+from dataclasses import dataclass
+from liger_kernel.transformers.monkey_patch import apply_liger_kernel_to_qwen3
+from train_gym.rmt.rmt_wrappers import (
+    MemoryCell,
+    RecurrentWrapper,
+    MemoryCellTrain,
+    RecurrentWrapperTrain,
+    MemoryCellTrainLiger,
+    lce_forward,
+)
+from peft import LoraConfig, get_peft_model
+
+from transformers.utils import is_peft_available
+
+if is_peft_available():
+    from peft import PeftModel
 
 logger = logging.get_logger(__name__)
+
+TRAINING_ARGS_NAME = "training_args.bin"
+MAX_SEQ_LENGTH = 2240
+
+
+@dataclass
+class RMTArguments:
+    apply_rmt: bool = False
+    memory_size: int = 32
+    segment_size: int = 1024
+    max_n_segments: int = 2
+    vary_n_segments: bool = False
+    k2: int = -1
 
 
 def filter_linear_layers(module, fqn, first_layer_name=None, last_layer_name=None):
@@ -102,7 +134,13 @@ def filter_linear_layers(module, fqn, first_layer_name=None, last_layer_name=Non
 
 
 def make_parser(subparsers: Optional[argparse._SubParsersAction] = None):
-    dataclass_types = (ScriptArguments, SFTConfig, ModelConfig, DatasetMixtureConfig)
+    dataclass_types = (
+        ScriptArguments,
+        SFTConfig,
+        ModelConfig,
+        DatasetMixtureConfig,
+        RMTArguments,
+    )
     if subparsers is not None:
         parser = subparsers.add_parser(
             "sft", help="Run the SFT training script", dataclass_types=dataclass_types
@@ -110,9 +148,6 @@ def make_parser(subparsers: Optional[argparse._SubParsersAction] = None):
     else:
         parser = TrlParser(dataclass_types)
     return parser
-
-
-MAX_SEQ_LENGTH = 2240
 
 
 def get_conversation_length(item, tokenizer):
@@ -368,13 +403,13 @@ class EvalSFTTrainer(SFTTrainer):
                 # "mmlu_other",
                 # "mmlu_social_sciences",
                 # "mmlu_humanities",
-                # "babilongv2_qa1_under_4k_instruct",
+                "babilongv2_qa1_under_4k_instruct",
                 # "babilongv2_qa2_under_4k_instruct",
                 # "babilongv2_qa3_under_4k_instruct",
                 # "babilongv2_qa4_under_4k_instruct",
                 # "babilongv2_qa5_under_4k_instruct",
                 # for debugging
-                "babilongv2_qa1_0k_instruct"
+                # "babilongv2_qa1_0k_instruct"
             ]
             target_metrics = [
                 # "arc_easy",
@@ -387,10 +422,10 @@ class EvalSFTTrainer(SFTTrainer):
                 # "mmlu_other",
                 # "mmlu_social_sciences",
                 # "mmlu_humanities",
-                # "babilongv2_qa1_0k_instruct",
-                # "babilongv2_qa1_1k_instruct",
-                # "babilongv2_qa1_2k_instruct",
-                # "babilongv2_qa1_4k_instruct",
+                "babilongv2_qa1_0k_instruct",
+                "babilongv2_qa1_1k_instruct",
+                "babilongv2_qa1_2k_instruct",
+                "babilongv2_qa1_4k_instruct",
                 # "babilongv2_qa2_0k_instruct",
                 # "babilongv2_qa2_1k_instruct",
                 # "babilongv2_qa2_2k_instruct",
@@ -408,13 +443,14 @@ class EvalSFTTrainer(SFTTrainer):
                 # "babilongv2_qa5_2k_instruct",
                 # "babilongv2_qa5_4k_instruct",
                 # for debugging
-                "babilongv2_qa1_0k_instruct",
+                # "babilongv2_qa1_0k_instruct",
             ]
             metrics_result = evaluator.simple_evaluate(
                 model=eval_model,
                 tasks=eval_metrics,
                 verbosity="WARNING",
                 batch_size=self.args.per_device_eval_batch_size,
+                # limit=100,
             )
             gc.collect()
             torch.cuda.empty_cache()
@@ -452,13 +488,53 @@ class EvalSFTTrainer(SFTTrainer):
 
             return synced_lm_eval_metrics
 
+    def _save(self, output_dir: Optional[str] = None, state_dict=None):
+        # If we are executing this function, we are the process zero, so we don't check for that.
+        output_dir = output_dir if output_dir is not None else self.args.output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info(f"Saving model checkpoint to {output_dir}")
+
+        rmt_classes = RecurrentWrapperTrain
+        if isinstance(self.model, rmt_classes):
+            self.model.memory_cell.model.save_pretrained(
+                output_dir,
+                state_dict=state_dict,
+                safe_serialization=self.args.save_safetensors,
+            )
+            torch.save(self.model.memory_cell.memory, f"{output_dir}/memory.pt")
+
+        else:
+            self.model.save_pretrained(
+                output_dir,
+                state_dict=state_dict,
+                safe_serialization=self.args.save_safetensors,
+            )
+
+        if self.processing_class is not None:
+            self.processing_class.save_pretrained(output_dir)
+        elif (
+            self.data_collator is not None
+            and hasattr(self.data_collator, "tokenizer")
+            and self.data_collator.tokenizer is not None
+        ):
+            logger.info(
+                "Saving Trainer.data_collator.tokenizer by default as Trainer.processing_class is `None`"
+            )
+            self.data_collator.tokenizer.save_pretrained(output_dir)
+
+        # Good practice: save your training arguments together with the trained model
+        torch.save(self.args, os.path.join(output_dir, TRAINING_ARGS_NAME))
+
 
 if __name__ == "__main__":
 
     parser = make_parser()
-    script_args, training_args, model_args, dataset_args, _ = (
+    script_args, training_args, model_args, dataset_args, rmt_args, _ = (
         parser.parse_args_and_config(return_remaining_strings=True)
     )
+    if training_args.use_liger_kernel:
+        print("apply use_liger_kernel")
+        apply_liger_kernel_to_qwen3()
 
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path)
     tokenizer.padding_side = "right"
@@ -470,15 +546,33 @@ if __name__ == "__main__":
         dtype=model_args.dtype,
     )
 
-    model = AutoModelForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
-        **model_kwargs,
-    )
     quantization_config = get_quantization_config(model_args)
     if quantization_config is not None:
         # Passing None would not be treated the same as omitting the argument, so we include it only when valid.
         model_kwargs["device_map"] = get_kbit_device_map()
         model_kwargs["quantization_config"] = quantization_config
+
+    model = AutoModelForCausalLM.from_pretrained(
+        model_args.model_name_or_path,
+        **model_kwargs,
+    )
+    peft_config = get_peft_config(model_args)
+    model = get_peft_model(model, peft_config)
+    if rmt_args.apply_rmt:
+        print("apply_rmt")
+        # посегментное вычисление лосса
+        cell = MemoryCellTrain(
+            model,
+            num_mem_tokens=rmt_args.memory_size,
+        )
+        model = RecurrentWrapperTrain(
+            cell,
+            segment_size=rmt_args.segment_size,
+            max_n_segments=rmt_args.max_n_segments,
+            vary_n_segments=rmt_args.vary_n_segments,
+            k2=rmt_args.k2,
+        )
+    print_trainable_parameters(model)
 
     dataset = load_dataset(
         "HuggingFaceH4/ultrachat_200k",
@@ -530,7 +624,6 @@ if __name__ == "__main__":
         train_dataset=train_dataset,
         eval_dataset=train_dataset,
         data_collator=train_collator,
-        peft_config=get_peft_config(model_args),
         args=training_args,
     )
 

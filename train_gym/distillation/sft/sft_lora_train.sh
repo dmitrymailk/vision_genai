@@ -8,7 +8,8 @@ export CUDA_VISIBLE_DEVICES=0
 config_path=/code/train_gym/distillation/sft/multi_gpu.yaml
 
 # train configs
-hf_train_config=/code/train_gym/distillation/sft/configs/sft_lora.yaml
+# hf_train_config=/code/train_gym/distillation/sft/configs/sft_lora.yaml
+hf_train_config=/code/train_gym/distillation/sft/configs/sft_lora_rmt.yaml
 
 # start training
 accelerate launch --config_file $config_path -m \

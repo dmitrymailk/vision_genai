@@ -464,6 +464,7 @@ class RecurrentWrapperTrain(torch.nn.Module):
         output_attentions=None,
         output_hidden_states=None,
         num_items_in_batch=None,
+        **kwargs,
     ):
         memory_state = None
         segmented = self.segment(
