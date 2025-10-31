@@ -18,6 +18,8 @@ import gc
 if TYPE_CHECKING:
     from transformers.cache_utils import Cache
 
+from functools import partial
+
 
 class MemoryCell(torch.nn.Module):
     def __init__(self, base_model, num_mem_tokens):
@@ -576,13 +578,14 @@ class MemoryCellTrainLiger(MemoryCellTrain):
             attention_mask=attention_mask,
             write_mem=False,
         )
-        old_fwd = self.model.forward
 
         def new_forward(*args, **kwargs):
+            old_fwd = kwargs.pop("old_fwd")
             output = old_fwd(*args, **kwargs)
             out = CausalLMOutputWithCrossAttentions()
             out["past_key_values"] = output["past_key_values"]
-            logits = self.model.lm_head(output.last_hidden_state)
+            last_hidden_state = output.hidden_states[-1]
+            logits = self.model.lm_head(last_hidden_state)
             out["logits"] = logits
 
             if kwargs.get("output_hidden_states"):
@@ -593,15 +596,32 @@ class MemoryCellTrainLiger(MemoryCellTrain):
 
             return out
 
-        self.model.forward = new_forward
+        old_fwd = None
+        if hasattr(self.model, "base_model"):
+            old_fwd = self.model.base_model.model.forward
+            self.model.base_model.model.forward = partial(
+                new_forward,
+                old_fwd=old_fwd,
+                output_hidden_states=True,
+            )
+        else:
+            old_fwd = self.model.forward
+            self.model.forward = partial(
+                new_forward,
+                old_fwd=old_fwd,
+                output_hidden_states=True,
+            )
 
         out = self.model.generate(
             inputs_embeds=seg_kwargs["inputs_embeds"],
             attention_mask=seg_kwargs["attention_mask"],
             **generate_kwargs,
         )
-        out = torch.cat([input_ids, out], dim=1)
-        self.model.forward = old_fwd
+
+        if hasattr(self.model, "base_model"):
+            self.model.base_model.model.forward = old_fwd
+        else:
+            self.model.forward = old_fwd
         return out
 
     @torch.compile
@@ -614,27 +634,9 @@ class MemoryCellTrainLiger(MemoryCellTrain):
     def process_output(self, model_outputs, **kwargs):
         if self.num_mem_tokens not in {0, None}:
             out = CausalLMOutputWithCrossAttentions()
-            # memory_state = model_outputs.last_hidden_state[:, -self.num_mem_tokens :]
             memory_state = model_outputs.hidden_states[-1][:, -self.num_mem_tokens :]
 
             last_hidden_state = self.extract_last_hidden_state(model_outputs)
-            # last_hidden_state = model_outputs.last_hidden_state
-            # fake_labels = (
-            #     torch.ones(
-            #         (memory_state.shape[0], self.num_mem_tokens),
-            #         device=memory_state.device,
-            #         dtype=torch.long,
-            #     )
-            #     * -100
-            # )
-            # kwargs["labels"] = torch.cat(
-            #     [
-            #         fake_labels,
-            #         kwargs["labels"],
-            #         fake_labels,
-            #     ],
-            #     dim=1,
-            # )
 
             model_outputs.last_hidden_state = None
 

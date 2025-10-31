@@ -293,13 +293,13 @@ class DataCollatorForGeneration:
         # мы всегда обучаемся только на продолжении
         processed["labels"] = processed["input_ids"].clone()
 
-        # post_prosess_func = train_on_responses_only(
-        #     instruction_part="<|im_start|>user\n",
-        #     response_part="<|im_start|>assistant\n",
-        #     tokenizer=self.tokenizer,
-        # )
-        # processed["labels"] = post_prosess_func(processed)
-        # processed["labels"] = processed["labels"]["labels"]
+        post_prosess_func = train_on_responses_only(
+            instruction_part="<|im_start|>user\n",
+            response_part="<|im_start|>assistant\n",
+            tokenizer=self.tokenizer,
+        )
+        processed["labels"] = post_prosess_func(processed)
+        processed["labels"] = processed["labels"]["labels"]
 
         processed["labels"][processed["labels"] == self.tokenizer.pad_token_id] = -100
 
@@ -601,14 +601,17 @@ if __name__ == "__main__":
         model_args.model_name_or_path,
         **model_kwargs,
     )
-    model.config.use_cache = False
+    # model.forward = MethodType(lce_forward, model)
     peft_config = get_peft_config(model_args)
     model = get_peft_model(model, peft_config)
+    model.config.use_cache = False
     if rmt_args.apply_rmt:
         print("apply_rmt")
         # посегментное вычисление лосса
-        model.forward = MethodType(lce_forward, model)
-        cell = MemoryCellTrainLiger(
+
+        # isk but with liger it's slower
+        # cell = MemoryCellTrainLiger(
+        cell = MemoryCellTrain(
             model,
             num_mem_tokens=rmt_args.memory_size,
         )
