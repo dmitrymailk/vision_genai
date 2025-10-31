@@ -408,30 +408,7 @@ class MemoryCellTrain(torch.nn.Module):
                     vocab_size=self.model.config.vocab_size,
                     num_items_in_batch=kwargs["num_items_in_batch"],
                 )
-                # logits = out["logits"]
-                # labels = kwargs["labels"]
-                # ignore_index = -100
-                # logits = logits.float()
-                # vocab_size = self.model.config.vocab_size
-                # labels = torch.nn.functional.pad(
-                #     labels,
-                #     (0, 1),
-                #     value=ignore_index,
-                # )
-                # shift_labels = labels[..., 1:].contiguous()
 
-                # # Flatten the tokens
-                # logits = logits.view(-1, vocab_size)
-                # shift_labels = shift_labels.view(-1)
-                # # Enable model parallelism
-                # shift_labels = shift_labels.to(logits.device)
-
-                # loss = torch.nn.functional.cross_entropy(
-                #     logits,
-                #     shift_labels,
-                #     ignore_index=ignore_index,
-                #     reduction="sum",
-                # )
                 out["loss"] = loss
 
             # clean memory while training
@@ -629,14 +606,16 @@ class MemoryCellTrainLiger(MemoryCellTrain):
 
     @torch.compile
     def extract_last_hidden_state(self, model_outputs):
-        return model_outputs.last_hidden_state[
+        # return model_outputs.last_hidden_state[
+        return model_outputs.hidden_states[-1][
             :, self.num_mem_tokens : -self.num_mem_tokens
         ].contiguous()
 
     def process_output(self, model_outputs, **kwargs):
         if self.num_mem_tokens not in {0, None}:
             out = CausalLMOutputWithCrossAttentions()
-            memory_state = model_outputs.last_hidden_state[:, -self.num_mem_tokens :]
+            # memory_state = model_outputs.last_hidden_state[:, -self.num_mem_tokens :]
+            memory_state = model_outputs.hidden_states[-1][:, -self.num_mem_tokens :]
 
             last_hidden_state = self.extract_last_hidden_state(model_outputs)
             # last_hidden_state = model_outputs.last_hidden_state
@@ -743,7 +722,7 @@ def lce_forward(
         **kwargs,
     )
 
-    if self.config.pretraining_tp > 1:
-        raise Exception("Liger Kernel does not support pretraining_tp!!")
+    # if self.config.pretraining_tp > 1:
+    #     raise Exception("Liger Kernel does not support pretraining_tp!!")
 
     return outputs

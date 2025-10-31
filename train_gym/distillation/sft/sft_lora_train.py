@@ -99,9 +99,10 @@ from train_gym.rmt.rmt_wrappers import (
     MemoryCellTrainLiger,
     lce_forward,
 )
+from types import MethodType
 from peft import LoraConfig, get_peft_model
-
 from transformers.utils import is_peft_available
+
 
 if is_peft_available():
     from peft import PeftModel
@@ -203,7 +204,33 @@ class ChatGenerationDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx: int):
         item = self.dataset[idx]
-        messages = item["messages"]
+        if "messages" in item:
+            messages = item["messages"]
+        elif "conversations" in item:
+            messages = []
+            for mess in item["conversations"]:
+                value = mess["value"]
+                from_ = mess["from"]
+                if from_ == "gpt":
+                    from_ = "assistant"
+                messages.append(
+                    {
+                        "role": from_,
+                        "content": value,
+                    }
+                )
+        else:
+            messages = []
+            for mess in item["conversation"]:
+                value = mess["content"]
+                from_ = mess["role"]
+
+                messages.append(
+                    {
+                        "role": from_,
+                        "content": value,
+                    }
+                )
 
         return {
             "messages": messages,
@@ -266,13 +293,13 @@ class DataCollatorForGeneration:
         # мы всегда обучаемся только на продолжении
         processed["labels"] = processed["input_ids"].clone()
 
-        post_prosess_func = train_on_responses_only(
-            instruction_part="<|im_start|>user\n",
-            response_part="<|im_start|>assistant\n",
-            tokenizer=self.tokenizer,
-        )
-        processed["labels"] = post_prosess_func(processed)
-        processed["labels"] = processed["labels"]["labels"]
+        # post_prosess_func = train_on_responses_only(
+        #     instruction_part="<|im_start|>user\n",
+        #     response_part="<|im_start|>assistant\n",
+        #     tokenizer=self.tokenizer,
+        # )
+        # processed["labels"] = post_prosess_func(processed)
+        # processed["labels"] = processed["labels"]["labels"]
 
         processed["labels"][processed["labels"] == self.tokenizer.pad_token_id] = -100
 
@@ -526,6 +553,24 @@ class EvalSFTTrainer(SFTTrainer):
         torch.save(self.args, os.path.join(output_dir, TRAINING_ARGS_NAME))
 
 
+DATASET_PARAMS = {
+    "HuggingFaceH4/ultrachat_200k": {
+        "cache_dir": "/code/ultrachat_200k",
+        "field": "train_sft",
+        "length": 2240,
+    },
+    "zai-org/LongAlign-10k": {
+        "cache_dir": "/code/datasets/LongAlign-10k",
+        "field": "train",
+        "length": 43141,
+    },
+    "allenai/WildChat-4.8M": {
+        "cache_dir": "/code/datasets/WildChat-4.8M",
+        "field": "train",
+        "length": 4964,
+    },
+}
+
 if __name__ == "__main__":
 
     parser = make_parser()
@@ -556,12 +601,14 @@ if __name__ == "__main__":
         model_args.model_name_or_path,
         **model_kwargs,
     )
+    model.config.use_cache = False
     peft_config = get_peft_config(model_args)
     model = get_peft_model(model, peft_config)
     if rmt_args.apply_rmt:
         print("apply_rmt")
         # посегментное вычисление лосса
-        cell = MemoryCellTrain(
+        model.forward = MethodType(lce_forward, model)
+        cell = MemoryCellTrainLiger(
             model,
             num_mem_tokens=rmt_args.memory_size,
         )
@@ -574,11 +621,17 @@ if __name__ == "__main__":
         )
     print_trainable_parameters(model)
 
+    dataset_name = script_args.dataset_name
     dataset = load_dataset(
-        "HuggingFaceH4/ultrachat_200k",
-        cache_dir="/code/ultrachat_200k",
+        dataset_name,
+        cache_dir=DATASET_PARAMS[dataset_name]["cache_dir"],
     )
-    dataset = dataset["train_sft"]
+    dataset = dataset[DATASET_PARAMS[dataset_name]["field"]]
+    if dataset_name == "allenai/WildChat-4.8M":
+        dataset = dataset.filter(
+            lambda example: not "gpt-3.5" in example["model"],
+            num_proc=training_args.dataset_num_proc,
+        )
 
     dataset = dataset.map(
         lambda item: get_conversation_length(
@@ -588,7 +641,8 @@ if __name__ == "__main__":
         num_proc=training_args.dataset_num_proc,
     )
     dataset = dataset.filter(
-        lambda example: example["length"] < 2240,
+        lambda example: example["length"]
+        < DATASET_PARAMS[script_args.dataset_name]["length"],
         num_proc=training_args.dataset_num_proc,
     )
 

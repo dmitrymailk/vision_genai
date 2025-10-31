@@ -2,10 +2,10 @@ model_name_or_path: /code/model_checkpoints/Qwen3-1.7B
 learning_rate: 2.0e-4
 eval_strategy: steps 
 max_steps: 6000
-eval_steps: 300
-save_steps: 300
-output_dir: ./model_checkpoints/sft/rmt_sft_lora_Qwen3-1.7B_v1
-eval_on_start: true
+eval_steps: 200
+save_steps: 200
+output_dir: ./model_checkpoints/sft/rmt_sft_lora_Qwen3-1.7B_v3
+# eval_on_start: true
 
 # DATASET PARAMS
 dataset_text_field: text
@@ -14,11 +14,14 @@ dataset_num_proc: 22
 remove_unused_columns: False
 # в коде это реализовано другим способом, не средствами TRL
 assistant_only_loss: False
+# dataset_name: HuggingFaceH4/ultrachat_200k
+# dataset_name: zai-org/LongAlign-10k
+dataset_name: allenai/WildChat-4.8M
 
 # LORA PARAMS
 use_peft: true
 lora_r: 32 
-lora_alpha: 16 
+lora_alpha: 8 
 lora_target_modules:  [
   "q_proj",
   "k_proj",
@@ -48,7 +51,7 @@ prediction_loss_only: true
 # SPEED METRICS
 include_num_input_tokens_seen: True
 include_tokens_per_second: True
-logging_steps: 4
+logging_steps: 1
 
 # RMT PARAMS
 apply_rmt: True
