@@ -1,0 +1,1 @@
+bash monitor.sh >&1 &
