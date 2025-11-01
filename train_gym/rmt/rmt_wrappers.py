@@ -728,3 +728,50 @@ def lce_forward(
     #     raise Exception("Liger Kernel does not support pretraining_tp!!")
 
     return outputs
+
+
+class ChatMemoryCellTrain(MemoryCellTrain):
+    def process_output(self, model_outputs, **kwargs):
+        if self.num_mem_tokens not in {0, None}:
+            out = CausalLMOutputWithCrossAttentions()
+            memory_state = model_outputs.hidden_states[-1][:, -self.num_mem_tokens :]
+            out["logits"] = model_outputs.logits[
+                :, self.num_mem_tokens : -self.num_mem_tokens
+            ]
+
+            if kwargs.get("output_hidden_states"):
+                out["hidden_states"] = [
+                    lh[:, self.num_mem_tokens : -self.num_mem_tokens]
+                    for lh in model_outputs.hidden_states
+                ]
+            if kwargs.get("output_attentions"):
+                out["attentions"] = model_outputs["attentions"]
+
+            if not kwargs["labels"] is None:
+                real_labels_amount = (kwargs["labels"] != -100).sum()
+                if real_labels_amount > 0:
+                    loss = self.model.loss_function(
+                        logits=out["logits"],
+                        labels=kwargs["labels"],
+                        vocab_size=self.model.config.vocab_size,
+                        num_items_in_batch=kwargs["num_items_in_batch"],
+                    )
+                else:
+                    loss = torch.tensor(
+                        0.0,
+                        device=self.model.device,
+                        requires_grad=True,
+                    )
+
+                out["loss"] = loss
+
+            # clean memory while training
+            if self.training:
+                out["logits"] = None
+                out["attentions"] = None
+                out["hidden_states"] = None
+        else:
+            memory_state = None
+            out = model_outputs
+
+        return out, memory_state

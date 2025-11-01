@@ -98,11 +98,14 @@ from train_gym.rmt.rmt_wrappers import (
     RecurrentWrapperTrain,
     MemoryCellTrainLiger,
     lce_forward,
+    ChatMemoryCellTrain,
 )
 from types import MethodType
 from peft import LoraConfig, get_peft_model
 from transformers.utils import is_peft_available
+import matplotlib
 
+matplotlib.use("Agg")
 
 if is_peft_available():
     from peft import PeftModel
@@ -601,6 +604,7 @@ if __name__ == "__main__":
         model_args.model_name_or_path,
         **model_kwargs,
     )
+    # liger kernel slower
     # model.forward = MethodType(lce_forward, model)
     peft_config = get_peft_config(model_args)
     model = get_peft_model(model, peft_config)
@@ -611,7 +615,8 @@ if __name__ == "__main__":
 
         # isk but with liger it's slower
         # cell = MemoryCellTrainLiger(
-        cell = MemoryCellTrain(
+        # cell = MemoryCellTrain(
+        cell = ChatMemoryCellTrain(
             model,
             num_mem_tokens=rmt_args.memory_size,
         )
@@ -648,6 +653,7 @@ if __name__ == "__main__":
         < DATASET_PARAMS[script_args.dataset_name]["length"],
         num_proc=training_args.dataset_num_proc,
     )
+    MAX_SEQ_LENGTH = DATASET_PARAMS[script_args.dataset_name]["length"]
 
     dataset = dataset.train_test_split(
         dataset_args.test_split_size,
