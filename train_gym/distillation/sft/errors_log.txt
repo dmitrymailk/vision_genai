@@ -1,0 +1,37 @@
+  6%|▌         | 16360/266396 [19:50:50<254:00:51,  3.66s/it]
+  6%|▌         | 16361/266396 [19:50:54<270:36:50,  3.90s/it]
+  6%|▌         | 16362/266396 [19:50:59<276:57:41,  3.99s/it]
+  6%|▌         | 16363/266396 [19:51:02<270:08:33,  3.89s/it]E1102 20:20:44.988000 2181 site-packages/torch/distributed/elastic/multiprocessing/api.py:882] failed (exitcode: -11) local_rank: 0 (pid: 2270) of binary: /opt/conda/bin/python3.11
+Traceback (most recent call last):
+  File "/home/user-name-goes-here/.local/bin/accelerate", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/accelerate/commands/accelerate_cli.py", line 50, in main
+    args.func(args)
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/accelerate/commands/launch.py", line 1226, in launch_command
+    multi_gpu_launcher(args)
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/accelerate/commands/launch.py", line 853, in multi_gpu_launcher
+    distrib_run.run(args)
+  File "/opt/conda/lib/python3.11/site-packages/torch/distributed/run.py", line 927, in run
+    elastic_launch(
+  File "/opt/conda/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 156, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 293, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+======================================================
+train_gym.distillation.sft.sft_lora_train FAILED
+------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-11-02_20:20:44
+  host      : 5e1e2d7cf236
+  rank      : 0 (local_rank: 0)
+  exitcode  : -11 (pid: 2270)
+  error_file: <N/A>
+  traceback : Signal 11 (SIGSEGV) received by PID 2270
+======================================================
