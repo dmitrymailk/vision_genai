@@ -48,32 +48,33 @@ if __name__ == "__main__":
         # model_name = "HuggingFaceTB/SmolLM2-360M"
         # model_name = "unsloth/Llama-3.2-1B-Instruct"
         # model_name = "alpindale/Llama-3.2-1B-Instruct"
-        model_name = "model_checkpoints/gpt2"
+        # model_name = "model_checkpoints/gpt2"
+        model_name = "/code/model_checkpoints/Qwen3-1.7B"
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            # torch_dtype=torch.bfloat16,
-            torch_dtype=torch.float32,
-            # attn_implementation="flash_attention_2",
-            # device_map={"": 0},
+            torch_dtype=torch.bfloat16,
+            # torch_dtype=torch.float32,
+            attn_implementation="flash_attention_2",
+            device_map={"": 0},
         )
         config = AutoConfig.from_pretrained(model_name)
 
-        cell = MemoryCell(
-            model,
-            num_mem_tokens=16,
-        )
-        model = RecurrentWrapper(
-            cell,
-            # segment_size=1024,
-            segment_size=512,
-            # max_n_segments=2,
-            max_n_segments=32,
-            # vary_n_segments=False,
-            # vary_n_segments=True,
-            k2=-1,
-        )
-        # model.load_state_dict(torch.load("/code/model_best.pt"))
-        model.load_state_dict(torch.load("/code/pytorch_model.bin"))
+        # cell = MemoryCell(
+        #     model,
+        #     num_mem_tokens=16,
+        # )
+        # model = RecurrentWrapper(
+        #     cell,
+        #     # segment_size=1024,
+        #     segment_size=512,
+        #     # max_n_segments=2,
+        #     max_n_segments=32,
+        #     # vary_n_segments=False,
+        #     # vary_n_segments=True,
+        #     k2=-1,
+        # )
+        # # model.load_state_dict(torch.load("/code/model_best.pt"))
+        # model.load_state_dict(torch.load("/code/pytorch_model.bin"))
         tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         config.use_cache = True
@@ -117,12 +118,12 @@ if __name__ == "__main__":
         accelerator = Accelerator()
         model = accelerator.prepare(model)
 
-    batch_size = 1
+    # batch_size = 1
     # batch_size = 32
     # batch_size = 56
     # batch_size = 4
     # batch_size = 8
-    # batch_size = 16
+    batch_size = 16
     eval_model = SimpleAccelerateHFLM(
         pretrained=model,
         accelerator=accelerator,
@@ -133,7 +134,7 @@ if __name__ == "__main__":
         # batch_size=32,
         # mixed_precision_dtype=torch.bfloat16,
         # mixed_precision_dtype="bf16",
-        max_length=8096,
+        max_length=4096,
     )
 
     results = evaluator.simple_evaluate(
@@ -150,7 +151,7 @@ if __name__ == "__main__":
             # "mmlu_other",
             # "mmlu_social_sciences",
             # "mmlu_humanities",
-            # "babilongv2_qa1_under_4k_instruct",
+            "babilongv2_qa1_under_4k_instruct",
             # "babilongv2_qa2_under_4k_instruct",
             # "babilongv2_qa3_under_4k_instruct",
             # "babilongv2_qa4_under_4k_instruct",
@@ -163,10 +164,10 @@ if __name__ == "__main__":
             # "babilongv2_qa1_0k_instruct",
             # "babilongv2_qa1_0k_base",
             # "arc_easy",
-            "babilongv2_qa1_0k_base",
-            "babilongv2_qa1_1k_base",
-            "babilongv2_qa1_2k_base",
-            "babilongv2_qa1_4k_base",
+            # "babilongv2_qa1_0k_base",
+            # "babilongv2_qa1_1k_base",
+            # "babilongv2_qa1_2k_base",
+            # "babilongv2_qa1_4k_base",
         ],
         verbosity="WARNING",
         # batch_size=64,
@@ -180,3 +181,7 @@ if __name__ == "__main__":
 
 
 # {'arc_easy': {'alias': 'arc_easy', 'acc,none': 0.6548821548821548, 'acc_stderr,none': 0.009755139387152048, 'acc_norm,none': 0.6052188552188552, 'acc_norm_stderr,none': 0.01003003893588358}, 'hellaswag': {'alias': 'hellaswag', 'acc,none': 0.477096195976897, 'acc_stderr,none': 0.004984543540932336, 'acc_norm,none': 0.6363274248157738, 'acc_norm_stderr,none': 0.004800728138792352}}
+
+
+# Qwen3-1.7B
+# {'babilongv2_qa1_under_4k_instruct': {' ': ' ', 'alias': 'babilongv2_qa1_under_4k_instruct'}, 'babilongv2_qa1_0k_instruct': {'alias': ' - babilongv2_qa1_0k_instruct', 'acc,none': 0.884, 'acc_stderr,none': 'N/A'}, 'babilongv2_qa1_1k_instruct': {'alias': ' - babilongv2_qa1_1k_instruct', 'acc,none': 0.85, 'acc_stderr,none': 'N/A'}, 'babilongv2_qa1_2k_instruct': {'alias': ' - babilongv2_qa1_2k_instruct', 'acc,none': 0.807, 'acc_stderr,none': 'N/A'}, 'babilongv2_qa1_4k_instruct': {'alias': ' - babilongv2_qa1_4k_instruct', 'acc,none': 0.772, 'acc_stderr,none': 'N/A'}}

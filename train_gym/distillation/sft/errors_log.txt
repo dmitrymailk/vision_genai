@@ -35,3 +35,348 @@ Root Cause (first observed failure):
   error_file: <N/A>
   traceback : Signal 11 (SIGSEGV) received by PID 2270
 ======================================================
+
+2%|▏         | 4132/266396 [5:07:50<271:30:34,  3.73s/it]
+  2%|▏         | 4133/266396 [5:07:53<245:31:36,  3.37s/it]
+  2%|▏         | 4134/266396 [5:07:56<235:10:24,  3.23s/it]
+  2%|▏         | 4135/266396 [5:07:58<228:08:29,  3.13s/it]E1103 18:13:12.449000 56957 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: -11) local_rank: 0 (pid: 57050) of binary: /opt/conda/bin/python3.11
+Traceback (most recent call last):
+  File "/home/user-name-goes-here/.local/bin/accelerate", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/accelerate/commands/accelerate_cli.py", line 50, in main
+    args.func(args)
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/accelerate/commands/launch.py", line 1226, in launch_command
+    multi_gpu_launcher(args)
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/accelerate/commands/launch.py", line 853, in multi_gpu_launcher
+    distrib_run.run(args)
+  File "/opt/conda/lib/python3.11/site-packages/torch/distributed/run.py", line 892, in run
+    elastic_launch(
+  File "/opt/conda/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 143, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/distributed/launcher/api.py", line 277, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+=======================================================
+train_gym.distillation.sft.sft_lora_train FAILED
+-------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+-------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-11-03_18:13:12
+  host      : c7e4eef41050
+  rank      : 0 (local_rank: 0)
+  exitcode  : -11 (pid: 57050)
+  error_file: <N/A>
+  traceback : Signal 11 (SIGSEGV) received by PID 57050
+=======================================================
+
+### Perplexity answer
+
+Now I have comprehensive information. Let me compile a detailed troubleshooting guide for the user.
+
+## Debugging PyTorch SIGSEGV in Distributed SFT/LoRA Training
+
+Your segmentation fault (SIGSEGV, Signal 11) errors during distributed training with Accelerate and LoRA are occurring during multi-GPU initialization. The training gets approximately 6% through the dataset before crashing, indicating the issue is likely in memory management or NCCL communication setup. Here's a systematic debugging and resolution approach:
+
+### Immediate Quick Fixes to Try First
+
+**Enable cuMem Host Allocation Workaround**[1]
+
+Set this environment variable before launching your training:
+
+```bash
+export NCCL_CUMEM_HOST_ENABLE=0
+```
+
+Then run your training. This disables CUDA Unified Memory host allocation which has known compatibility issues with certain GPU configurations and NCCL versions.[2]
+
+If this works, you've found the root cause. If not, proceed to the comprehensive debugging steps below.
+
+**Reduce Memory Pressure Temporarily**
+
+```bash
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+```
+
+This helps with memory fragmentation.[3]
+
+### Systematic Debugging Workflow
+
+**Step 1: Isolate Single GPU Training**
+
+First, verify your script works on a single GPU without distributed training:
+
+```bash
+python train.py  # No accelerate launch, single GPU
+```
+
+If this works, the problem is specific to distributed communication. If this fails too, there's a model-level or data pipeline issue to fix first.
+
+**Step 2: Test with Gloo Backend Instead of NCCL**[4]
+
+NCCL has known issues on certain hardware configurations. Configure Accelerate to use the Gloo backend:
+
+```bash
+export NCCL_DEBUG=INFO
+export NCCL_DEBUG_SUBSYS=ALLOC
+accelerate launch --mixed_precision=bf16 --num_processes=2 --backend=gloo train.py
+```
+
+If this works, you have a NCCL compatibility issue specific to your hardware.
+
+**Step 3: Capture Detailed Error Information**
+
+Enable comprehensive NCCL debugging:
+
+```bash
+export NCCL_DEBUG=TRACE
+export NCCL_DEBUG_SUBSYS=ALL
+export CUDA_LAUNCH_BLOCKING=1
+accelerate launch train.py 2>&1 | tee training_debug.log
+```
+
+This creates a log file showing exactly where the segfault occurs.[5]
+
+### Root Causes and Solutions
+
+**Memory Allocation Issues**[6]
+
+The most common cause is incompatibility between your CUDA version, PyTorch version, and NCCL version. Solutions:
+
+- Check version compatibility: "CUDA runtime version: X.X" from your error logs must align with your NCCL version
+- Try the cumem workaround mentioned above
+- Reduce batch size or model size to confirm it's a memory issue
+- Enable CPU memory offloading in your training config
+
+**P2P Access Problems**[1]
+
+Some GPU topologies don't support peer-to-peer access between devices:
+
+```bash
+# Check if P2P is available
+nvidia-smi topo -m
+
+# If disabled, try:
+export NCCL_P2P_DISABLE=1
+accelerate launch train.py
+```
+
+**FSDP + LoRA Specific Issues**[7][8]
+
+If using FSDP with LoRA:
+
+- Set `use_orig_params=True` in your FSDP config
+- Use `SHARDED_STATE_DICT` rather than `FULL_STATE_DICT`
+- Ensure `gradient_accumulation_steps=1` initially (known issue with higher values )[8]
+- Disable CPU offloading if enabled, as it can interact poorly with LoRA layer dimensions
+
+### Advanced Debugging
+
+**If crashes persist after trying the above, create a minimal reproducible example:**
+
+```python
+import torch
+import torch.distributed as dist
+import os
+
+def main():
+    rank = int(os.environ.get("RANK", 0))
+    world_size = int(os.environ.get("WORLD_SIZE", 1))
+    
+    torch.cuda.set_device(rank)
+    dist.init_process_group(backend="nccl")
+    
+    # Simple tensor operations
+    x = torch.randn(1000, 1000, device="cuda")
+    dist.all_reduce(x)
+    
+    dist.destroy_process_group()
+
+if __name__ == "__main__":
+    main()
+```
+
+Run this with:
+```bash
+torchrun --nproc_per_node=2 test.py
+```
+
+If this minimal example crashes, the issue is definitely NCCL/communication-level. If it works, the problem is in your model or training logic.
+
+### Environment-Specific Considerations
+
+- **WSL/WSL2**: NCCL host memory allocation behaves differently. Always use `NCCL_CUMEM_HOST_ENABLE=0` on WSL
+- **Cloud VMs**: Check firewall rules and network interfaces aren't blocking NCCL communication
+- **Container/Docker**: Ensure `--gpus all --shm-size=16gb` flags are passed to docker run
+
+### Key Configuration Recommendations
+
+For stable SFT/LoRA training with Accelerate:
+
+```bash
+export NCCL_CUMEM_HOST_ENABLE=0
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export OMP_NUM_THREADS=1
+accelerate launch \
+  --mixed_precision=bf16 \
+  --num_processes=2 \
+  --use_fsdp \
+  train.py
+```
+
+### When to Seek Additional Help
+
+If the issue persists:
+
+1. Share your exact PyTorch, CUDA, and NCCL versions
+2. Output of `nvidia-smi` and GPU topology information
+3. The full `training_debug.log` from Step 3 above
+4. Confirm whether single-GPU training works
+5. Confirm whether Gloo backend works
+
+The SIGSEGV is almost always a memory management or communication layer issue, not a training logic problem, which is why isolating to the communication level through these steps is so effective.
+
+[1](https://github.com/NVIDIA/nccl/issues/1838)
+[2](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html)
+[3](https://docs.pytorch.org/docs/stable/notes/cuda.html)
+[4](https://github.com/pytorch/pytorch/issues/100240)
+[5](https://web.stanford.edu/class/archive/cs/cs107/cs107.1256/resources/debugging.html)
+[6](https://buttondown.com/weekly-project-news/archive/weekly-github-report-for-pytorch-april-28-2025/)
+[7](https://discuss.pytorch.org/t/fsdp-lora-tensors-seem-to-vanish-into-oblivion-when-using-fullyshardeddataparallel-and-peft/211002)
+[8](https://discuss.huggingface.co/t/errors-when-using-gradient-accumulation-with-fsdp-peft-lora-sfttrainer/105006)
+[9](https://forums.developer.nvidia.com/t/pytorch-cuda-errors-on-ubuntu-22-with-rtx-3090-ti-x2/245748)
+[10](https://github.com/pytorch/pytorch/issues/126620)
+[11](https://huggingface.co/docs/accelerate/v0.27.2/en/basic_tutorials/troubleshooting)
+[12](https://github.com/pytorch/pytorch/issues/157627)
+[13](https://discuss.pytorch.org/t/cuda-out-of-memory-but-desired-allocation-is-less-than-free-memory/168341)
+[14](https://stackoverflow.com/questions/70138884/how-to-fix-memory-error-while-training-model)
+[15](https://community.databricks.com/t5/machine-learning/mlflow-log-pytorch-distributed-training/td-p/11181)
+[16](https://github.com/huggingface/accelerate/issues/440)
+[17](https://discuss.huggingface.co/t/sigsegv-when-training-on-multiple-gpus/49023)
+[18](https://github.com/pytorch/pytorch/issues/160289)
+[19](https://github.com/tensorflow/tensorflow/issues/22987)
+[20](https://github.com/pytorch/pytorch/issues/161116)
+[21](https://github.com/unslothai/unsloth/issues/668)
+[22](https://www.reddit.com/r/pytorch/comments/lj3cck/whats_good_practice_for_debugging_distributed/)
+[23](https://stackoverflow.com/questions/66444927/how-to-fix-a-sigsegv-in-pytorch-when-using-distributed-training-e-g-ddp)
+[24](https://github.com/pytorch/pytorch/issues/158122)
+[25](https://www.youtube.com/watch?v=L-WSwUWde1U)
+[26](https://github.com/huggingface/accelerate/issues/2618)
+[27](https://docs.nvidia.com/deeplearning/nccl/archives/nccl_2234/user-guide/docs/env.html)
+[28](https://docs.pytorch.org/tutorials/recipes/recipes/tuning_guide.html)
+[29](https://github.com/huggingface/transformers/issues/35702)
+[30](https://github.com/NVIDIA/nccl/issues/1605)
+
+
+c7e4eef41050:197557:197557 NCCL CALL ncclAllGather(bdd282e00,be09c8200,1,4,0,0,0x5b664b82e8c0,(nil))
+c7e4eef41050:197557:197557 [0] NCCL INFO AllGather: opCount 0 sendbuff 0xbdc592200 recvbuff 0xbdc7f5200 count 1 datatype 4 op 0 root 0 comm 0x5b664b82e8c0 [nranks=1] stream (nil)
+c7e4eef41050:197557:197557 NCCL CALL ncclAllGather(bdc592200,bdc7f5200,1,4,0,0,0x5b664b82e8c0,(nil))
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/code/train_gym/distillation/sft/sft_lora_train.py", line 695, in <module>
+    trainer_stats = trainer.train()
+                    ^^^^^^^^^^^^^^^
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/transformers/trainer.py", line 2325, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/transformers/trainer.py", line 2674, in _inner_training_loop
+    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/trl/trainer/sft_trainer.py", line 1185, in training_step
+    return super().training_step(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/transformers/trainer.py", line 4071, in training_step
+    self.accelerator.backward(loss, **kwargs)
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/accelerate/accelerator.py", line 2740, in backward
+    loss.backward(**kwargs)
+  File "/opt/conda/lib/python3.11/site-packages/torch/_tensor.py", line 647, in backward
+    torch.autograd.backward(
+  File "/opt/conda/lib/python3.11/site-packages/torch/autograd/__init__.py", line 354, in backward
+    _engine_run_backward(
+  File "/opt/conda/lib/python3.11/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/autograd/function.py", line 311, in apply
+    return user_fn(self, *args)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/utils/checkpoint.py", line 319, in backward
+    torch.autograd.backward(outputs_with_grad, args_with_grad)
+  File "/opt/conda/lib/python3.11/site-packages/torch/autograd/__init__.py", line 354, in backward
+    _engine_run_backward(
+  File "/opt/conda/lib/python3.11/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: CUDA error: CUBLAS_STATUS_INTERNAL_ERROR when calling `cublasGemmEx( handle, opa, opb, m, n, k, &falpha, a, CUDA_R_16BF, lda, b, CUDA_R_16BF, ldb, &fbeta, c, std::is_same_v<C_Dtype, float> ? CUDA_R_32F : CUDA_R_16BF, ldc, compute_type, CUBLAS_GEMM_DEFAULT_TENSOR_OP)`
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "<frozen runpy>", line 198, in _run_module_as_main
+[rank0]:   File "<frozen runpy>", line 88, in _run_code
+[rank0]:   File "/code/train_gym/distillation/sft/sft_lora_train.py", line 695, in <module>
+[rank0]:     trainer_stats = trainer.train()
+[rank0]:                     ^^^^^^^^^^^^^^^
+[rank0]:   File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/transformers/trainer.py", line 2325, in train
+[rank0]:     return inner_training_loop(
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/transformers/trainer.py", line 2674, in _inner_training_loop
+[rank0]:     tr_loss_step = self.training_step(model, inputs, num_items_in_batch)
+[rank0]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/trl/trainer/sft_trainer.py", line 1185, in training_step
+[rank0]:     return super().training_step(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/transformers/trainer.py", line 4071, in training_step
+[rank0]:     self.accelerator.backward(loss, **kwargs)
+[rank0]:   File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/accelerate/accelerator.py", line 2740, in backward
+[rank0]:     loss.backward(**kwargs)
+[rank0]:   File "/opt/conda/lib/python3.11/site-packages/torch/_tensor.py", line 647, in backward
+[rank0]:     torch.autograd.backward(
+[rank0]:   File "/opt/conda/lib/python3.11/site-packages/torch/autograd/__init__.py", line 354, in backward
+[rank0]:     _engine_run_backward(
+[rank0]:   File "/opt/conda/lib/python3.11/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+[rank0]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/opt/conda/lib/python3.11/site-packages/torch/autograd/function.py", line 311, in apply
+[rank0]:     return user_fn(self, *args)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/opt/conda/lib/python3.11/site-packages/torch/utils/checkpoint.py", line 319, in backward
+[rank0]:     torch.autograd.backward(outputs_with_grad, args_with_grad)
+[rank0]:   File "/opt/conda/lib/python3.11/site-packages/torch/autograd/__init__.py", line 354, in backward
+[rank0]:     _engine_run_backward(
+[rank0]:   File "/opt/conda/lib/python3.11/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+[rank0]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]: RuntimeError: CUDA error: CUBLAS_STATUS_INTERNAL_ERROR when calling `cublasGemmEx( handle, opa, opb, m, n, k, &falpha, a, CUDA_R_16BF, lda, b, CUDA_R_16BF, ldb, &fbeta, c, std::is_same_v<C_Dtype, float> ? CUDA_R_32F : CUDA_R_16BF, ldc, compute_type, CUBLAS_GEMM_DEFAULT_TENSOR_OP)`
+[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33m./model_checkpoints/sft/rmt_sft_lora_Qwen3-1.7B_WildChat-4.8M_v3[0m at: [34mhttps://wandb.ai/dimweb/rmt_sft/runs/1j1qwsaw[0m
+[1;34mwandb[0m: Find logs at: [1;35mwandb/run-20251103_191752-1j1qwsaw/logs[0m
+[rank0]:[W1104 02:30:33.913931056 ProcessGroupNCCL.cpp:1538] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+c7e4eef41050:197557:204574 NCCL CALL ncclGroupStart()
+
+[2025-11-04 02:30:33] c7e4eef41050:197557:204575 [0] misc/strongstream.cc:399 NCCL WARN Cuda failure 'the launch timed out and was terminated'
+
+[2025-11-04 02:30:33] c7e4eef41050:197557:204575 [0] init.cc:2018 NCCL WARN commDestroySync: comm 0x5b664b82e8c0 rank 0 sync hostStream error 1
+
+
+[2025-11-04 02:30:33] c7e4eef41050:197557:204575 [0] misc/strongstream.cc:399 NCCL WARN Cuda failure 'the launch timed out and was terminated'
+
+[2025-11-04 02:30:33] c7e4eef41050:197557:204575 [0] init.cc:2021 NCCL WARN commDestroySync: comm 0x5b664b82e8c0 rank 0 sync deviceStream error 1
+
+c7e4eef41050:197557:197850 [0] NCCL INFO [Proxy Service UDS] exit: stop 1 abortFlag 1
+
+[2025-11-04 02:30:33] c7e4eef41050:197557:204575 [0] include/alloc.h:250 NCCL WARN Cuda failure 702 'the launch timed out and was terminated'
+c7e4eef41050:197557:204575 [0] NCCL INFO include/alloc.h:386 -> 1
+
+[2025-11-04 02:30:33] c7e4eef41050:197557:204575 [0] include/alloc.h:250 NCCL WARN Cuda failure 702 'the launch timed out and was terminated'
+c7e4eef41050:197557:204575 [0] NCCL INFO include/alloc.h:386 -> 1
+
+[2025-11-04 02:30:33] c7e4eef41050:197557:204575 [0] include/alloc.h:250 NCCL WARN Cuda failure 702 'the launch timed out and was terminated'
+c7e4eef41050:197557:204575 [0] NCCL INFO include/alloc.h:386 -> 1
+
+[2025-11-04 02:30:33] c7e4eef41050:197557:204575 [0] include/alloc.h:250 NCCL WARN Cuda failure 702 'the launch timed out and was terminated'
+c7e4eef41050:197557:204575 [0] NCCL INFO include/alloc.h:386 -> 1
+
+[2025-11-04 02:30:33] c7e4eef41050:197557:204575 [0] include/alloc.h:250 NCCL WARN Cuda failure 702 'the launch timed out and was terminated'
+c7e4eef41050:197557:204575 [0] NCCL INFO include/alloc.h:386 -> 1
