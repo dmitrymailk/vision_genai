@@ -157,6 +157,8 @@
 - [nGPT (normalized GPT) - Pytorch](https://github.com/lucidrains/nGPT-pytorch)
 - [SimbaV2 Hyperspherical Normalization for Scalable Deep Reinforcement Learning](https://dojeon-ai.github.io/SimbaV2/)
 - [Fast, Modern, and Low Precision PyTorch Optimizers](https://github.com/warner-benjamin/optimi)
+- [Jet-Nemotron: Efficient Language Model with Post Neural Architecture Search](https://github.com/NVlabs/Jet-Nemotron)
+- [CUDA-L1: Improving CUDA Optimization via Contrastive Reinforcement Learning](https://deepreinforce-ai.github.io/cudal1_blog/)
 
 
 ### How to train models
@@ -306,6 +308,9 @@
 - [cuda-training-series](https://youtube.com/playlist?list=PL6RdenZrxrw-zNX7uuGppWETdxt_JxdMj&si=uPw8lt5skigLditP) - [github](https://github.com/olcf/cuda-training-series)
 - [CUDA Library Samples](https://github.com/NVIDIA/CUDALibrarySamples)
 - [Unsloth.ai: Easily finetune & train LLMs](https://youtu.be/MQwryfkydc0?si=w3JAQJtDtkWaWgKS)
+- [Inside NVIDIA GPUs: Anatomy of high performance matmul kernels](https://www.aleksagordic.com/blog/matmul#cpt1)
+- [How to Think About GPUs](https://jax-ml.github.io/scaling-book/gpus/)
+- [Inside vLLM: Anatomy of a High-Throughput LLM Inference System](https://www.aleksagordic.com/blog/vllm)
 
 ### CUDA, main themes
 - [warp shuffle, reduction, Using CUDA Warp-Level Primitives](https://developer.nvidia.com/blog/using-cuda-warp-level-primitives/)
@@ -408,6 +413,8 @@
 - [This directory contains 2 scripts that showcase how to fine-tune any model supported by the AutoModelForImageClassification API (such as ViT, ConvNeXT, ResNet, Swin Transformer](https://github.com/huggingface/transformers/tree/main/examples/pytorch/image-classification)
 - [RectifiedFlow is a simple, unified PyTorch codebase for diffusion and flow models](https://github.com/lqiang67/rectified-flow)
 - [Object Detection from 9 FPS to 650 FPS in 6 Steps](https://paulbridger.com/posts/video-analytics-pipeline-tuning/)
+- [StreamingVLM: Real-Time Understanding for Infinite Video Streams](https://github.com/mit-han-lab/streaming-vlm)
+- [MiniCPM-V 4.5: A GPT-4o Level MLLM for Single Image, Multi Image and High-FPS Video Understanding on Your Phone](https://github.com/OpenBMB/MiniCPM-V)
 
 ### Torch compile benchmarks
 - https://github.com/pytorch/torchtitan/blob/main/benchmarks/llama3_h100_202412_torchtitan.md#user-content-fn-2-cae6e35c41ee7ec0bdbbad5503a98dd1
@@ -428,6 +435,8 @@
 - [MegaTTS 3](https://github.com/bytedance/MegaTTS3)
 - [Higgs Audio V2: Redefining Expressiveness in Audio Generation](https://github.com/boson-ai/higgs-audio)
 - [State-of-the-art TTS model under 25MB](https://github.com/KittenML/KittenTTS)
+- [Step-Audio 2 is an end-to-end multi-modal large language model designed for industry-strength audio understanding and speech conversation.](https://github.com/stepfun-ai/Step-Audio2)
+- [Unmute is a system that allows text LLMs to listen and speak by wrapping them in Kyutai's Text-to-speech and Speech-to-text models.](https://github.com/kyutai-labs/unmute)
 
 ### RL/NLP
 - [ART is an open-source RL framework that improves agent reliability by allowing LLMs to learn from experience.](https://github.com/openpipe/art)
@@ -441,6 +450,12 @@
 ### Diffusion language modeling
 - https://github.com/ML-GSAI/LLaDA
 - https://github.com/DreamLM/Dream
+- [Sequential Diffusion Language Model (SDLM) enhances pre-trained autoregressive language models by adaptively determining generation length and maintaining KV-cache compatibility, achieving high efficiency and throughput](https://github.com/OpenGVLab/SDLM)
+- [Official implementation of "Fast-dLLM: Training-free Acceleration of Diffusion LLM by Enabling KV Cache and Parallel Decoding"](https://github.com/NVlabs/Fast-dLLM)
+- [Lumina-DiMOO - An Open-Sourced Multi-Modal Large Diffusion Language Model](https://github.com/Alpha-VLLM/Lumina-DiMOO)
+- [Salesforce AI Research's open diffusion language model](https://github.com/SalesforceAIResearch/CoDA)
+- [RND1: Scaling Diffusion Language Models](https://github.com/RadicalNumerics/RND1)
+- [vLLM implementation for Diffusion LLMs, D2F is integrated as the core inference strategy, while also support training-free strategies like Fast-dLLM.](https://github.com/zhijie-group/d2f_vllm)
 
 ### Unified Generation (Text, Image)
 - [Janus-Series: Unified Multimodal Understanding and Generation Models](https://github.com/deepseek-ai/Janus)
@@ -455,10 +470,16 @@
 - [Knowledge Distillation for Computer Vision](https://huggingface.co/docs/transformers/main/tasks/knowledge_distillation_for_image_classification)
 - [Official PyTorch implementation of DistiLLM: Towards Streamlined Distillation for Large Language Models (ICML 2024)](https://github.com/jongwooko/distillm) 
 - [Distilling Llama3.1 8B into Llama3.2 1B using Knowledge Distillation](https://meta-pytorch.org/torchtune/main/tutorials/llama_kd_tutorial.html#kd-recipe-in-torchtune)
+- [Quantization-Aware Training (QAT) Quantize models to 4-bit with Unsloth and PyTorch to recover accuracy.](https://docs.unsloth.ai/basics/quantization-aware-training-qat)
 
 ### LoRA Optimizations
 - [axolotl LoRA Optimizations](https://docs.axolotl.ai/docs/lora_optims.html)
 - [SLTrain: a sparse plus low-rank approach for parameter and memory efficient pretraining (NeurIPS 2024)](https://github.com/andyjm3/SLTrain/tree/main)
+
+### Quantization
+- [Lightweight toolkit package to train and fine-tune 1.58bit Language models](https://github.com/tiiuae/onebitllms)
+- [A Visual Guide to Quantization](https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-quantization)
+
 
 ### Dynamic systems, Differential equations, Diffusion theory
 - [Neural Differential Equations Video explanation](https://youtu.be/AD3K8j12EIE?si=qjZYCo5okwcQbl90)

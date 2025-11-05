@@ -12,5 +12,5 @@ config_path=/code/train_gym/distillation/sft/multi_gpu.yaml
 hf_train_config=/code/train_gym/distillation/sft/configs/sft_lora_rmt.yaml
 
 # start training
-accelerate launch --config_file $config_path -m \
-    train_gym.distillation.sft.sft_lora_train --config $hf_train_config
+# accelerate launch --config_file $config_path -m \
+python -m train_gym.distillation.sft.sft_lora_train --config $hf_train_config
