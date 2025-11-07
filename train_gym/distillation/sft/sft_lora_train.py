@@ -512,7 +512,8 @@ class EvalSFTTrainer(SFTTrainer):
                         )
 
             metrics_to_broadcast = [report_dict]
-            dist.broadcast_object_list(metrics_to_broadcast, src=0)
+            if torch.cuda.device_count() > 1:
+                dist.broadcast_object_list(metrics_to_broadcast, src=0)
             synced_lm_eval_metrics = metrics_to_broadcast[0]
             self.log(synced_lm_eval_metrics)
 

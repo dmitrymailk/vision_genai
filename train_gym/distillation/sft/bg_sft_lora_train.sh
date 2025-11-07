@@ -11,12 +11,14 @@ export CUDA_VISIBLE_DEVICES=0
 # export CUDA_LAUNCH_BLOCKING=1
 
 # Accelerate configs
-config_path=/code/train_gym/distillation/sft/multi_gpu.yaml
+# config_path=/code/train_gym/distillation/sft/multi_gpu.yaml
+config_path=/code/train_gym/distillation/sft/single_gpu.yaml
 
 # train configs
 # hf_train_config=/code/train_gym/distillation/sft/configs/sft_lora.yaml
 hf_train_config=/code/train_gym/distillation/sft/configs/sft_lora_rmt.yaml
 
 # start training
-accelerate launch --config_file $config_path -m \
+# accelerate launch --config_file $config_path -m \
+python -m \
     train_gym.distillation.sft.sft_lora_train --config $hf_train_config > sft_lora_train_rmt.log 2>&1 &

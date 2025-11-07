@@ -380,3 +380,31 @@ c7e4eef41050:197557:204575 [0] NCCL INFO include/alloc.h:386 -> 1
 
 [2025-11-04 02:30:33] c7e4eef41050:197557:204575 [0] include/alloc.h:250 NCCL WARN Cuda failure 702 'the launch timed out and was terminated'
 c7e4eef41050:197557:204575 [0] NCCL INFO include/alloc.h:386 -> 1
+
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/code/train_gym/distillation/sft/sft_lora_train.py", line 695, in <module>
+    trainer_stats = trainer.train()
+                    ^^^^^^^^^^^^^^^
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/transformers/trainer.py", line 2325, in train
+    return inner_training_loop(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/transformers/trainer.py", line 2756, in _inner_training_loop
+    self._maybe_log_save_evaluate(
+  File "/home/user-name-goes-here/.local/lib/python3.11/site-packages/transformers/trainer.py", line 3221, in _maybe_log_save_evaluate
+    metrics = self._evaluate(trial, ignore_keys_for_eval)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/code/train_gym/distillation/sft/sft_lora_train.py", line 515, in _evaluate
+    dist.broadcast_object_list(metrics_to_broadcast, src=0)
+  File "/opt/conda/lib/python3.11/site-packages/torch/distributed/c10d_logger.py", line 81, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/distributed/distributed_c10d.py", line 3663, in broadcast_object_list
+    group = _group_or_default_group(group)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/distributed/distributed_c10d.py", line 1138, in _group_or_default_group
+    group = _get_default_group()
+            ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/distributed/distributed_c10d.py", line 1303, in _get_default_group
+    raise ValueError(
+ValueError: Default process group has not been initialized, please make sure to call init_process_group.
