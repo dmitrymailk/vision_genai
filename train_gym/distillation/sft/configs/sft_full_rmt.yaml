@@ -1,0 +1,51 @@
+model_name_or_path: /code/model_checkpoints/Qwen3-1.7B
+learning_rate: 2.0e-5
+eval_strategy: steps 
+max_steps: 6000
+eval_steps: 500
+save_steps: 500
+output_dir: ./model_checkpoints/sft/rmt_sft_full_Qwen3-1.7B_WildChat-4.8M_v1
+# output_dir: ./model_checkpoints/sft/rmt_sft_lora_Qwen3-1.7B_LongAlign-10k_v2
+# eval_on_start: true
+
+# DATASET PARAMS
+dataset_text_field: text
+test_split_size: 3000
+dataset_num_proc: 22
+remove_unused_columns: False
+# в коде это реализовано другим способом, не средствами TRL
+assistant_only_loss: False
+# dataset_name: HuggingFaceH4/ultrachat_200k
+# dataset_name: zai-org/LongAlign-10k
+dataset_name: allenai/WildChat-4.8M
+
+
+# MEMORY OPTIMIZATIONS
+attn_implementation: flash_attention_2
+dtype: bfloat16
+use_liger_kernel: true
+per_device_eval_batch_size: 32
+per_device_train_batch_size: 4 
+gradient_accumulation_steps: 4 
+# gradient_checkpointing: false
+gradient_checkpointing: true
+gradient_checkpointing_kwargs: {"use_reentrant":True}
+optim: adamw_8bit
+# load_in_4bit: true
+# load_in_8bit: true
+packing: false
+prediction_loss_only: true
+warmup_steps: 30
+
+# SPEED METRICS
+include_num_input_tokens_seen: True
+include_tokens_per_second: True
+logging_steps: 4
+
+# RMT PARAMS
+apply_rmt: True
+memory_size: 16
+segment_size: 512
+max_n_segments: 32
+vary_n_segments: False 
+k2: -1
