@@ -775,3 +775,234 @@ class ChatMemoryCellTrain(MemoryCellTrain):
             out = model_outputs
 
         return out, memory_state
+
+
+class ChatMemoryCellTrainV2(ChatMemoryCellTrain):
+    def forward(self, input_ids, memory_state=None, **kwargs):
+        if memory_state is None:
+            memory_state = self.set_memory(input_ids.shape)
+
+        labels = None
+        num_items_in_batch = None
+        if "labels" in kwargs:
+            labels = kwargs.pop("labels")
+
+        if "num_items_in_batch" in kwargs:
+            num_items_in_batch = kwargs.pop("num_items_in_batch")
+
+        seg_kwargs = self.process_input(
+            input_ids, memory_state, write_mem=True, **kwargs
+        )
+        out = self.model(**seg_kwargs)
+        kwargs["labels"] = labels
+        kwargs["num_items_in_batch"] = num_items_in_batch
+        out, new_memory_state = self.process_output(out, **kwargs)
+
+        return out, new_memory_state
+
+    def generate(
+        self,
+        input_ids,
+        memory_state,
+        attention_mask=None,
+        seg_num=None,
+        **generate_kwargs,
+    ):
+        if memory_state is None:
+            memory_state = self.set_memory(input_ids.shape)
+
+        seg_kwargs = self.process_input(
+            input_ids,
+            memory_state,
+            attention_mask=attention_mask,
+            write_mem=False,
+            seg_num=seg_num + 1,
+        )
+        out = self.model.generate(
+            inputs_embeds=seg_kwargs["inputs_embeds"],
+            attention_mask=seg_kwargs["attention_mask"],
+            **generate_kwargs,
+        )
+        return out
+
+    def process_output(self, model_outputs, **kwargs):
+        if self.num_mem_tokens not in {0, None}:
+            out = CausalLMOutputWithCrossAttentions()
+            seg_num = kwargs["seg_num"]
+            if seg_num <= 1:
+                seg_num = 1
+            # else:
+            #     seg_num -= 1
+            memory_state = model_outputs.hidden_states[-1][:, -self.num_mem_tokens :]
+            out["logits"] = model_outputs.logits[
+                :, self.num_mem_tokens * seg_num : -self.num_mem_tokens * seg_num
+            ]
+
+            if kwargs.get("output_hidden_states"):
+                out["hidden_states"] = [
+                    lh[
+                        :,
+                        self.num_mem_tokens * seg_num : -self.num_mem_tokens * seg_num,
+                    ]
+                    for lh in model_outputs.hidden_states
+                ]
+            if kwargs.get("output_attentions"):
+                out["attentions"] = model_outputs["attentions"]
+
+            if not kwargs["labels"] is None:
+                real_labels_amount = (kwargs["labels"] != -100).sum()
+                if real_labels_amount > 0:
+                    loss = self.model.loss_function(
+                        logits=out["logits"],
+                        labels=kwargs["labels"],
+                        vocab_size=self.model.config.vocab_size,
+                        num_items_in_batch=kwargs["num_items_in_batch"],
+                    )
+                else:
+                    loss = torch.tensor(
+                        0.0,
+                        device=self.model.device,
+                        requires_grad=True,
+                    )
+
+                out["loss"] = loss
+
+            # clean memory while training
+            if self.training:
+                out["logits"] = None
+                out["attentions"] = None
+                out["hidden_states"] = None
+        else:
+            memory_state = None
+            out = model_outputs
+
+        return out, memory_state
+
+    def process_input(self, input_ids, memory_state, write_mem, **kwargs):
+        seg_kwargs = dict(**kwargs)
+
+        inputs_embeds = kwargs.get("inputs_embeds")
+        if inputs_embeds is None:
+            inputs_embeds = self.model.get_input_embeddings()(input_ids)
+
+        if self.num_mem_tokens > 0:
+            if write_mem:
+                inputs_embeds = torch.cat(
+                    [memory_state, inputs_embeds, memory_state], dim=1
+                )
+            else:
+                inputs_embeds = torch.cat([memory_state, inputs_embeds], dim=1)
+
+        seg_kwargs["input_ids"] = None
+        seg_kwargs["inputs_embeds"] = inputs_embeds
+        if kwargs.get("attention_mask") is not None:
+            seg_kwargs["attention_mask"] = self.pad_attention_mask(
+                kwargs["attention_mask"], inputs_embeds.shape, kwargs["seg_num"]
+            )
+        seg_kwargs["output_hidden_states"] = True
+        return seg_kwargs
+
+    def pad_attention_mask(self, attention_mask, shape, seg_num):
+        if self.num_mem_tokens in {0, None}:
+            return attention_mask
+        else:
+            mask = torch.ones(*shape[:2], dtype=torch.int64).to(attention_mask.device)
+            if seg_num < 1:
+                seg_num = 1
+            mask[
+                :,
+                self.num_mem_tokens * seg_num : self.num_mem_tokens * seg_num
+                + attention_mask.shape[1],
+            ] = attention_mask
+            return mask
+
+
+class RecurrentWrapperTrainV2(RecurrentWrapperTrain):
+    def forward(
+        self,
+        input_ids,
+        labels=None,
+        labels_mask=None,
+        inputs_embeds=None,
+        attention_mask=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        num_items_in_batch=None,
+        **kwargs,
+    ):
+        memory_state = None
+        segmented = self.segment(
+            input_ids=input_ids,
+            inputs_embeds=inputs_embeds,
+            attention_mask=attention_mask,
+            labels=labels,
+        )
+
+        cell_outputs = []
+        for seg_num, segment in enumerate(segmented):
+            cell_out, memory_state_cell = self.memory_cell(
+                **segment,
+                memory_state=memory_state,
+                output_hidden_states=True,
+                num_items_in_batch=num_items_in_batch,
+                seg_num=seg_num,
+            )
+            cell_outputs.append(cell_out)
+            # memory_state_cell = self.manage_gradients(memory_state_cell, seg_num)
+
+            if seg_num > 0:
+                memory_state = torch.cat(
+                    [
+                        memory_state,
+                        memory_state_cell,
+                    ],
+                    dim=1,
+                )
+            else:
+                memory_state = memory_state_cell
+
+        out = self.process_outputs(
+            cell_outputs,
+            labels=labels,
+            labels_mask=labels_mask,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+        )
+        return out
+
+    def generate(
+        self,
+        input_ids,
+        attention_mask=None,
+        **generate_kwargs,
+    ):
+        memory_state = None
+        segmented = self.segment(input_ids=input_ids, attention_mask=attention_mask)
+        seg_num = 0
+        for seg_num, segment in enumerate(segmented[:-1]):
+            cell_out, memory_state_cell = self.memory_cell(
+                **segment,
+                memory_state=memory_state,
+                output_hidden_states=True,
+                seg_num=seg_num,
+            )
+            if seg_num > 0:
+                memory_state = torch.cat(
+                    [
+                        memory_state,
+                        memory_state_cell,
+                    ],
+                    dim=1,
+                )
+            else:
+                memory_state = memory_state_cell
+
+        final_segment = segmented[-1]
+        out = self.memory_cell.generate(
+            **final_segment,
+            memory_state=memory_state,
+            seg_num=seg_num,
+            **generate_kwargs,
+        )
+        out = torch.cat([input_ids, out], dim=1)
+        return out

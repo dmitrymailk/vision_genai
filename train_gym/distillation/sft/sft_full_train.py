@@ -92,11 +92,13 @@ from transformers.models.qwen3.modeling_qwen3 import Qwen3DecoderLayer
 from dataclasses import dataclass
 from liger_kernel.transformers.monkey_patch import apply_liger_kernel_to_qwen3
 from train_gym.rmt.rmt_wrappers import (
+    ChatMemoryCellTrainV2,
     MemoryCell,
     RecurrentWrapper,
     MemoryCellTrain,
     RecurrentWrapperTrain,
     MemoryCellTrainLiger,
+    RecurrentWrapperTrainV2,
     lce_forward,
     ChatMemoryCellTrain,
 )
@@ -118,6 +120,7 @@ MAX_SEQ_LENGTH = 2240
 
 @dataclass
 class RMTArguments:
+    opt_version: str = "opt_1"
     apply_rmt: bool = False
     memory_size: int = 32
     segment_size: int = 1024
@@ -609,17 +612,32 @@ if __name__ == "__main__":
         # isk but with liger it's slower
         # cell = MemoryCellTrainLiger(
         # cell = MemoryCellTrain(
-        cell = ChatMemoryCellTrain(
-            model,
-            num_mem_tokens=rmt_args.memory_size,
-        )
-        model = RecurrentWrapperTrain(
-            cell,
-            segment_size=rmt_args.segment_size,
-            max_n_segments=rmt_args.max_n_segments,
-            vary_n_segments=rmt_args.vary_n_segments,
-            k2=rmt_args.k2,
-        )
+        match rmt_args.opt_version:
+            case "opt_1":
+                cell = ChatMemoryCellTrain(
+                    model,
+                    num_mem_tokens=rmt_args.memory_size,
+                )
+                model = RecurrentWrapperTrain(
+                    cell,
+                    segment_size=rmt_args.segment_size,
+                    max_n_segments=rmt_args.max_n_segments,
+                    vary_n_segments=rmt_args.vary_n_segments,
+                    k2=rmt_args.k2,
+                )
+            case "opt_2":
+                cell = ChatMemoryCellTrainV2(
+                    model,
+                    num_mem_tokens=rmt_args.memory_size,
+                )
+                model = RecurrentWrapperTrainV2(
+                    cell,
+                    segment_size=rmt_args.segment_size,
+                    max_n_segments=rmt_args.max_n_segments,
+                    vary_n_segments=rmt_args.vary_n_segments,
+                    k2=rmt_args.k2,
+                )
+
     print_trainable_parameters(model)
 
     dataset_name = script_args.dataset_name
@@ -686,4 +704,7 @@ if __name__ == "__main__":
 
     setattr(trainer, "sft_eval_dataset", eval_dataset)
 
+    # resume_from_checkpoint = os.path.exists(training_args.output_dir)
+    # if "checkpoint" in model_args.model_name_or_path:
+    #     resume_from_checkpoint = True
     trainer_stats = trainer.train()
