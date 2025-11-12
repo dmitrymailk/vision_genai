@@ -13,5 +13,5 @@ services:
     - ./:/code
     cap_add:
       - ALL
-    # network_mode: "host"
+    network_mode: "host"
     shm_size: '64gb'

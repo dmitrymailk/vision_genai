@@ -3,8 +3,8 @@ model_name_or_path: /code/model_checkpoints/Qwen3-1.7B
 learning_rate: 2.0e-5
 eval_strategy: steps 
 max_steps: 6000
-eval_steps: 500
-save_steps: 500
+eval_steps: 1500
+save_steps: 1500
 output_dir: ./model_checkpoints/sft/rmt_sft_full_Qwen3-1.7B_WildChat-4.8M_v2
 # output_dir: ./model_checkpoints/sft/rmt_sft_lora_Qwen3-1.7B_LongAlign-10k_v2
 # eval_on_start: true
