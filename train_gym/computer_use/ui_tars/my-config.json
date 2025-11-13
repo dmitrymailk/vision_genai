@@ -1,9 +1,9 @@
 {
     "model": {
         "baseURL": "http://172.17.0.1:1337/v1",
-        "id": "ByteDance-Seed/UI-TARS-1.5-7B",
+        "id": "computer-use-preview",
         "api_key": "hf_xxx",
         "provider": "openai",
-        "model": "ByteDance-Seed/UI-TARS-1.5-7B"
+        "model": "computer-use-preview"
     }
 }

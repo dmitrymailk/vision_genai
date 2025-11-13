@@ -18,5 +18,7 @@ docker run --rm --runtime nvidia \
     --max-model-len 32000 \
     --enforce-eager \
     --enable-auto-tool-choice \
-    --tool-call-parser hermes
+    --tool-call-parser hermes \
+    --served-model-name computer-use-preview
+    # --served-model-name gpt-4o
     # --tool-call-parser pythonic

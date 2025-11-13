@@ -1,0 +1,11 @@
+{
+    "agent_loop": "OPENAI",
+    "model_choice": "OpenAI: Computer-Use Preview",
+    "custom_model": "ByteDance-Seed/UI-TARS-1.5-7B",
+    "provider_base_url": "http://localhost:1337/v1",
+    "save_trajectory": true,
+    "recent_images": 3,
+    "computer_os": "linux",
+    "computer_provider": "docker",
+    "container_name": ""
+}

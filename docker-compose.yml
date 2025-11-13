@@ -11,6 +11,7 @@ services:
     command: /bin/sh -c "while sleep 1000; do :; done"
     volumes:
     - ./:/code
+    - /var/run/docker.sock:/var/run/docker.sock
     cap_add:
       - ALL
     network_mode: "host"
