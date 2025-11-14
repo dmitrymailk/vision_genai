@@ -31,8 +31,9 @@ async def main():
     computer = Computer(
         os_type="linux",
         provider_type=VMProviderType.DOCKER,
-        name="my-cua-container",
+        # name="my-cua-container",
         image="cua-ubuntu:latest",
+        
     )
     # trycua/cua-xfce:latest
     await computer.run()

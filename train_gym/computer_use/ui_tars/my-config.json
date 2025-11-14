@@ -1,9 +1,9 @@
 {
     "model": {
-        "baseURL": "http://172.17.0.1:1337/v1",
-        "id": "computer-use-preview",
+        "baseURL": "http://172.17.0.1:1234/v1",
+        "id": "qwen3-vl-30b",
         "api_key": "hf_xxx",
         "provider": "openai",
-        "model": "computer-use-preview"
+        "model": "qwen3-vl-30b"
     }
 }

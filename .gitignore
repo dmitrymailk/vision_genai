@@ -183,3 +183,4 @@ model_checkpoints
 ultrachat_200k
 datasets/*
 data
+*.AppImage

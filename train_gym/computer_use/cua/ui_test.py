@@ -14,7 +14,8 @@ It can be run directly from the command line.
 import os
 
 os.environ["OPENAI_API_KEY"] = "qwe"
-os.environ["OPENAI_API_BASE"] = "http://172.17.0.1:1337/v1"
+# os.environ["OPENAI_API_BASE"] = "http://172.17.0.1:1337/v1"
+os.environ["OPENAI_API_BASE"] = "http://172.17.0.1:1234/v1"
 
 # Import the create_gradio_ui function
 from agent.ui.gradio.ui_components import create_gradio_ui
