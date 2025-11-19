@@ -3,7 +3,9 @@ VLLM_IMAGE=vllm/vllm-openai:v0.11.0
 # VLLM_IMAGE=vllm/vllm-openai:v0.10.2 
 # VLLM_IMAGE=vllm/vllm-openai:nightly 
 # MODEL_NAME=ByteDance-Seed/UI-TARS-1.5-7B
-MODEL_NAME=Qwen/Qwen3-VL-8B-Instruct
+# MODEL_NAME=Qwen/Qwen3-VL-8B-Instruct
+# MODEL_NAME=Hcompany/Holo2-4B
+MODEL_NAME=Qwen/Qwen3-VL-8B-Thinking
 
 # docker run --rm -d --runtime nvidia \
     # -v ./vllm_cache/vllm:/vllm_cache \
@@ -23,6 +25,7 @@ docker run --rm --runtime nvidia \
     --served-model-name gpt-4o \
     --enable-auto-tool-choice \
     --tool-call-parser hermes \
+    --reasoning-parser deepseek_r1
     # --tool-call-parser qwen3_xml \
 
     # weather in LA

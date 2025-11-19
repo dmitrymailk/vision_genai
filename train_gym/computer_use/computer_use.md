@@ -1,4 +1,6 @@
+- https://github.com/bytedance/UI-TARS-desktop
 - https://github.com/bytebot-ai/bytebot
+- https://github.com/browser-use/browser-use
 - 
 
 ### FIX docker in docker
