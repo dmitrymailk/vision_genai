@@ -1,0 +1,36 @@
+# client_4o_openai: &client_4o_openai
+#     provider: OpenAIChatCompletionClient
+#     config:
+#       model: gpt-4o-2024-08-06
+#       api_key: 'qwe'
+#       base_url: http://192.168.120.210:1337/v1
+#       max_retries: 5
+
+# orchestrator_client: *client_4o_openai
+# coder_client: *client_4o_openai
+# web_surfer_client: *client_4o_openai
+# file_surfer_client: *client_4o_openai
+# action_guard_client: *client_4o_openai
+# user_proxy_client: *client_4o_openai
+# model_client: *client_4o_openai
+
+model_config_local_surfer: &client_surfer
+  provider: OpenAIChatCompletionClient
+  config:
+    model: "microsoft/Fara-7B"
+    base_url: http://192.168.120.210:1337/v1
+    api_key: not-needed
+    model_info:
+      vision: true
+      function_calling: true
+      json_output: false
+      family: "unknown" 
+      structured_output: false
+      multiple_system_messages: false
+
+orchestrator_client: *client_surfer
+coder_client: *client_surfer
+web_surfer_client: *client_surfer
+file_surfer_client: *client_surfer
+action_guard_client: *client_surfer
+model_client: *client_surfer

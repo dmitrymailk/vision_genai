@@ -1,18 +1,10 @@
-MODEL_CACHE_PATH=./data
+MODEL_CACHE_PATH=/home/dimweb/vision_genai/train_gym/computer_use/ui_tars/data
 VLLM_IMAGE=vllm/vllm-openai:v0.11.0
-# VLLM_IMAGE=vllm/vllm-openai:v0.10.2 
-# VLLM_IMAGE=vllm/vllm-openai:nightly 
-# MODEL_NAME=ByteDance-Seed/UI-TARS-1.5-7B
-# MODEL_NAME=Qwen/Qwen3-VL-8B-Instruct
-# MODEL_NAME=Hcompany/Holo2-4B
-# MODEL_NAME=Qwen/Qwen3-VL-8B-Thinking
 MODEL_NAME=microsoft/Fara-7B
 
-# docker run --rm -d --runtime nvidia \
-    # -v ./vllm_cache/vllm:/vllm_cache \
+   
 docker run --rm --runtime nvidia \
     -v $MODEL_CACHE_PATH:/root/.cache/huggingface/hub \
-    -v ./vllm_cache/vllm:/usr/local/lib/python3.12/dist-packages/vllm \
     -p 1337:8000 \
     --ipc=host \
     $VLLM_IMAGE \
@@ -21,12 +13,12 @@ docker run --rm --runtime nvidia \
     --model $MODEL_NAME \
     --enable-chunked-prefill \
     --enable-prefix-caching \
-    --max-model-len 32768 \
     --enforce-eager \
+    --served-model-name gpt-4o-2024-08-06 \
+    --max-model-len 44768 \
     # --enable-auto-tool-choice \
     # --tool-call-parser hermes \
     # --reasoning-parser deepseek_r1
-    # --served-model-name gpt-4o \
     # --tool-call-parser qwen3_xml \
 
     # weather in LA

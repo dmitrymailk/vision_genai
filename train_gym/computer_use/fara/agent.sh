@@ -1,0 +1,2 @@
+# fara-cli --task "how many pages does wikipedia have" --endpoint_config azure_foundry_config.json
+fara-cli --task "what is the most exspensive GPU in https://www.dns-shop.ru/" --endpoint_config azure_foundry_config.json

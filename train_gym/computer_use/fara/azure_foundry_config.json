@@ -1,0 +1,5 @@
+{
+    "model": "microsoft/Fara-7B",
+    "base_url": "http://192.168.120.210:1337/v1",
+    "api_key": "<YOUR API KEY>"
+}
