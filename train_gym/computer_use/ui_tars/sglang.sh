@@ -12,7 +12,7 @@ docker run --rm \
     --mm-attention-backend sdpa \
     --served-model-name gpt-4o \
     --tool-call-parser qwen25 \
-    --context-length 32000 \
+    --context-length 48000 \
     --mem-fraction-static 0.6 \
 
 

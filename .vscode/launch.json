@@ -257,5 +257,24 @@
                 "CUDA_VISIBLE_DEVICES": "0"
             }
         },
+        {
+            "name": "train_gym/computer_use/os_world/OSWorld/run_multienv_qwen3vl_debug.py",
+            // "name": "train_gym/computer_use/os_world/OSWorld/run_multienv_qwen3vl.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "run_multienv_qwen3vl_debug.py",
+            "args": [
+                "--provider_name=docker",
+                "--model=gpt-4o",
+                "--test_all_meta_path=evaluation_examples/test_nochrome.json",
+                "--result_dir=result/debug"
+            ],
+            "env": {
+                "OPENAI_API_KEY": "changeme",
+                "OPENAI_BASE_URL": "http://0.0.0.0:1234/v1",
+            },
+            "cwd": "/home/dimweb/vision_genai/train_gym/computer_use/os_world/OSWorld",
+            "justMyCode": false,
+        },
     ],
 }
