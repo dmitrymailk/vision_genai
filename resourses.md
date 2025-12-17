@@ -456,6 +456,7 @@
 - [Salesforce AI Research's open diffusion language model](https://github.com/SalesforceAIResearch/CoDA)
 - [RND1: Scaling Diffusion Language Models](https://github.com/RadicalNumerics/RND1)
 - [vLLM implementation for Diffusion LLMs, D2F is integrated as the core inference strategy, while also support training-free strategies like Fast-dLLM.](https://github.com/zhijie-group/d2f_vllm)
+- [Jacobi Forcing: Fast and Accurate Diffusion-style Decoding](https://github.com/hao-ai-lab/JacobiForcing)
 
 ### Unified Generation (Text, Image)
 - [Janus-Series: Unified Multimodal Understanding and Generation Models](https://github.com/deepseek-ai/Janus)
